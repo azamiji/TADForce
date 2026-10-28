@@ -9,7 +9,7 @@ authors:
 version: 0.1.0
 date-released: 2026-10-28
 license: Apache-2.0
-repository-code: "https://github.com/OWNER/TADForce"
+repository-code: "https://github.com/azamiji/TADForce"
 keywords:
   - salesforce
   - architecture

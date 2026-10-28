@@ -8,8 +8,8 @@
 
 [![npm](https://img.shields.io/npm/v/tadforce?color=7B3FE4&label=npm&logo=npm)](https://www.npmjs.com/package/tadforce)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-1E88FF)](LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/OWNER/TADForce?style=flat&color=FFD54F&logo=github)](https://github.com/OWNER/TADForce/stargazers)
-[![CI](https://img.shields.io/github/actions/workflow/status/OWNER/TADForce/ci.yml?label=tests&logo=githubactions&logoColor=white)](https://github.com/OWNER/TADForce/actions)
+[![GitHub stars](https://img.shields.io/github/stars/azamiji/TADForce?style=flat&color=FFD54F&logo=github)](https://github.com/azamiji/TADForce/stargazers)
+[![CI](https://img.shields.io/github/actions/workflow/status/azamiji/TADForce/ci.yml?label=tests&logo=githubactions&logoColor=white)](https://github.com/azamiji/TADForce/actions)
 ![Node](https://img.shields.io/badge/node-%E2%89%A520-339933?logo=nodedotjs&logoColor=white)
 ![Salesforce CLI](https://img.shields.io/badge/sf%20CLI-v2-00A1E0)
 
@@ -20,7 +20,7 @@
 [![Copilot](https://img.shields.io/badge/GitHub%20Copilot-skill-6E40C9)](#-quick-start)
 [![Read-only](https://img.shields.io/badge/org%20access-read--only-16A34A)](#-read-only-by-design)
 
-[**Live demo**](https://OWNER.github.io/TADForce/) · [Quick start](#-quick-start) · [How it works](#-what-happens-when-you-run-tadforce) · [The document model](#%EF%B8%8F-the-document-model) · [Français](README.fr.md)
+[**Live demo**](https://azamiji.github.io/TADForce/) · [Quick start](#-quick-start) · [How it works](#-what-happens-when-you-run-tadforce) · [The document model](#%EF%B8%8F-the-document-model) · [Français](README.fr.md)
 
 </div>
 
@@ -64,7 +64,7 @@ Tad checks the prerequisites, asks you to log in to the org, retrieves every met
 <tr valign="top"><td>
 
 ```text
-/plugin marketplace add OWNER/TADForce
+/plugin marketplace add azamiji/TADForce
 /plugin install tadforce@tadforce
 /tadforce
 ```

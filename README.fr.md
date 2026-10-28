@@ -6,7 +6,7 @@
 
 **Une commande. Une org. Un document d'architecture technique fondé sur des preuves, reproductible, relu dans le navigateur.**
 
-[English](README.md) · [**Démo en ligne**](https://OWNER.github.io/TADForce/)
+[English](README.md) · [**Démo en ligne**](https://azamiji.github.io/TADForce/)
 
 </div>
 
@@ -45,7 +45,7 @@ Votre client commente ensuite directement dans le HTML. `/tadforce-review` intè
 
 | Chemin | Commandes |
 |---|---|
-| Plugin Claude Code | `/plugin marketplace add OWNER/TADForce` puis `/plugin install tadforce@tadforce` |
+| Plugin Claude Code | `/plugin marketplace add azamiji/TADForce` puis `/plugin install tadforce@tadforce` |
 | Tout agent (Agent Skills) | `npx tadforce init` installe les skills dans `.claude/`, `.agents/`, `.cursor/`, `.codex/`… |
 | Déterministe / CI | `npx tadforce prepare --org prod`, puis `npx tadforce build --pdf --docx`, puis `npx tadforce validate` |
 

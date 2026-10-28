@@ -45,13 +45,13 @@
   ],
   "author": "Jihad AZAMI HASSANI (Salesforce Technical Architect)",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/OWNER/TADForce#readme",
+  "homepage": "https://github.com/azamiji/TADForce#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OWNER/TADForce.git"
+    "url": "git+https://github.com/azamiji/TADForce.git"
   },
   "bugs": {
-    "url": "https://github.com/OWNER/TADForce/issues"
+    "url": "https://github.com/azamiji/TADForce/issues"
   },
   "dependencies": {
     "fast-xml-parser": "^4.5.0",
