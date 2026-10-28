@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OmniScript xmlns="http://soap.sforce.com/2006/04/metadata">
+    <elementTypeComponentMapping>{}</elementTypeComponentMapping>
+    <isActive>true</isActive>
+    <isIntegrationProcedure>false</isIntegrationProcedure>
+    <language>English</language>
+    <name>Loan intake</name>
+    <omniProcessElements>
+        <name>Positions</name>
+        <propertySetConfig>{&quot;lwcName&quot;:&quot;positionTile&quot;}</propertySetConfig>
+        <type>Custom Lightning Web Component</type>
+    </omniProcessElements>
+    <omniProcessType>OmniScript</omniProcessType>
+    <subType>LoanIntake</subType>
+    <type>NWB</type>
+    <uniqueName>NWB_LoanIntake_English_1</uniqueName>
+    <versionNumber>1.0</versionNumber>
+</OmniScript>

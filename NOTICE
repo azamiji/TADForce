@@ -1,0 +1,11 @@
+TADForce
+Copyright 2026 Jihad AZAMI HASSANI
+
+This product includes software developed by third parties, shipped unmodified in templates/vendor/:
+- Mermaid 11.4.1 (MIT License) — https://mermaid.js.org
+- html2canvas 1.4.1 (MIT License) — https://html2canvas.hertzen.com
+- html-docx-js 0.3.1 (MIT License) — https://github.com/evidenceprime/html-docx-js
+Their license texts are in templates/vendor/LICENSE-*.txt.
+
+Salesforce and related product names are trademarks of Salesforce, Inc. TADForce is an independent
+community project, not affiliated with, sponsored or endorsed by Salesforce.

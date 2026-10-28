@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OmniIntegrationProcedure xmlns="http://soap.sforce.com/2006/04/metadata">
+    <isActive>true</isActive>
+    <isIntegrationProcedure>true</isIntegrationProcedure>
+    <language>English</language>
+    <name>Get positions</name>
+    <omniProcessType>Integration Procedure</omniProcessType>
+    <subType>GetPositions</subType>
+    <type>NWB</type>
+    <uniqueName>NWB_GetPositions_English_1</uniqueName>
+    <versionNumber>1.0</versionNumber>
+</OmniIntegrationProcedure>

@@ -1,0 +1,7 @@
+<template>
+    <lightning-card title="Customer 360">
+        <template lwc:if={positions.data}>
+            <template for:each={positions.data} for:item="p"><c-position-tile key={p.product} position={p}></c-position-tile></template>
+        </template>
+    </lightning-card>
+</template>

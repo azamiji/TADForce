@@ -1,0 +1,13 @@
+{
+  "name": "tadforce",
+  "version": "0.1.0",
+  "description": "Point it at a Salesforce org, get the Technical Architecture Document a senior architect would write: evidence-based, reproducible, reviewable in the browser. All Salesforce products and industries.",
+  "author": {
+    "name": "Jihad AZAMI HASSANI",
+    "url": "https://github.com/OWNER"
+  },
+  "homepage": "https://github.com/OWNER/TADForce",
+  "repository": "https://github.com/OWNER/TADForce",
+  "license": "Apache-2.0",
+  "keywords": ["salesforce", "architecture", "documentation", "technical-architecture-document", "sfdx", "well-architected"]
+}

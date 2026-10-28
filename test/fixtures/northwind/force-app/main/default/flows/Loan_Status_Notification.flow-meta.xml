@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>62.0</apiVersion>
+    <recordCreates>
+        <name>Create_Task</name>
+        <label>Create follow-up task</label>
+        <object>Task</object>
+    </recordCreates>
+    <label>Loan — status notification</label>
+    <processType>AutoLaunchedFlow</processType>
+    <start>
+        <object>LoanStatusChange__e</object>
+        <triggerType>PlatformEvent</triggerType>
+    </start>
+    <status>Active</status>
+</Flow>

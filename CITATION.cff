@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use TADForce in your work, please cite it as below."
+title: "TADForce: evidence-based Technical Architecture Documents for Salesforce orgs"
+type: software
+authors:
+  - family-names: "AZAMI HASSANI"
+    given-names: "Jihad"
+    affiliation: "Salesforce Architect Community Group, Casablanca"
+version: 0.1.0
+date-released: 2026-10-28
+license: Apache-2.0
+repository-code: "https://github.com/OWNER/TADForce"
+keywords:
+  - salesforce
+  - architecture
+  - documentation
+  - agent-skills

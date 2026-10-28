@@ -1,0 +1,10 @@
+node_modules/
+.cache/
+.snapshot/
+*.log
+.DS_Store
+Thumbs.db
+# local, plain-text forbidden terms for the genericity guard — never committed
+.forbidden-local.txt
+# backups written by the build when an HTML held unsaved comments
+*_comments_*.html

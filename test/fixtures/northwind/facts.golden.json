@@ -1,0 +1,2144 @@
+{
+  "apex": {
+    "classes": [
+      {
+        "apiVersion": "62.0",
+        "hardcodedIds": 0,
+        "kinds": [
+          "auraEnabled",
+          "callout"
+        ],
+        "lines": 12,
+        "name": "CoreBankingClient",
+        "namedCredentials": [
+          "NWB_CoreBanking"
+        ],
+        "restUrl": null,
+        "securityEnforced": 0,
+        "sharing": "with",
+        "soqlInLoops": 0,
+        "stripInaccessible": 0,
+        "test": false,
+        "userMode": 0
+      },
+      {
+        "apiVersion": "62.0",
+        "hardcodedIds": 0,
+        "kinds": [
+          "auraEnabled"
+        ],
+        "lines": 8,
+        "name": "Customer360Controller",
+        "namedCredentials": [],
+        "restUrl": null,
+        "securityEnforced": 0,
+        "sharing": "with",
+        "soqlInLoops": 0,
+        "stripInaccessible": 0,
+        "test": false,
+        "userMode": 1
+      },
+      {
+        "apiVersion": "62.0",
+        "hardcodedIds": 0,
+        "kinds": [
+          "batch",
+          "schedulable"
+        ],
+        "lines": 12,
+        "name": "CustomerSyncBatch",
+        "namedCredentials": [],
+        "restUrl": null,
+        "securityEnforced": 0,
+        "sharing": "without",
+        "soqlInLoops": 0,
+        "stripInaccessible": 0,
+        "test": false,
+        "userMode": 0
+      },
+      {
+        "apiVersion": "62.0",
+        "hardcodedIds": 0,
+        "kinds": [],
+        "lines": 8,
+        "name": "CustomerSyncBatchTest",
+        "namedCredentials": [],
+        "restUrl": null,
+        "securityEnforced": 0,
+        "sharing": "n/a",
+        "soqlInLoops": 0,
+        "stripInaccessible": 0,
+        "test": true,
+        "userMode": 0
+      },
+      {
+        "apiVersion": "62.0",
+        "hardcodedIds": 0,
+        "kinds": [],
+        "lines": 3,
+        "name": "DemoDataLoader",
+        "namedCredentials": [],
+        "restUrl": null,
+        "securityEnforced": 0,
+        "sharing": "with",
+        "soqlInLoops": 0,
+        "stripInaccessible": 0,
+        "test": false,
+        "userMode": 0
+      },
+      {
+        "apiVersion": "62.0",
+        "hardcodedIds": 0,
+        "kinds": [
+          "callout",
+          "queueable"
+        ],
+        "lines": 12,
+        "name": "DocumentArchiveQueueable",
+        "namedCredentials": [
+          "NWB_DocumentStore"
+        ],
+        "restUrl": null,
+        "securityEnforced": 0,
+        "sharing": "with",
+        "soqlInLoops": 0,
+        "stripInaccessible": 0,
+        "test": false,
+        "userMode": 0
+      },
+      {
+        "apiVersion": "62.0",
+        "hardcodedIds": 0,
+        "kinds": [
+          "global",
+          "rest"
+        ],
+        "lines": 10,
+        "name": "LeadApiResource",
+        "namedCredentials": [],
+        "restUrl": "/leads/v1/*",
+        "securityEnforced": 0,
+        "sharing": "with",
+        "soqlInLoops": 0,
+        "stripInaccessible": 0,
+        "test": false,
+        "userMode": 0
+      },
+      {
+        "apiVersion": "62.0",
+        "hardcodedIds": 0,
+        "kinds": [],
+        "lines": 6,
+        "name": "LeadApiResourceTest",
+        "namedCredentials": [],
+        "restUrl": null,
+        "securityEnforced": 0,
+        "sharing": "n/a",
+        "soqlInLoops": 0,
+        "stripInaccessible": 0,
+        "test": true,
+        "userMode": 0
+      },
+      {
+        "apiVersion": "62.0",
+        "hardcodedIds": 0,
+        "kinds": [],
+        "lines": 8,
+        "name": "LeadTriggerHandler",
+        "namedCredentials": [],
+        "restUrl": null,
+        "securityEnforced": 0,
+        "sharing": "with",
+        "soqlInLoops": 0,
+        "stripInaccessible": 0,
+        "test": false,
+        "userMode": 0
+      },
+      {
+        "apiVersion": "45.0",
+        "hardcodedIds": 0,
+        "kinds": [],
+        "lines": 5,
+        "name": "LegacyRateHelper",
+        "namedCredentials": [],
+        "restUrl": null,
+        "securityEnforced": 0,
+        "sharing": "none",
+        "soqlInLoops": 0,
+        "stripInaccessible": 0,
+        "test": false,
+        "userMode": 0
+      },
+      {
+        "apiVersion": "62.0",
+        "hardcodedIds": 0,
+        "kinds": [],
+        "lines": 6,
+        "name": "LegacyRateHelperTest",
+        "namedCredentials": [],
+        "restUrl": null,
+        "securityEnforced": 0,
+        "sharing": "n/a",
+        "soqlInLoops": 0,
+        "stripInaccessible": 0,
+        "test": true,
+        "userMode": 0
+      },
+      {
+        "apiVersion": "62.0",
+        "hardcodedIds": 0,
+        "kinds": [],
+        "lines": 8,
+        "name": "LoanApplicationSelector",
+        "namedCredentials": [],
+        "restUrl": null,
+        "securityEnforced": 0,
+        "sharing": "inherited",
+        "soqlInLoops": 0,
+        "stripInaccessible": 0,
+        "test": false,
+        "userMode": 1
+      },
+      {
+        "apiVersion": "62.0",
+        "hardcodedIds": 0,
+        "kinds": [],
+        "lines": 20,
+        "name": "LoanApplicationTriggerHandler",
+        "namedCredentials": [],
+        "restUrl": null,
+        "securityEnforced": 0,
+        "sharing": "with",
+        "soqlInLoops": 0,
+        "stripInaccessible": 0,
+        "test": false,
+        "userMode": 0
+      },
+      {
+        "apiVersion": "62.0",
+        "hardcodedIds": 0,
+        "kinds": [],
+        "lines": 12,
+        "name": "LoanApplicationTriggerHandlerTest",
+        "namedCredentials": [],
+        "restUrl": null,
+        "securityEnforced": 0,
+        "sharing": "n/a",
+        "soqlInLoops": 0,
+        "stripInaccessible": 0,
+        "test": true,
+        "userMode": 0
+      },
+      {
+        "apiVersion": "62.0",
+        "hardcodedIds": 0,
+        "kinds": [],
+        "lines": 13,
+        "name": "LoanScoringService",
+        "namedCredentials": [],
+        "restUrl": null,
+        "securityEnforced": 0,
+        "sharing": "with",
+        "soqlInLoops": 0,
+        "stripInaccessible": 0,
+        "test": false,
+        "userMode": 0
+      },
+      {
+        "apiVersion": "62.0",
+        "hardcodedIds": 0,
+        "kinds": [],
+        "lines": 10,
+        "name": "LoanScoringServiceTest",
+        "namedCredentials": [],
+        "restUrl": null,
+        "securityEnforced": 0,
+        "sharing": "n/a",
+        "soqlInLoops": 0,
+        "stripInaccessible": 0,
+        "test": true,
+        "userMode": 0
+      },
+      {
+        "apiVersion": "62.0",
+        "hardcodedIds": 0,
+        "kinds": [
+          "callout",
+          "future",
+          "invocable"
+        ],
+        "lines": 13,
+        "name": "SmsNotificationService",
+        "namedCredentials": [
+          "NWB_SmsGateway"
+        ],
+        "restUrl": null,
+        "securityEnforced": 0,
+        "sharing": "with",
+        "soqlInLoops": 0,
+        "stripInaccessible": 0,
+        "test": false,
+        "userMode": 0
+      },
+      {
+        "apiVersion": "62.0",
+        "hardcodedIds": 0,
+        "kinds": [
+          "global",
+          "registrationHandler"
+        ],
+        "lines": 7,
+        "name": "SsoRegistrationHandler",
+        "namedCredentials": [],
+        "restUrl": null,
+        "securityEnforced": 0,
+        "sharing": "none",
+        "soqlInLoops": 0,
+        "stripInaccessible": 0,
+        "test": false,
+        "userMode": 0
+      }
+    ],
+    "triggers": [
+      {
+        "active": true,
+        "apiVersion": "62.0",
+        "events": [
+          "before insert"
+        ],
+        "lines": 3,
+        "name": "LeadTrigger",
+        "object": "Lead"
+      },
+      {
+        "active": true,
+        "apiVersion": "62.0",
+        "events": [
+          "before insert",
+          "before update",
+          "after update"
+        ],
+        "lines": 3,
+        "name": "LoanApplicationTrigger",
+        "object": "LoanApplication__c"
+      }
+    ]
+  },
+  "automation": {
+    "flows": [
+      {
+        "active": true,
+        "apexActions": [],
+        "apiVersion": "62.0",
+        "description": null,
+        "label": "Lead — assign branch",
+        "name": "Lead_Assign_Branch",
+        "object": "Lead",
+        "processType": "AutoLaunchedFlow",
+        "recordOps": {
+          "create": 0,
+          "delete": 0,
+          "lookup": 0,
+          "update": 1
+        },
+        "recordTriggerType": "Create",
+        "scheduleFrequency": null,
+        "screens": 0,
+        "status": "Active",
+        "subflows": [],
+        "triggerType": "RecordAfterSave"
+      },
+      {
+        "active": true,
+        "apexActions": [
+          "SmsNotificationService"
+        ],
+        "apiVersion": "62.0",
+        "description": null,
+        "label": "Loan — document reminder",
+        "name": "Loan_Document_Reminder",
+        "object": "LoanApplication__c",
+        "processType": "AutoLaunchedFlow",
+        "recordOps": {
+          "create": 0,
+          "delete": 0,
+          "lookup": 0,
+          "update": 0
+        },
+        "recordTriggerType": null,
+        "scheduleFrequency": "Daily",
+        "screens": 0,
+        "status": "Active",
+        "subflows": [],
+        "triggerType": "Scheduled"
+      },
+      {
+        "active": true,
+        "apexActions": [],
+        "apiVersion": "62.0",
+        "description": null,
+        "label": "Loan — status notification",
+        "name": "Loan_Status_Notification",
+        "object": "LoanStatusChange__e",
+        "processType": "AutoLaunchedFlow",
+        "recordOps": {
+          "create": 1,
+          "delete": 0,
+          "lookup": 0,
+          "update": 0
+        },
+        "recordTriggerType": null,
+        "scheduleFrequency": null,
+        "screens": 0,
+        "status": "Active",
+        "subflows": [],
+        "triggerType": "PlatformEvent"
+      },
+      {
+        "active": false,
+        "apexActions": [],
+        "apiVersion": "62.0",
+        "description": null,
+        "label": "Old branch survey",
+        "name": "Old_Branch_Survey",
+        "object": null,
+        "processType": "Flow",
+        "recordOps": {
+          "create": 0,
+          "delete": 0,
+          "lookup": 0,
+          "update": 0
+        },
+        "recordTriggerType": null,
+        "scheduleFrequency": null,
+        "screens": 1,
+        "status": "Draft",
+        "subflows": [],
+        "triggerType": null
+      }
+    ],
+    "omnistudio": {
+      "dataMappers": [
+        {
+          "active": true,
+          "inputType": "JSON",
+          "label": "NWB_ExtractLoan",
+          "language": null,
+          "name": "NWB_ExtractLoan_1",
+          "outputType": "JSON",
+          "subType": null,
+          "type": "Extract",
+          "version": "1"
+        }
+      ],
+      "flexCards": [],
+      "integrationProcedures": [
+        {
+          "active": true,
+          "label": "Get positions",
+          "language": "English",
+          "name": "NWB_GetPositions_English_1",
+          "subType": "GetPositions",
+          "type": "NWB",
+          "version": "1.0"
+        }
+      ],
+      "omniScripts": [
+        {
+          "active": true,
+          "label": "Loan intake",
+          "language": "English",
+          "name": "NWB_LoanIntake_English_1",
+          "subType": "LoanIntake",
+          "type": "NWB",
+          "version": "1.0"
+        }
+      ]
+    },
+    "rules": {
+      "approvalProcesses": 0,
+      "assignmentRules": 0,
+      "autoResponseRules": 0,
+      "duplicateRules": 0,
+      "escalationRules": 0,
+      "matchingRules": 0,
+      "processBuilders": 0,
+      "workflowAlerts": 0,
+      "workflowFieldUpdates": 0,
+      "workflowRules": 0
+    }
+  },
+  "counts": {
+    "apex": {
+      "auraEnabled": 2,
+      "batch": 1,
+      "callout": 3,
+      "classes": 13,
+      "future": 1,
+      "inheritedSharing": 1,
+      "invocable": 1,
+      "lines": 131,
+      "queueable": 1,
+      "rest": 1,
+      "schedulable": 1,
+      "soap": 0,
+      "tests": 5,
+      "triggers": 2,
+      "withSharing": 9,
+      "withoutSharing": 1
+    },
+    "cmdt": {
+      "records": 5,
+      "types": 2
+    },
+    "exclusions": {
+      "applied": 0,
+      "candidates": 4
+    },
+    "fields": {
+      "custom": 30,
+      "externalIds": 4,
+      "formulas": 0,
+      "relations": 12
+    },
+    "flows": {
+      "active": 3,
+      "autolaunched": 0,
+      "platformEvent": 1,
+      "recordTriggered": 1,
+      "scheduled": 1,
+      "screen": 0,
+      "total": 4
+    },
+    "integration": {
+      "authProviders": 1,
+      "callCenters": 0,
+      "connectedApps": 1,
+      "corsOrigins": 0,
+      "cspTrustedSites": 1,
+      "externalCredentials": 2,
+      "externalServices": 0,
+      "namedCredentials": 3,
+      "remoteSites": 1,
+      "restResources": 1,
+      "systems": 0
+    },
+    "misc": {
+      "dashboards": 1,
+      "emailTemplates": 1,
+      "labels": 4,
+      "namespaces": 1,
+      "reportTypes": 0,
+      "reports": 2,
+      "staticResources": 1
+    },
+    "objects": {
+      "bigObjects": 0,
+      "cmdtTypes": 2,
+      "custom": 4,
+      "customSettings": 0,
+      "externalObjects": 0,
+      "managed": 0,
+      "platformEvents": 1,
+      "standard": 3
+    },
+    "omni": {
+      "cards": 0,
+      "cardsActive": 0,
+      "dataMappers": 1,
+      "dataMappersActive": 1,
+      "ips": 1,
+      "ipsActive": 1,
+      "scripts": 1,
+      "scriptsActive": 1
+    },
+    "recordTypes": 4,
+    "security": {
+      "customPermissions": 0,
+      "groups": 1,
+      "permissionSetGroups": 3,
+      "permissionSets": 5,
+      "profiles": 2,
+      "queues": 2,
+      "roles": 10,
+      "sharingRules": 1
+    },
+    "ui": {
+      "apps": 2,
+      "aura": 0,
+      "consoleApps": 2,
+      "flexipages": 3,
+      "lwc": 5,
+      "messageChannels": 1,
+      "quickActions": 1,
+      "recordPages": 2,
+      "tabs": 4,
+      "vfPages": 0
+    },
+    "validationRules": {
+      "active": 2,
+      "total": 2
+    }
+  },
+  "data": {
+    "cdc": [],
+    "cmdtTypes": [
+      {
+        "names": [
+          "Core_Banking",
+          "Sms"
+        ],
+        "records": 2,
+        "type": "IntegrationSetting__mdt"
+      },
+      {
+        "names": [
+          "Existing_Customer",
+          "High_Income",
+          "Young_Professional"
+        ],
+        "records": 3,
+        "type": "ScoringRule__mdt"
+      }
+    ],
+    "globalValueSets": [],
+    "objects": [
+      {
+        "businessProcesses": 0,
+        "customFieldNames": [
+          "Advisor__c",
+          "Branch__c",
+          "NWB_CustomerNumber__c",
+          "Segment__c"
+        ],
+        "customFields": 4,
+        "description": null,
+        "externalIds": [
+          "NWB_CustomerNumber__c"
+        ],
+        "externalSharingModel": "Private",
+        "fieldSets": 0,
+        "fieldsTotal": 4,
+        "formulaFields": 0,
+        "historyTracking": true,
+        "kind": "standard",
+        "label": null,
+        "name": "Account",
+        "namespace": null,
+        "recordTypes": [
+          {
+            "active": true,
+            "label": "Business customer",
+            "name": "Business_Customer"
+          },
+          {
+            "active": true,
+            "label": "Retail customer",
+            "name": "Retail_Customer"
+          }
+        ],
+        "relations": [
+          {
+            "field": "Advisor__c",
+            "relationshipName": "AdvisedCustomers",
+            "to": [
+              "User"
+            ],
+            "type": "Lookup"
+          },
+          {
+            "field": "Branch__c",
+            "relationshipName": "Customers",
+            "to": [
+              "Branch__c"
+            ],
+            "type": "Lookup"
+          }
+        ],
+        "sharingModel": "Private",
+        "validationRules": []
+      },
+      {
+        "businessProcesses": 0,
+        "customFieldNames": [
+          "BranchCode__c",
+          "Manager__c",
+          "Region__c"
+        ],
+        "customFields": 3,
+        "description": "Branch of the bank network: code, region and manager. Owner of customers and leads by default.",
+        "externalIds": [
+          "BranchCode__c"
+        ],
+        "externalSharingModel": "Private",
+        "fieldSets": 0,
+        "fieldsTotal": 3,
+        "formulaFields": 0,
+        "historyTracking": true,
+        "kind": "custom",
+        "label": "Branch",
+        "name": "Branch__c",
+        "namespace": null,
+        "recordTypes": [],
+        "relations": [
+          {
+            "field": "Manager__c",
+            "relationshipName": "ManagedBranches",
+            "to": [
+              "User"
+            ],
+            "type": "Lookup"
+          }
+        ],
+        "sharingModel": "Read",
+        "validationRules": []
+      },
+      {
+        "businessProcesses": 0,
+        "customFieldNames": [
+          "Customer__c",
+          "Lead__c",
+          "Outcome__c"
+        ],
+        "customFields": 3,
+        "description": "Outbound contact attempt by an advisor or an agent, with its outcome.",
+        "externalIds": [],
+        "externalSharingModel": "Private",
+        "fieldSets": 0,
+        "fieldsTotal": 3,
+        "formulaFields": 0,
+        "historyTracking": true,
+        "kind": "custom",
+        "label": "Contact attempt",
+        "name": "ContactAttempt__c",
+        "namespace": null,
+        "recordTypes": [],
+        "relations": [
+          {
+            "field": "Customer__c",
+            "relationshipName": "ContactAttempts",
+            "to": [
+              "Account"
+            ],
+            "type": "Lookup"
+          },
+          {
+            "field": "Lead__c",
+            "relationshipName": "ContactAttempts",
+            "to": [
+              "Lead"
+            ],
+            "type": "Lookup"
+          }
+        ],
+        "sharingModel": "Private",
+        "validationRules": []
+      },
+      {
+        "businessProcesses": 0,
+        "customFieldNames": [
+          "TimeoutMs__c"
+        ],
+        "customFields": 1,
+        "description": null,
+        "externalIds": [],
+        "externalSharingModel": "Private",
+        "fieldSets": 0,
+        "fieldsTotal": 1,
+        "formulaFields": 0,
+        "historyTracking": true,
+        "kind": "customMetadataType",
+        "label": "Integration setting",
+        "name": "IntegrationSetting__mdt",
+        "namespace": null,
+        "recordTypes": [],
+        "relations": [],
+        "sharingModel": "Private",
+        "validationRules": []
+      },
+      {
+        "businessProcesses": 0,
+        "customFieldNames": [
+          "Branch__c",
+          "Channel__c",
+          "ExistingCustomer__c",
+          "Score__c"
+        ],
+        "customFields": 4,
+        "description": null,
+        "externalIds": [],
+        "externalSharingModel": "Private",
+        "fieldSets": 0,
+        "fieldsTotal": 4,
+        "formulaFields": 0,
+        "historyTracking": true,
+        "kind": "standard",
+        "label": null,
+        "name": "Lead",
+        "namespace": null,
+        "recordTypes": [],
+        "relations": [
+          {
+            "field": "Branch__c",
+            "relationshipName": "Leads",
+            "to": [
+              "Branch__c"
+            ],
+            "type": "Lookup"
+          },
+          {
+            "field": "ExistingCustomer__c",
+            "relationshipName": "Leads",
+            "to": [
+              "Account"
+            ],
+            "type": "Lookup"
+          }
+        ],
+        "sharingModel": "Private",
+        "validationRules": [
+          {
+            "active": true,
+            "name": "Lead_Locked_When_Converted"
+          }
+        ]
+      },
+      {
+        "businessProcesses": 0,
+        "customFieldNames": [
+          "Amount__c",
+          "Branch__c",
+          "CoreBankingId__c",
+          "Customer__c",
+          "FinancialAccount__c",
+          "Score__c",
+          "Status__c"
+        ],
+        "customFields": 7,
+        "description": "Loan application from intake to decision: customer, amount, score and status.",
+        "externalIds": [
+          "CoreBankingId__c"
+        ],
+        "externalSharingModel": "Private",
+        "fieldSets": 0,
+        "fieldsTotal": 7,
+        "formulaFields": 0,
+        "historyTracking": true,
+        "kind": "custom",
+        "label": "Loan application",
+        "name": "LoanApplication__c",
+        "namespace": null,
+        "recordTypes": [
+          {
+            "active": true,
+            "label": "Consumer loan",
+            "name": "Consumer_Loan"
+          },
+          {
+            "active": true,
+            "label": "Mortgage",
+            "name": "Mortgage"
+          }
+        ],
+        "relations": [
+          {
+            "field": "Branch__c",
+            "relationshipName": "LoanApplications",
+            "to": [
+              "Branch__c"
+            ],
+            "type": "Lookup"
+          },
+          {
+            "field": "Customer__c",
+            "relationshipName": "LoanApplications",
+            "to": [
+              "Account"
+            ],
+            "type": "Lookup"
+          },
+          {
+            "field": "FinancialAccount__c",
+            "relationshipName": "LoanApplications",
+            "to": [
+              "FinServ__FinancialAccount__c"
+            ],
+            "type": "Lookup"
+          }
+        ],
+        "sharingModel": "Private",
+        "validationRules": [
+          {
+            "active": true,
+            "name": "Amount_Must_Be_Positive"
+          }
+        ]
+      },
+      {
+        "businessProcesses": 0,
+        "customFieldNames": [
+          "ArchiveId__c",
+          "DocumentType__c",
+          "LoanApplication__c"
+        ],
+        "customFields": 3,
+        "description": null,
+        "externalIds": [
+          "ArchiveId__c"
+        ],
+        "externalSharingModel": "ControlledByParent",
+        "fieldSets": 0,
+        "fieldsTotal": 3,
+        "formulaFields": 0,
+        "historyTracking": true,
+        "kind": "custom",
+        "label": "Loan document",
+        "name": "LoanDocument__c",
+        "namespace": null,
+        "recordTypes": [],
+        "relations": [
+          {
+            "field": "LoanApplication__c",
+            "relationshipName": "Documents",
+            "to": [
+              "LoanApplication__c"
+            ],
+            "type": "MasterDetail"
+          }
+        ],
+        "sharingModel": "ControlledByParent",
+        "validationRules": []
+      },
+      {
+        "businessProcesses": 0,
+        "customFieldNames": [
+          "LoanApplicationId__c",
+          "NewStatus__c"
+        ],
+        "customFields": 2,
+        "description": null,
+        "externalIds": [],
+        "externalSharingModel": "Private",
+        "fieldSets": 0,
+        "fieldsTotal": 2,
+        "formulaFields": 0,
+        "historyTracking": true,
+        "kind": "platformEvent",
+        "label": "Loan status change",
+        "name": "LoanStatusChange__e",
+        "namespace": null,
+        "recordTypes": [],
+        "relations": [],
+        "sharingModel": "Private",
+        "validationRules": []
+      },
+      {
+        "businessProcesses": 0,
+        "customFieldNames": [
+          "LoanApplication__c"
+        ],
+        "customFields": 1,
+        "description": null,
+        "externalIds": [],
+        "externalSharingModel": "Private",
+        "fieldSets": 0,
+        "fieldsTotal": 1,
+        "formulaFields": 0,
+        "historyTracking": true,
+        "kind": "standard",
+        "label": null,
+        "name": "Opportunity",
+        "namespace": null,
+        "recordTypes": [],
+        "relations": [
+          {
+            "field": "LoanApplication__c",
+            "relationshipName": "Opportunities",
+            "to": [
+              "LoanApplication__c"
+            ],
+            "type": "Lookup"
+          }
+        ],
+        "sharingModel": "Private",
+        "validationRules": []
+      },
+      {
+        "businessProcesses": 0,
+        "customFieldNames": [
+          "Criterion__c",
+          "Weight__c"
+        ],
+        "customFields": 2,
+        "description": null,
+        "externalIds": [],
+        "externalSharingModel": "Private",
+        "fieldSets": 0,
+        "fieldsTotal": 2,
+        "formulaFields": 0,
+        "historyTracking": true,
+        "kind": "customMetadataType",
+        "label": "Scoring rule",
+        "name": "ScoringRule__mdt",
+        "namespace": null,
+        "recordTypes": [],
+        "relations": [],
+        "sharingModel": "Private",
+        "validationRules": []
+      }
+    ]
+  },
+  "exclusions": {
+    "applied": [],
+    "candidates": [
+      {
+        "name": "DemoDataLoader",
+        "reasons": [
+          "name suggests demo",
+          "not referenced by any other component in the snapshot"
+        ],
+        "type": "apex"
+      },
+      {
+        "name": "LegacyRateHelper",
+        "reasons": [
+          "name suggests legacy",
+          "referenced only by test classes"
+        ],
+        "type": "apex"
+      },
+      {
+        "name": "Old_Branch_Survey",
+        "reasons": [
+          "name suggests old",
+          "flow status is Draft"
+        ],
+        "type": "flow"
+      },
+      {
+        "name": "demoCarousel",
+        "reasons": [
+          "name suggests demo",
+          "not placed on any page, app, tab, action, flow or OmniStudio component in the snapshot"
+        ],
+        "type": "lwc"
+      }
+    ]
+  },
+  "integration": {
+    "authProviders": [
+      {
+        "label": "Corporate identity provider",
+        "name": "NWB_Corporate_IdP",
+        "registrationHandler": "SsoRegistrationHandler",
+        "type": "OpenIdConnect"
+      }
+    ],
+    "callCenters": [],
+    "connectedApps": [
+      {
+        "canvas": false,
+        "label": "Mobile banking app",
+        "name": "NWB_Mobile_Banking",
+        "oauth": true,
+        "saml": false,
+        "scopes": [
+          "Api",
+          "RefreshToken"
+        ]
+      }
+    ],
+    "corsOrigins": [],
+    "cspTrustedSites": [
+      {
+        "active": true,
+        "context": "LEX",
+        "host": "tiles.geo-provider.example",
+        "name": "NWB_Map_Tiles"
+      }
+    ],
+    "externalCredentials": [
+      {
+        "label": "Core banking OAuth (client credentials)",
+        "name": "NWB_CoreBanking_OAuth",
+        "principals": 1,
+        "protocol": "Oauth"
+      },
+      {
+        "label": "SMS gateway API key",
+        "name": "NWB_SmsGateway_Key",
+        "principals": 0,
+        "protocol": "Custom"
+      }
+    ],
+    "externalDataSources": [],
+    "externalServices": [],
+    "namedCredentials": [
+      {
+        "externalCredential": "NWB_CoreBanking_OAuth",
+        "generateAuthorizationHeader": true,
+        "host": "api.corebanking.northwind-bank.example",
+        "label": "Core banking API",
+        "name": "NWB_CoreBanking",
+        "principalType": null,
+        "protocol": null,
+        "type": "SecuredEndpoint"
+      },
+      {
+        "externalCredential": null,
+        "generateAuthorizationHeader": false,
+        "host": "docs.northwind-bank.example",
+        "label": "Document store",
+        "name": "NWB_DocumentStore",
+        "principalType": "NamedUser",
+        "protocol": "NoAuthentication",
+        "type": "Legacy"
+      },
+      {
+        "externalCredential": "NWB_SmsGateway_Key",
+        "generateAuthorizationHeader": true,
+        "host": "sms.telco-partner.example",
+        "label": "SMS gateway",
+        "name": "NWB_SmsGateway",
+        "principalType": null,
+        "protocol": null,
+        "type": "SecuredEndpoint"
+      }
+    ],
+    "remoteSites": [
+      {
+        "active": true,
+        "host": "maps.geo-provider.example",
+        "insecure": false,
+        "name": "NWB_Maps"
+      }
+    ]
+  },
+  "inventory": [
+    "/leads/v1/*",
+    "Account",
+    "Account_Record_Page",
+    "Account.Advisor__c",
+    "Account.Branch__c",
+    "Account.New_Loan_Application",
+    "Account.NWB_CustomerNumber__c",
+    "Account.Segment__c",
+    "Advisor__c",
+    "All_Branch_Managers",
+    "Amount__c",
+    "Amount_Must_Be_Positive",
+    "Api",
+    "ApiEnabled",
+    "ArchiveId__c",
+    "Branch__c",
+    "Branch__c.BranchCode__c",
+    "Branch__c.Manager__c",
+    "Branch__c.Region__c",
+    "Branch_Home",
+    "BranchCode__c",
+    "Business_Customer",
+    "Channel__c",
+    "Consumer_Loan",
+    "Contact_Center_Leads",
+    "ContactAttempt__c",
+    "ContactAttempt__c.Customer__c",
+    "ContactAttempt__c.Lead__c",
+    "ContactAttempt__c.Outcome__c",
+    "Core_Banking",
+    "CoreBankingClient",
+    "CoreBankingId__c",
+    "Criterion__c",
+    "Customer__c",
+    "customer360",
+    "Customer360Controller",
+    "CustomerSyncBatch",
+    "CustomerSyncBatchTest",
+    "demoCarousel",
+    "DemoDataLoader",
+    "DocumentArchiveQueueable",
+    "DocumentType__c",
+    "Existing_Customer",
+    "ExistingCustomer__c",
+    "Extract",
+    "FinancialAccount__c",
+    "FinServ__FinancialAccount__c",
+    "Get positions",
+    "GetPositions",
+    "High_Income",
+    "IntegrationSetting__mdt",
+    "IntegrationSetting__mdt.TimeoutMs__c",
+    "Lead",
+    "Lead__c",
+    "Lead_Assign_Branch",
+    "Lead_Locked_When_Converted",
+    "Lead.Branch__c",
+    "Lead.Channel__c",
+    "Lead.ExistingCustomer__c",
+    "Lead.Score__c",
+    "LeadApiResource",
+    "LeadApiResourceTest",
+    "LeadTrigger",
+    "LeadTriggerHandler",
+    "LegacyRateHelper",
+    "LegacyRateHelperTest",
+    "Loan intake",
+    "Loan_Application_Record_Page",
+    "Loan_Approved",
+    "Loan_Document_Reminder",
+    "Loan_Pipeline",
+    "Loan_Reports",
+    "Loan_Review",
+    "Loan_Status_Notification",
+    "Loan_Submitted",
+    "Loan_Wizard",
+    "LoanApplication__c",
+    "LoanApplication__c.Amount__c",
+    "LoanApplication__c.Branch__c",
+    "LoanApplication__c.CoreBankingId__c",
+    "LoanApplication__c.Customer__c",
+    "LoanApplication__c.FinancialAccount__c",
+    "LoanApplication__c.Score__c",
+    "LoanApplication__c.Status__c",
+    "LoanApplicationId__c",
+    "LoanApplicationSelector",
+    "LoanApplicationTrigger",
+    "LoanApplicationTriggerHandler",
+    "LoanApplicationTriggerHandlerTest",
+    "LoanDocument__c",
+    "LoanDocument__c.ArchiveId__c",
+    "LoanDocument__c.DocumentType__c",
+    "LoanDocument__c.LoanApplication__c",
+    "LoanIntake",
+    "Loans_by_Branch",
+    "Loans_by_Status",
+    "LoanScoringService",
+    "LoanScoringServiceTest",
+    "LoanSelected",
+    "LoanStatusChange__e",
+    "LoanStatusChange__e.LoanApplicationId__c",
+    "LoanStatusChange__e.NewStatus__c",
+    "loanTimeline",
+    "loanWizard",
+    "Manager__c",
+    "Mortgage",
+    "NewStatus__c",
+    "NWB",
+    "NWB Integration",
+    "NWB Minimum Access",
+    "NWB_Advisor",
+    "NWB_Advisor_North",
+    "NWB_Advisor_South",
+    "NWB_Branch_Console",
+    "NWB_Branch_Manager",
+    "NWB_Branch_Manager_North",
+    "NWB_Branch_Manager_South",
+    "NWB_CEO",
+    "NWB_Contact_Center",
+    "NWB_Contact_Center_Agent",
+    "NWB_Contact_Center_Manager",
+    "NWB_CoreBanking",
+    "NWB_CoreBanking_OAuth",
+    "NWB_Corporate_IdP",
+    "NWB_CustomerNumber__c",
+    "NWB_DocumentStore",
+    "NWB_ExtractLoan",
+    "NWB_ExtractLoan_1",
+    "NWB_GetPositions",
+    "NWB_GetPositions_English_1",
+    "NWB_Integration_API",
+    "NWB_LoanIntake",
+    "NWB_LoanIntake_English_1",
+    "NWB_Map_Tiles",
+    "NWB_Maps",
+    "NWB_Mobile_Banking",
+    "NWB_Network_Director",
+    "NWB_Persona_Advisor",
+    "NWB_Persona_Agent",
+    "NWB_Persona_Branch_Manager",
+    "NWB_Regional_Director_North",
+    "NWB_Regional_Director_South",
+    "NWB_SmsGateway",
+    "NWB_SmsGateway_Key",
+    "NWB_Support_Admin",
+    "NWB/GetPositions",
+    "NWB/LoanIntake",
+    "nwbBrand",
+    "Old_Branch_Survey",
+    "Opportunity",
+    "Opportunity.LoanApplication__c",
+    "Outcome__c",
+    "Positions_Unavailable",
+    "positionTile",
+    "RefreshToken",
+    "Region__c",
+    "Retail_Customer",
+    "Score__c",
+    "ScoringRule__mdt",
+    "ScoringRule__mdt.Criterion__c",
+    "ScoringRule__mdt.Weight__c",
+    "Segment__c",
+    "Share_Submitted_With_Review_Team",
+    "Sms",
+    "Sms_Reminder",
+    "SmsNotificationService",
+    "SsoRegistrationHandler",
+    "Status__c",
+    "TimeoutMs__c",
+    "User",
+    "ViewAllData",
+    "Weight__c",
+    "Young_Professional"
+  ],
+  "misc": {
+    "dashboards": {
+      "names": [
+        "Loan_Pipeline"
+      ],
+      "total": 1
+    },
+    "emailTemplates": [
+      "Loan_Approved"
+    ],
+    "folders": {
+      "applications": 2,
+      "authproviders": 1,
+      "classes": 18,
+      "connectedApps": 1,
+      "cspTrustedSites": 1,
+      "customMetadata": 5,
+      "dashboards": 1,
+      "email": 1,
+      "externalCredentials": 2,
+      "flexipages": 3,
+      "flows": 4,
+      "groups": 1,
+      "labels": 1,
+      "lwc": 5,
+      "messageChannels": 1,
+      "namedCredentials": 3,
+      "objects": 46,
+      "omniDataTransforms": 1,
+      "omniIntegrationProcedures": 1,
+      "omniScripts": 1,
+      "permissionsetgroups": 3,
+      "permissionsets": 5,
+      "profiles": 2,
+      "queues": 2,
+      "quickActions": 1,
+      "remoteSiteSettings": 1,
+      "reports": 3,
+      "roles": 10,
+      "settings": 1,
+      "sharingRules": 1,
+      "staticresources": 1,
+      "tabs": 4,
+      "triggers": 2
+    },
+    "installedPackages": [],
+    "labels": [
+      {
+        "category": "Loans",
+        "name": "Loan_Approved"
+      },
+      {
+        "category": "Loans",
+        "name": "Loan_Submitted"
+      },
+      {
+        "category": "Loans",
+        "name": "Positions_Unavailable"
+      },
+      {
+        "category": "Loans",
+        "name": "Sms_Reminder"
+      }
+    ],
+    "named": {},
+    "reportTypes": [],
+    "reports": {
+      "byFolder": {
+        "Loan_Reports": 2
+      },
+      "folders": [
+        "Loan_Reports"
+      ],
+      "names": [
+        "Loans_by_Branch",
+        "Loans_by_Status"
+      ],
+      "total": 2
+    },
+    "settings": [
+      "Security"
+    ],
+    "signals": {
+      "bots": 0,
+      "dataStreams": 0,
+      "entitlementProcesses": 0,
+      "experiences": 0,
+      "genAi": 0,
+      "networks": 0,
+      "presenceConfigs": 0,
+      "presenceStatuses": 0,
+      "routingConfigs": 0,
+      "serviceChannels": 0,
+      "sites": 0
+    },
+    "staticResources": [
+      "nwbBrand"
+    ]
+  },
+  "modules": {
+    "accountEngagement": false,
+    "agentforce": false,
+    "aura": false,
+    "automotive": false,
+    "billing": false,
+    "clouds": [
+      {
+        "evidence": [
+          "object Opportunity",
+          "object Lead"
+        ],
+        "id": "salesCloud",
+        "name": "Sales Cloud",
+        "reference": "sales-cloud"
+      },
+      {
+        "evidence": [
+          "namespace FinServ"
+        ],
+        "id": "financialServices",
+        "name": "Financial Services Cloud",
+        "reference": "industries"
+      },
+      {
+        "evidence": [
+          "metadata"
+        ],
+        "id": "omnistudio",
+        "name": "OmniStudio",
+        "reference": "omnistudio"
+      },
+      {
+        "evidence": [
+          "metadata"
+        ],
+        "id": "events",
+        "name": "Platform Events / Change Data Capture",
+        "reference": "platform-events"
+      }
+    ],
+    "commerce": false,
+    "communications": false,
+    "consumerGoods": false,
+    "cpq": false,
+    "crmAnalytics": false,
+    "cti": false,
+    "dataCloud": false,
+    "education": false,
+    "events": true,
+    "experienceCloud": false,
+    "fieldService": false,
+    "financialServices": true,
+    "healthCloud": false,
+    "industryCloud": [
+      "Financial Services Cloud"
+    ],
+    "insurance": false,
+    "legacyAutomation": false,
+    "lifeSciences": false,
+    "loyalty": false,
+    "manufacturing": false,
+    "marketingCloud": false,
+    "mobile": false,
+    "netZero": false,
+    "nonprofit": false,
+    "omniChannel": false,
+    "omnistudio": true,
+    "orderManagement": false,
+    "products": [
+      "Financial Services Cloud",
+      "OmniStudio",
+      "Platform Events / Change Data Capture",
+      "Sales Cloud"
+    ],
+    "publicSector": false,
+    "references": [
+      "industries",
+      "omnistudio",
+      "platform-events",
+      "sales-cloud"
+    ],
+    "revenueCloud": false,
+    "salesCloud": true,
+    "serviceCloud": false,
+    "shield": false,
+    "slack": false,
+    "visualforce": false
+  },
+  "namespaces": [
+    {
+      "installed": false,
+      "namespace": "FinServ",
+      "product": "Financial Services Cloud",
+      "references": 1
+    }
+  ],
+  "naming": {
+    "apex": {
+      "prefixes": [],
+      "suffixes": [
+        {
+          "count": 5,
+          "value": "Test"
+        },
+        {
+          "count": 2,
+          "value": "Service"
+        },
+        {
+          "count": 2,
+          "value": "TriggerHandler"
+        },
+        {
+          "count": 1,
+          "value": "Batch"
+        },
+        {
+          "count": 1,
+          "value": "Client"
+        },
+        {
+          "count": 1,
+          "value": "Controller"
+        },
+        {
+          "count": 1,
+          "value": "Handler"
+        },
+        {
+          "count": 1,
+          "value": "Helper"
+        },
+        {
+          "count": 1,
+          "value": "Queueable"
+        },
+        {
+          "count": 1,
+          "value": "Resource"
+        }
+      ]
+    },
+    "flows": {
+      "prefixes": [
+        {
+          "count": 2,
+          "value": "Loan_"
+        }
+      ]
+    },
+    "lwc": {
+      "prefixes": []
+    },
+    "objects": {
+      "prefixes": []
+    },
+    "permissionSets": {
+      "prefixes": [
+        {
+          "count": 5,
+          "value": "NWB_"
+        }
+      ]
+    },
+    "triggers": {
+      "prefixes": []
+    }
+  },
+  "schema": 1,
+  "security": {
+    "customPermissions": [],
+    "groups": [
+      {
+        "includeBosses": true,
+        "label": "All branch managers",
+        "name": "All_Branch_Managers"
+      }
+    ],
+    "passwordPolicies": {
+      "complexity": "UpperLowerCaseNumericSpecialCharacters",
+      "expiration": "NinetyDays",
+      "maxLoginAttempts": "FiveAttempts",
+      "minimumPasswordLength": "12"
+    },
+    "permissionSetGroups": [
+      {
+        "label": "Persona — advisor",
+        "mutingPermissionSets": [],
+        "name": "NWB_Persona_Advisor",
+        "permissionSets": [
+          "NWB_Advisor"
+        ],
+        "status": "Updated"
+      },
+      {
+        "label": "Persona — contact center agent",
+        "mutingPermissionSets": [],
+        "name": "NWB_Persona_Agent",
+        "permissionSets": [
+          "NWB_Contact_Center_Agent"
+        ],
+        "status": "Updated"
+      },
+      {
+        "label": "Persona — branch manager",
+        "mutingPermissionSets": [],
+        "name": "NWB_Persona_Branch_Manager",
+        "permissionSets": [
+          "NWB_Advisor",
+          "NWB_Branch_Manager"
+        ],
+        "status": "Updated"
+      }
+    ],
+    "permissionSets": [
+      {
+        "classAccesses": 0,
+        "customPermissions": 0,
+        "fieldPermissions": 0,
+        "label": "Advisor",
+        "license": "Salesforce",
+        "name": "NWB_Advisor",
+        "objectPermissions": 3,
+        "powerful": []
+      },
+      {
+        "classAccesses": 0,
+        "customPermissions": 0,
+        "fieldPermissions": 0,
+        "label": "Branch manager",
+        "license": "Salesforce",
+        "name": "NWB_Branch_Manager",
+        "objectPermissions": 1,
+        "powerful": []
+      },
+      {
+        "classAccesses": 0,
+        "customPermissions": 0,
+        "fieldPermissions": 0,
+        "label": "Contact center agent",
+        "license": "Salesforce",
+        "name": "NWB_Contact_Center_Agent",
+        "objectPermissions": 1,
+        "powerful": []
+      },
+      {
+        "classAccesses": 0,
+        "customPermissions": 0,
+        "fieldPermissions": 0,
+        "label": "Integration API",
+        "license": "Salesforce",
+        "name": "NWB_Integration_API",
+        "objectPermissions": 0,
+        "powerful": [
+          "ApiEnabled"
+        ]
+      },
+      {
+        "classAccesses": 0,
+        "customPermissions": 0,
+        "fieldPermissions": 0,
+        "label": "Support administration",
+        "license": "Salesforce",
+        "name": "NWB_Support_Admin",
+        "objectPermissions": 0,
+        "powerful": [
+          "ViewAllData"
+        ]
+      }
+    ],
+    "profiles": [
+      {
+        "custom": true,
+        "fieldPermissions": 0,
+        "loginIpRanges": 0,
+        "name": "NWB Integration",
+        "objectPermissions": 0,
+        "powerful": [],
+        "userLicense": "Salesforce Integration"
+      },
+      {
+        "custom": true,
+        "fieldPermissions": 0,
+        "loginIpRanges": 0,
+        "name": "NWB Minimum Access",
+        "objectPermissions": 0,
+        "powerful": [],
+        "userLicense": "Salesforce"
+      }
+    ],
+    "queues": [
+      {
+        "label": "Contact center leads",
+        "name": "Contact_Center_Leads",
+        "objects": [
+          "Lead"
+        ]
+      },
+      {
+        "label": "Loan review",
+        "name": "Loan_Review",
+        "objects": [
+          "LoanApplication__c"
+        ]
+      }
+    ],
+    "roles": [
+      {
+        "label": "Advisor — North",
+        "name": "NWB_Advisor_North",
+        "parent": "NWB_Branch_Manager_North"
+      },
+      {
+        "label": "Advisor — South",
+        "name": "NWB_Advisor_South",
+        "parent": "NWB_Branch_Manager_South"
+      },
+      {
+        "label": "Branch manager — North",
+        "name": "NWB_Branch_Manager_North",
+        "parent": "NWB_Regional_Director_North"
+      },
+      {
+        "label": "Branch manager — South",
+        "name": "NWB_Branch_Manager_South",
+        "parent": "NWB_Regional_Director_South"
+      },
+      {
+        "label": "Chief executive",
+        "name": "NWB_CEO",
+        "parent": null
+      },
+      {
+        "label": "Contact center agent",
+        "name": "NWB_Contact_Center_Agent",
+        "parent": "NWB_Contact_Center_Manager"
+      },
+      {
+        "label": "Contact center manager",
+        "name": "NWB_Contact_Center_Manager",
+        "parent": "NWB_CEO"
+      },
+      {
+        "label": "Network director",
+        "name": "NWB_Network_Director",
+        "parent": "NWB_CEO"
+      },
+      {
+        "label": "Regional director — North",
+        "name": "NWB_Regional_Director_North",
+        "parent": "NWB_Network_Director"
+      },
+      {
+        "label": "Regional director — South",
+        "name": "NWB_Regional_Director_South",
+        "parent": "NWB_Network_Director"
+      }
+    ],
+    "session": {
+      "forceLogoutOnSessionTimeout": "true",
+      "lockSessionsToDomain": "true",
+      "lockSessionsToIp": "false",
+      "requireHttpOnly": "true",
+      "sessionTimeout": "TwoHours"
+    },
+    "sharingRules": [
+      {
+        "object": "LoanApplication__c",
+        "rules": [
+          {
+            "access": "Read",
+            "kind": "criteria",
+            "label": "Share submitted applications with the review team",
+            "name": "Share_Submitted_With_Review_Team"
+          }
+        ]
+      }
+    ]
+  },
+  "signals": [
+    {
+      "evidence": [
+        "LegacyRateHelper (45.0)"
+      ],
+      "id": "api-version-old",
+      "pillar": "adaptable",
+      "priority": "p3",
+      "threshold": "≤ 47.0",
+      "total": 1,
+      "value": 1
+    },
+    {
+      "evidence": [
+        "CustomerSyncBatch"
+      ],
+      "id": "without-sharing",
+      "pillar": "trusted",
+      "priority": "p2",
+      "total": 1,
+      "value": 1
+    },
+    {
+      "evidence": [
+        "LegacyRateHelper",
+        "SsoRegistrationHandler"
+      ],
+      "id": "no-sharing-keyword",
+      "pillar": "trusted",
+      "priority": "p3",
+      "total": 2,
+      "value": 2
+    },
+    {
+      "evidence": [],
+      "id": "low-test-ratio",
+      "pillar": "trusted",
+      "priority": "p2",
+      "ratio": 0.38,
+      "total": 0,
+      "value": "5/13"
+    },
+    {
+      "evidence": [
+        "Old_Branch_Survey (Draft)"
+      ],
+      "id": "inactive-flows",
+      "pillar": "easy",
+      "priority": "p3",
+      "total": 1,
+      "value": 1
+    },
+    {
+      "evidence": [
+        "Lead: LeadTrigger + Lead_Assign_Branch"
+      ],
+      "id": "flows-and-triggers-same-object",
+      "pillar": "adaptable",
+      "priority": "p3",
+      "total": 1,
+      "value": 1
+    },
+    {
+      "evidence": [
+        "NWB_Support_Admin (ViewAllData)"
+      ],
+      "id": "powerful-permissions",
+      "pillar": "trusted",
+      "priority": "p2",
+      "total": 1,
+      "value": 1
+    },
+    {
+      "evidence": [
+        "NWB_DocumentStore"
+      ],
+      "id": "legacy-named-credentials",
+      "pillar": "trusted",
+      "priority": "p3",
+      "total": 1,
+      "value": 1
+    },
+    {
+      "evidence": [
+        "LoanDocument__c"
+      ],
+      "id": "objects-without-description",
+      "pillar": "easy",
+      "priority": "p3",
+      "total": 1,
+      "value": 1
+    },
+    {
+      "evidence": [
+        "apex DemoDataLoader",
+        "apex LegacyRateHelper",
+        "flow Old_Branch_Survey",
+        "lwc demoCarousel"
+      ],
+      "id": "exclusion-candidates",
+      "pillar": "easy",
+      "priority": "p3",
+      "total": 4,
+      "value": 4
+    }
+  ],
+  "sources": [
+    "force-app/main/default"
+  ],
+  "systems": {
+    "named": [],
+    "unnamed": [
+      {
+        "host": null,
+        "kind": "authProvider",
+        "name": "NWB_Corporate_IdP"
+      },
+      {
+        "host": null,
+        "kind": "connectedApp",
+        "name": "NWB_Mobile_Banking"
+      },
+      {
+        "host": "tiles.geo-provider.example",
+        "kind": "cspTrustedSite",
+        "name": "NWB_Map_Tiles"
+      },
+      {
+        "host": "api.corebanking.northwind-bank.example",
+        "kind": "namedCredential",
+        "name": "NWB_CoreBanking"
+      },
+      {
+        "host": "docs.northwind-bank.example",
+        "kind": "namedCredential",
+        "name": "NWB_DocumentStore"
+      },
+      {
+        "host": "sms.telco-partner.example",
+        "kind": "namedCredential",
+        "name": "NWB_SmsGateway"
+      },
+      {
+        "host": "maps.geo-provider.example",
+        "kind": "remoteSite",
+        "name": "NWB_Maps"
+      }
+    ]
+  },
+  "ui": {
+    "apps": [
+      {
+        "console": true,
+        "formFactors": [
+          "Large"
+        ],
+        "label": "Branch Console",
+        "name": "NWB_Branch_Console",
+        "navType": "Console",
+        "tabs": [
+          "standard-Account",
+          "standard-Lead",
+          "LoanApplication__c",
+          "Branch__c",
+          "Loan_Wizard"
+        ],
+        "uiType": "Lightning",
+        "utilityBar": null
+      },
+      {
+        "console": true,
+        "formFactors": [
+          "Large"
+        ],
+        "label": "Contact Center",
+        "name": "NWB_Contact_Center",
+        "navType": "Console",
+        "tabs": [
+          "standard-Lead",
+          "standard-Account",
+          "ContactAttempt__c"
+        ],
+        "uiType": "Lightning",
+        "utilityBar": null
+      }
+    ],
+    "aura": [],
+    "flexipages": [
+      {
+        "customComponents": [
+          "customer360"
+        ],
+        "label": "Customer record page",
+        "name": "Account_Record_Page",
+        "object": "Account",
+        "standardComponents": 2,
+        "template": "flexipage:recordHomeTemplateDesktop",
+        "type": "RecordPage"
+      },
+      {
+        "customComponents": [],
+        "label": "Branch home",
+        "name": "Branch_Home",
+        "object": null,
+        "standardComponents": 2,
+        "template": "flexipage:recordHomeTemplateDesktop",
+        "type": "HomePage"
+      },
+      {
+        "customComponents": [
+          "loanTimeline"
+        ],
+        "label": "Loan application record page",
+        "name": "Loan_Application_Record_Page",
+        "object": "LoanApplication__c",
+        "standardComponents": 2,
+        "template": "flexipage:recordHomeTemplateDesktop",
+        "type": "RecordPage"
+      }
+    ],
+    "lwc": [
+      {
+        "apex": [
+          "Customer360Controller"
+        ],
+        "children": [
+          "positionTile"
+        ],
+        "exposed": true,
+        "label": "Customer 360",
+        "name": "customer360",
+        "placedIn": [
+          {
+            "kind": "flexipage",
+            "name": "Account_Record_Page"
+          }
+        ],
+        "service": false,
+        "targets": [
+          "lightning__RecordPage"
+        ],
+        "usesMessageChannel": false,
+        "usesNavigation": false,
+        "usesWire": true
+      },
+      {
+        "apex": [],
+        "children": [],
+        "exposed": true,
+        "label": "Demo carousel",
+        "name": "demoCarousel",
+        "placedIn": [],
+        "service": false,
+        "targets": [
+          "lightning__AppPage"
+        ],
+        "usesMessageChannel": false,
+        "usesNavigation": false,
+        "usesWire": false
+      },
+      {
+        "apex": [],
+        "children": [],
+        "exposed": true,
+        "label": "Loan timeline",
+        "name": "loanTimeline",
+        "placedIn": [
+          {
+            "kind": "flexipage",
+            "name": "Loan_Application_Record_Page"
+          }
+        ],
+        "service": false,
+        "targets": [
+          "lightning__RecordPage"
+        ],
+        "usesMessageChannel": true,
+        "usesNavigation": false,
+        "usesWire": true
+      },
+      {
+        "apex": [],
+        "children": [],
+        "exposed": true,
+        "label": "Loan wizard",
+        "name": "loanWizard",
+        "placedIn": [
+          {
+            "kind": "tab",
+            "name": "Loan_Wizard"
+          }
+        ],
+        "service": false,
+        "targets": [
+          "lightning__Tab"
+        ],
+        "usesMessageChannel": false,
+        "usesNavigation": true,
+        "usesWire": false
+      },
+      {
+        "apex": [],
+        "children": [],
+        "exposed": false,
+        "label": "positionTile",
+        "name": "positionTile",
+        "placedIn": [
+          {
+            "kind": "lwc",
+            "name": "customer360"
+          },
+          {
+            "kind": "omniScript",
+            "name": "NWB_LoanIntake_English_1"
+          }
+        ],
+        "service": false,
+        "targets": [],
+        "usesMessageChannel": false,
+        "usesNavigation": false,
+        "usesWire": false
+      }
+    ],
+    "messageChannels": [
+      "LoanSelected"
+    ],
+    "quickActions": [
+      {
+        "aura": null,
+        "flow": null,
+        "lwc": null,
+        "name": "Account.New_Loan_Application",
+        "object": "LoanApplication__c",
+        "type": "Create"
+      }
+    ],
+    "tabs": [
+      {
+        "aura": null,
+        "flexiPage": null,
+        "kind": "object",
+        "label": null,
+        "lwc": null,
+        "name": "Branch__c"
+      },
+      {
+        "aura": null,
+        "flexiPage": null,
+        "kind": "object",
+        "label": null,
+        "lwc": null,
+        "name": "ContactAttempt__c"
+      },
+      {
+        "aura": null,
+        "flexiPage": null,
+        "kind": "lwc",
+        "label": "New loan",
+        "lwc": "loanWizard",
+        "name": "Loan_Wizard"
+      },
+      {
+        "aura": null,
+        "flexiPage": null,
+        "kind": "object",
+        "label": null,
+        "lwc": null,
+        "name": "LoanApplication__c"
+      }
+    ],
+    "vfComponents": 0,
+    "vfPages": []
+  }
+}

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomMetadata xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <label>Existing customer</label>
+    <protected>false</protected>
+    <values>
+        <field>Criterion__c</field>
+        <value xsi:type="xsd:string">ExistingCustomer</value>
+    </values>
+    <values>
+        <field>Weight__c</field>
+        <value xsi:type="xsd:string">30</value>
+    </values>
+</CustomMetadata>

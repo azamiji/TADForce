@@ -1,0 +1,42 @@
+# Fictional example: Northwind Bank is not a real company.
+terms:
+  - use: "loan application"
+    avoid: ["loan file", "credit file"]
+    definition: "Request for a consumer loan or a mortgage, from intake to decision (LoanApplication__c)."
+  - term: "Branch"
+    definition: "Unit of the bank network that owns customers and leads by default (Branch__c)."
+systems:
+  - id: core
+    name: "Core banking"
+    description: "System of record for customers, accounts, contracts and positions"
+    match: ["NWB_CoreBanking", "api.corebanking.northwind-bank.example"]
+  - id: sms
+    name: "SMS gateway"
+    description: "Telecom partner sending SMS notifications"
+    match: ["NWB_SmsGateway"]
+  - id: docs
+    name: "Document store"
+    description: "Long-term archive of the loan documents"
+    match: ["NWB_DocumentStore"]
+  - id: idp
+    name: "Corporate identity provider"
+    description: "Single sign-on for employees (OpenID Connect)"
+    match: ["NWB_Corporate_IdP"]
+  - id: mobile
+    name: "Mobile banking app"
+    description: "Customer app that creates leads through the Salesforce API"
+    match: ["NWB_Mobile_Banking"]
+  - id: maps
+    name: "Maps provider"
+    description: "Map tiles and geocoding shown in the branch console"
+    match: ["NWB_Maps", "NWB_Map_Tiles", "geo-provider.example"]
+actors:
+  - name: "Branch advisors"
+    channel: "Branch Console"
+  - name: "Branch managers"
+    channel: "Branch Console"
+  - name: "Contact center agents"
+    channel: "Contact Center console"
+  - name: "Mobile app customers"
+    channel: "Mobile banking app"
+products: []

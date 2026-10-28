@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="{{LANG}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="TADForce {{VERSION}}">
+<title>{{TITLE}}</title>
+<meta name="description" content="{{DESCRIPTION}}">
+<style>{{CSS}}</style>
+<style>{{BRAND_CSS}}</style>
+</head>
+<body>
+<nav id="side" aria-label="{{T:ui.toc}}">
+  <div class="brand">
+    <img src="{{INTEGRATOR_LOGO}}" alt="{{INTEGRATOR_NAME}}" class="logo-int">
+    <div><div class="bt">{{SIDE_TITLE}}</div><div class="bs">{{SIDE_SUB}}</div></div>
+  </div>
+  <div class="search"><input id="q" type="search" placeholder="{{T:ui.tocFilter}}" aria-label="{{T:ui.tocFilter}}"></div>
+  <ul class="toc" id="toc">{{TOC}}</ul>
+  <details class="figs"><summary>{{T:ui.figures}}</summary><ul>{{FIGLIST}}</ul></details>
+  <div class="side-foot">
+    <button type="button" id="btnEdit" title="{{T:ui.editTitle}}">{{T:ui.edit}}</button>
+    <button type="button" id="btnComment" title="{{T:ui.commentTitle}}">{{T:ui.comment}}</button>
+    <button type="button" id="btnPanel" title="{{T:ui.commentsTitle}}">{{T:ui.comments}} <span id="cmtCount" class="cnt">0</span></button>
+    <button type="button" id="btnSave" title="{{T:ui.saveTitle}}">{{T:ui.save}}</button>
+    <div class="print-wrap">
+      <button type="button" id="btnPrint" title="{{T:ui.printTitle}}">{{T:ui.print}}</button>
+      <div id="printMenu" class="menu" role="menu">
+        <button type="button" id="doPdf" role="menuitem">{{T:ui.pdf}}</button>
+        <button type="button" id="doDocx" role="menuitem">{{T:ui.docx}}</button>
+      </div>
+    </div>
+  </div>
+</nav>
+<button type="button" id="burger" aria-label="{{T:ui.burger}}">☰</button>
+<div id="cmtBar"><span>{{T:ui.commentBar}}</span>
+  <button type="button" id="cbarCapture" title="{{T:ui.captureTitle}}">{{T:ui.capture}}</button>
+  <button type="button" id="cbarCancel">{{T:ui.cancelEsc}}</button></div>
+<div id="capOverlay"><div class="cap-hint">{{T:ui.captureHint}}</div><div id="capBox"></div></div>
+<div id="lightbox" title="{{T:ui.lightbox}}"><img id="lightboxImg" alt=""></div>
+<div class="edit-banner">{{T:ui.editBanner}}</div>
+<main id="main">
+  <section class="cover">
+    <div class="cover-logos"><img src="{{INTEGRATOR_LOGO}}" alt="{{INTEGRATOR_NAME}}"><img src="{{CLIENT_LOGO}}" alt="{{CLIENT_NAME}}"></div>
+    {{COVER}}
+  </section>
+  <article class="doc">
+{{BODY}}
+  </article>
+  <footer class="doc-foot">{{FOOTER}}</footer>
+</main>
+<aside id="cmtPanel" aria-label="{{T:ui.panelTitle}}">
+  <div class="cmt-head"><b>{{T:ui.panelTitle}}</b><button type="button" id="cmtClose" aria-label="{{T:ui.close}}">✕</button></div>
+  <p class="cmt-help">{{T:ui.panelHelp}}</p>
+  <p id="cmtEdited" class="cmt-edited"></p>
+  <div id="cmtList"></div>
+  <div class="cmt-foot"><button type="button" id="cmtCopy">{{T:ui.copyList}}</button></div>
+</aside>
+<div id="cmtPop" role="dialog" aria-label="{{T:ui.newComment}}">
+  <div id="cmtPopQuote" class="pop-quote"></div>
+  <div id="cmtPopImg" class="pop-img"></div>
+  <textarea id="cmtPopText" rows="4" placeholder="{{T:ui.commentPlaceholder}}"></textarea>
+  <div class="pop-a"><button type="button" id="cmtAddCap" class="cap">{{T:ui.attachCapture}}</button><span class="sp"></span><button type="button" id="cmtCancel">{{T:ui.cancel}}</button><button type="button" id="cmtOk" class="primary">{{T:ui.add}}</button></div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script type="application/json" id="tad-comments">[]</script>
+<script>window.TAD_I18N={{I18N_JSON}};window.TAD_BRAND={{BRAND_JSON}};</script>
+<script>
+(function(){
+  document.getElementById('burger').addEventListener('click',function(){document.body.classList.toggle('nav-open');});
+  document.querySelectorAll('#side a').forEach(function(a){a.addEventListener('click',function(){document.body.classList.remove('nav-open');});});
+  var q=document.getElementById('q');
+  q.addEventListener('input',function(){
+    var v=q.value.trim().toLowerCase();
+    document.querySelectorAll('#toc li').forEach(function(li){li.style.display=(!v||li.textContent.toLowerCase().indexOf(v)>=0)?'':'none';});
+  });
+  var links={}; document.querySelectorAll('#toc a').forEach(function(a){links[a.getAttribute('href').slice(1)]=a;});
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){
+    if(e.isIntersecting&&links[e.target.id]){document.querySelectorAll('#toc a.on').forEach(function(x){x.classList.remove('on');});links[e.target.id].classList.add('on');}
+  });},{rootMargin:'0px 0px -75% 0px'});
+  document.querySelectorAll('.doc h1[id], .doc h2[id]').forEach(function(h){io.observe(h);});
+})();
+</script>
+<script>{{DOCX_LIB}}</script>
+<script>{{CAPTURE_LIB}}</script>
+<script>{{EDITOR_JS}}</script>
+</body>
+</html>

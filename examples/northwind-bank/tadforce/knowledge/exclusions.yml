@@ -1,0 +1,12 @@
+# Confirmed by the (fictional) project team.
+exclude:
+  - name: demoCarousel
+    type: lwc
+    reason: "Demonstration component, not placed in production pages"
+  - name: DemoDataLoader
+    type: apex
+    reason: "Demonstration data loader"
+  - name: Old_Branch_Survey
+    type: flow
+    reason: "Draft survey never activated"
+features: []

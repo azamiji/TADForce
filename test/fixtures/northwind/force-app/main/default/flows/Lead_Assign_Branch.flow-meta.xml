@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>62.0</apiVersion>
+    <recordUpdates>
+        <name>Set_Branch</name>
+        <label>Set branch</label>
+        <object>Lead</object>
+    </recordUpdates>
+    <label>Lead — assign branch</label>
+    <processType>AutoLaunchedFlow</processType>
+    <start>
+        <object>Lead</object>
+        <recordTriggerType>Create</recordTriggerType>
+        <triggerType>RecordAfterSave</triggerType>
+    </start>
+    <status>Active</status>
+</Flow>

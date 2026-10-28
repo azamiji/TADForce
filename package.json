@@ -1,0 +1,62 @@
+{
+  "name": "tadforce",
+  "version": "0.1.0",
+  "description": "Point it at a Salesforce org. Get the technical architecture document a senior architect would write — evidence-based, reproducible, reviewable.",
+  "type": "module",
+  "bin": {
+    "tadforce": "bin/tadforce.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "templates",
+    "skills",
+    "commands",
+    ".claude-plugin",
+    "assets/logo.svg",
+    "assets/logo-mark.svg",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\" && node tools/check-generic.js",
+    "test:unit": "node --test \"test/*.test.js\"",
+    "check:generic": "node tools/check-generic.js",
+    "example": "node bin/tadforce.js build --doc all --pdf --docx --cwd examples/northwind-bank",
+    "example:validate": "node bin/tadforce.js validate --doc all --cwd examples/northwind-bank",
+    "set-owner": "node tools/set-owner.js"
+  },
+  "keywords": [
+    "salesforce",
+    "architecture",
+    "technical-architecture-document",
+    "documentation",
+    "sfdx",
+    "sf-cli",
+    "agent-skills",
+    "claude-code",
+    "codex",
+    "well-architected",
+    "mermaid"
+  ],
+  "author": "Jihad AZAMI HASSANI (Salesforce Technical Architect)",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/OWNER/TADForce#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OWNER/TADForce.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OWNER/TADForce/issues"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^4.5.0",
+    "markdown-it": "^14.1.0",
+    "puppeteer-core": "^23.11.1",
+    "yaml": "^2.6.1"
+  }
+}

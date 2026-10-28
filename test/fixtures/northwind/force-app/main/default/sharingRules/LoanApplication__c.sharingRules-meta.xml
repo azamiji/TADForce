@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SharingRules xmlns="http://soap.sforce.com/2006/04/metadata">
+    <sharingCriteriaRules>
+        <fullName>Share_Submitted_With_Review_Team</fullName>
+        <accessLevel>Read</accessLevel>
+        <label>Share submitted applications with the review team</label>
+        <sharedTo>
+            <group>All_Branch_Managers</group>
+        </sharedTo>
+        <criteriaItems>
+            <field>Status__c</field>
+            <operation>equals</operation>
+            <value>Submitted</value>
+        </criteriaItems>
+    </sharingCriteriaRules>
+</SharingRules>

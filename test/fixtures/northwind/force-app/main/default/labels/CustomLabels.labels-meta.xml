@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomLabels xmlns="http://soap.sforce.com/2006/04/metadata">
+    <labels>
+        <fullName>Loan_Submitted</fullName>
+        <categories>Loans</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Loan submitted</shortDescription>
+        <value>Loan submitted</value>
+    </labels>
+    <labels>
+        <fullName>Loan_Approved</fullName>
+        <categories>Loans</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Loan approved</shortDescription>
+        <value>Loan approved</value>
+    </labels>
+    <labels>
+        <fullName>Positions_Unavailable</fullName>
+        <categories>Loans</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Positions are temporarily unavailable</shortDescription>
+        <value>Positions are temporarily unavailable</value>
+    </labels>
+    <labels>
+        <fullName>Sms_Reminder</fullName>
+        <categories>Loans</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Your loan file is missing documents</shortDescription>
+        <value>Your loan file is missing documents</value>
+    </labels>
+</CustomLabels>

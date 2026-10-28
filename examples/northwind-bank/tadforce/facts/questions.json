@@ -1,0 +1,105 @@
+{
+  "exclusions": {
+    "groups": [
+      {
+        "count": 1,
+        "items": [
+          "apex:LegacyRateHelper"
+        ],
+        "reason": "name suggests test / demo / POC / sample"
+      }
+    ],
+    "total": 1
+  },
+  "language": null,
+  "modules": {
+    "accountEngagement": false,
+    "agentforce": false,
+    "aura": false,
+    "automotive": false,
+    "billing": false,
+    "clouds": [
+      {
+        "evidence": [
+          "object Opportunity",
+          "object Lead"
+        ],
+        "id": "salesCloud",
+        "name": "Sales Cloud",
+        "reference": "sales-cloud"
+      },
+      {
+        "evidence": [
+          "namespace FinServ"
+        ],
+        "id": "financialServices",
+        "name": "Financial Services Cloud",
+        "reference": "industries"
+      },
+      {
+        "evidence": [
+          "metadata"
+        ],
+        "id": "omnistudio",
+        "name": "OmniStudio",
+        "reference": "omnistudio"
+      },
+      {
+        "evidence": [
+          "metadata"
+        ],
+        "id": "events",
+        "name": "Platform Events / Change Data Capture",
+        "reference": "platform-events"
+      }
+    ],
+    "commerce": false,
+    "communications": false,
+    "consumerGoods": false,
+    "cpq": false,
+    "crmAnalytics": false,
+    "cti": false,
+    "dataCloud": false,
+    "education": false,
+    "events": true,
+    "experienceCloud": false,
+    "fieldService": false,
+    "financialServices": true,
+    "healthCloud": false,
+    "industryCloud": [
+      "Financial Services Cloud"
+    ],
+    "insurance": false,
+    "legacyAutomation": false,
+    "lifeSciences": false,
+    "loyalty": false,
+    "manufacturing": false,
+    "marketingCloud": false,
+    "mobile": false,
+    "netZero": false,
+    "nonprofit": false,
+    "omniChannel": false,
+    "omnistudio": true,
+    "orderManagement": false,
+    "products": [
+      "Financial Services Cloud",
+      "OmniStudio",
+      "Platform Events / Change Data Capture",
+      "Sales Cloud"
+    ],
+    "publicSector": false,
+    "references": [
+      "industries",
+      "omnistudio",
+      "platform-events",
+      "sales-cloud"
+    ],
+    "revenueCloud": false,
+    "salesCloud": true,
+    "serviceCloud": false,
+    "shield": false,
+    "slack": false,
+    "visualforce": false
+  },
+  "systems": []
+}

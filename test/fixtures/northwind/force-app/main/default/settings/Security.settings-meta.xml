@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SecuritySettings xmlns="http://soap.sforce.com/2006/04/metadata">
+    <passwordPolicies>
+        <complexity>UpperLowerCaseNumericSpecialCharacters</complexity>
+        <expiration>NinetyDays</expiration>
+        <maxLoginAttempts>FiveAttempts</maxLoginAttempts>
+        <minimumPasswordLength>12</minimumPasswordLength>
+    </passwordPolicies>
+    <sessionSettings>
+        <forceLogoutOnSessionTimeout>true</forceLogoutOnSessionTimeout>
+        <lockSessionsToDomain>true</lockSessionsToDomain>
+        <lockSessionsToIp>false</lockSessionsToIp>
+        <requireHttpOnly>true</requireHttpOnly>
+        <sessionTimeout>TwoHours</sessionTimeout>
+    </sessionSettings>
+</SecuritySettings>

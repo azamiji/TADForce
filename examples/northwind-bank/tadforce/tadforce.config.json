@@ -1,0 +1,50 @@
+{
+  "language": "en",
+  "client": {
+    "name": "Northwind Bank",
+    "short": "NWB",
+    "logo": null
+  },
+  "integrator": {
+    "name": "Acme Integrators",
+    "logo": null
+  },
+  "document": {
+    "title": "Salesforce CRM Platform",
+    "subtitle": "",
+    "reference": "TAD-NWB-CRM",
+    "version": "1.0",
+    "status": "For review",
+    "date": "2026-10-28",
+    "classification": "Confidential — fictional example",
+    "environment": "Production",
+    "history": []
+  },
+  "org": {
+    "alias": null
+  },
+  "source": {
+    "dir": "../../../test/fixtures/northwind/force-app"
+  },
+  "manifest": {
+    "mode": "curated",
+    "includePackages": false
+  },
+  "outputs": {
+    "dir": "../../../docs/demo",
+    "pdf": true,
+    "docx": true
+  },
+  "review": {
+    "tad": {
+      "commentsFrom": [],
+      "resolutions": {},
+      "dropImages": []
+    },
+    "axes": {
+      "commentsFrom": [],
+      "resolutions": {},
+      "dropImages": []
+    }
+  }
+}
