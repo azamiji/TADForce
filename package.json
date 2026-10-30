@@ -1,6 +1,6 @@
 {
   "name": "tadforce",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "AI-Powered Salesforce Technical Documentation — the Technical Architecture Document of any Salesforce org, written from the org's own metadata: evidence-based, reproducible, reviewable in the browser, kept up to date.",
   "type": "module",
   "bin": {

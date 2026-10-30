@@ -1,10 +1,9 @@
 # Changelog
 
-## 0.4.0 — 2026-10-30
+## 0.4.1 — 2026-10-31
 
-- `doctor` follows the user step by step and never acts without a yes: it confirms the Salesforce project (outside a project it creates nothing and proposes the projects found nearby), proposes the default org instead of taking it (« no » opens the Salesforce login and asks again once connected), asks which metadata to use — retrieve everything read-only, local sources, or retrieved by the user — and waits for the go before a long retrieve.
-- Six framing questions, each with a recommended answer, accepted all at once in one keystroke; the same for the branding (logo and colours) and for the systems and exclusions. The short code is derived from the client name (Northwind Bank → NB).
-- Every answer is saved in the project: a later `doctor` resumes where it stopped.
+The fixes from three rounds of field tests by agents (new user, real org, shared org with specifications, Spanish, review and update, retrieve stress). 0.4.0 users: update — it fixes an empty inventory with `--source`, the default org never proposed, and retrieves that could hang.
+
 - Field-tested by five agents (new user, real org, shared org with specifications, Spanish, review and update); fixed:
   - `doctor --source` no longer empties the facts; an empty inventory is an error, never « green ». `facts --source` with a missing folder fails loudly.
   - The default org is proposed again (`sf config get target-org` was refused by the read-only allow-list); an unknown or unreachable default org lists the orgs already connected; network hiccups (DNS) are retried and no longer reported as an expired session; the org status is checked once per run.
@@ -21,6 +20,12 @@
 - Real-org retest; fixed: a metadata type unknown to the local Salesforce CLI is dropped at once instead of blocking the retrieve (a type is given up after 10 minutes, a batch after 30; progress shows [i/N]); the orgs of the machine are listed without pinging each one, so they are always offered; doctor no longer queries the org again once the framing is confirmed, and recomputing the facts after the answers reuses the org aggregates (seconds, not minutes); the utility bars of Salesforce apps are set aside with them; Transaction Security policies are retrieved (Shield evidence); the metadata question names its real options.
 - Leaner, safer retrieve: the manifest keeps the 105 types the document uses (translations, classic home pages, test suites, certificates and other unused types removed: faster, further from the 10,000 files / 39 MB limit of a retrieve). The types the document is built on (Apex, objects, flows, components, permissions, pages, apps, Custom Metadata, OmniStudio) are retrieved first, one by one, with 60 minutes each; one that does not finish in time (huge org) is listed and retrieved by chunks of 100 components — the same components as `*`, packages excepted (`--core-wait` shortens the first try); a core type that still fails stops the retrieve with a clear message. A missing package directory is created before retrieving; StandardValueSet (never retrieved with `*`) is no longer requested.
 - `doctor` is faster from one call to the next: the Salesforce CLI version is kept a day and an org seen connected stays so for 10 minutes; a retrieve stops at once when the project itself is broken (missing package directory, invalid sfdx-project.json).
+
+## 0.4.0 — 2026-10-30
+
+- `doctor` follows the user step by step and never acts without a yes: it confirms the Salesforce project (outside a project it creates nothing and proposes the projects found nearby), proposes the default org instead of taking it (« no » opens the Salesforce login and asks again once connected), asks which metadata to use — retrieve everything read-only, local sources, or retrieved by the user — and waits for the go before a long retrieve.
+- Six framing questions, each with a recommended answer, accepted all at once in one keystroke; the same for the branding (logo and colours) and for the systems and exclusions. The short code is derived from the client name (Northwind Bank → NB).
+- Every answer is saved in the project: a later `doctor` resumes where it stopped.
 - `doctor` ends on the writing: once everything is green, it says so and offers to start the AI agent found on the machine (Claude Code, Codex, Gemini CLI, Cursor) on `/tadforce`. `--agent <id>` picks one (remembered), `--no-launch` stops at the prerequisites. Never from CI, `--json` or inside an agent session.
 
 ## 0.3.0 — 2026-10-30
