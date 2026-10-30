@@ -128,6 +128,30 @@ test('the Improvement Axes carry the integrator brand only', async () => {
   } finally { w.cleanup(); }
 });
 
+test('any other language: English skeletons, labels translated in the workspace', async () => {
+  const w = makeWorkspace();
+  try {
+    const p = path.join(w.ws, 'tadforce.config.json');
+    const cfg = readJson(p); cfg.language = 'DE'; writeJson(p, cfg);
+    const { scaffold } = await import('../src/commands/docs.js');
+    const { setQuiet } = await import('../src/util/log.js');
+    setQuiet(true);
+    try { await scaffold({ cwd: w.project }); } finally { setQuiet(false); }
+    const own = path.join(w.ws, 'i18n', 'de.json');
+    const labels = readJson(own);
+    assert.ok(labels._translate, 'the agent is told to translate');
+    assert.equal(labels.meta.htmlLang, 'de');
+    labels.doc.kicker = 'Technisches Architekturdokument'; delete labels._translate; writeJson(own, labels);
+    const html = fs.readFileSync((await buildDocument(loadWorkspace(w.project), 'tad', { render: false })).html, 'utf8');
+    assert.match(html, /<html lang="de">/);
+    assert.match(html, /Technisches Architekturdokument/);
+    const { formatNumber, normalizeLang } = await import('../src/util/i18n.js');
+    assert.equal(formatNumber(12345, 'de'), '12.345');
+    assert.equal(normalizeLang('pt_br'), 'pt-BR');
+    assert.equal(normalizeLang('nonsense'), 'en');
+  } finally { w.cleanup(); }
+});
+
 test('comments saved in the HTML survive a rebuild of the same file', async () => {
   const w = makeWorkspace();
   try {

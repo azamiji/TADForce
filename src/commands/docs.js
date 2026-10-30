@@ -4,6 +4,7 @@ import path from 'node:path';
 import { exists, writeJson, readText, copyDir, stableStringify } from '../util/fsx.js';
 import { loadWorkspace, sourceDirs } from '../util/config.js';
 import { TEMPLATES } from '../util/paths.js';
+import { LANGUAGES, normalizeLang, templateLang } from '../util/i18n.js';
 import { extractFacts, readCodeAnalyzer, loadFacts } from '../facts/index.js';
 import { collectOrgFacts } from '../facts/org.js';
 import { fingerprints } from '../facts/fingerprints.js';
@@ -70,7 +71,19 @@ export function buildQuestions(f, orgFacts) {
 
 export async function scaffold(args) {
   const ctx = loadWorkspace(args.cwd || process.cwd());
-  const lang = ctx.cfg.language === 'fr' ? 'fr' : 'en';
+  const lang = templateLang(ctx.cfg.language);
+  const target = normalizeLang(ctx.cfg.language);
+  // Any other language: English skeletons and labels, translated once by the agent in the workspace.
+  if (!LANGUAGES.includes(target)) {
+    const own = ctx.p('i18n', `${target}.json`);
+    if (!exists(own)) {
+      const en = JSON.parse(readText(path.join(TEMPLATES, 'i18n', 'en.json')));
+      en.meta.htmlLang = target;
+      en._translate = `Translate every value of this file into the document language (${target}); keep the keys and the {placeholders}. Then delete this line.`;
+      writeJson(own, en);
+    }
+    log.human(`document language "${target}": the skeletons are in English. Your agent translates the headings of src/*/*.md (keep the {#anchors}) and the labels of tadforce/i18n/${target}.json, once.`);
+  }
   for (const doc of docsOf(args)) {
     const src = path.join(TEMPLATES, doc, lang);
     const dst = ctx.p('src', doc);

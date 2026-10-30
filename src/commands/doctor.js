@@ -8,7 +8,7 @@ import YAML from 'yaml';
 import { exists, readJson, readText, writeText } from '../util/fsx.js';
 import { findWorkspace, defaultConfig, DEFAULT_BRAND, loadWorkspace, sourceDirs } from '../util/config.js';
 import { CONFIG_FILE } from '../util/paths.js';
-import { LANGUAGES } from '../util/i18n.js';
+import { LANGUAGES, normalizeLang } from '../util/i18n.js';
 import { sfVersion, sfJson, sfInteractive, soql } from '../sf/sf.js';
 import { findBrowser, closeBrowser } from '../build/browser.js';
 import { findLogoCandidates, orgThemeColors, imageColors, paletteFrom } from '../build/brand.js';
@@ -65,7 +65,7 @@ async function proposals(alias) {
   const out = {};
   try {
     const o = ((await soql('SELECT Name, IsSandbox, LanguageLocaleKey FROM Organization', alias)).records || [])[0] || {};
-    out.client = o.Name; out.language = /^fr/i.test(o.LanguageLocaleKey || '') ? 'fr' : 'en'; out.environment = o.IsSandbox ? 'Sandbox' : 'Production';
+    out.client = o.Name; out.language = normalizeLang(String(o.LanguageLocaleKey || 'en').split('_')[0]); out.environment = o.IsSandbox ? 'Sandbox' : 'Production';
   } catch { /* proposals stay empty */ }
   return out;
 }
@@ -76,7 +76,7 @@ const listArg = (v) => (typeof v !== 'string' ? undefined : v.split(',').map((x)
 async function applyAnswers(ctx, args) {
   const cfg = ctx.cfg;
   const set = (cond, fn) => { if (cond) fn(); };
-  set(args.lang, () => { cfg.language = LANGUAGES.includes(args.lang) ? args.lang : 'en'; });
+  set(args.lang, () => { cfg.language = normalizeLang(args.lang); });
   set(args.client, () => { cfg.client.name = String(args.client); if (!args.short && (cfg.client.short === 'CLIENT' || !cfg.client.short)) cfg.client.short = String(args.client).replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase(); });
   set(args.short, () => { cfg.client.short = String(args.short); });
   set(args.integrator !== undefined, () => { cfg.integrator.name = args.integrator === true || args.integrator === '' || args.integrator === 'none' ? null : String(args.integrator); });
@@ -164,7 +164,7 @@ function framingQuestions(cfg, prop, alias, hasLocal) {
   const q = [];
   const ask = (id, question, recommended, extra = {}) => q.push({ id, question, recommended, ...extra });
   if (!cfg.setup.confirmed) {
-    ask('lang', 'Document language', prop.language || cfg.language, { options: LANGUAGES });
+    ask('lang', `Document language — ${LANGUAGES.join(', ')} built in, or any language code (es, de, it, pt, nl, ar, ja…): the agent then translates the headings and labels once`, prop.language || cfg.language, { options: [...LANGUAGES, 'other'] });
     ask('client', 'Client name, as it must appear in the document', prop.client || cfg.client.name);
     ask('short', 'Client short name (file names, references)', cfg.client.short !== 'CLIENT' ? cfg.client.short : String(prop.client || cfg.client.name).replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase());
     ask('integrator', 'Integrator, if any (blank: the document only names the client)', cfg.integrator.name || '', { optional: true });
@@ -240,6 +240,9 @@ async function evaluate(project, args) {
     const ctx = loadWorkspace(project);
     snapshot = exists(ctx.p(ctx.cfg.source.dir));
     facts = exists(ctx.p('facts', 'facts.json'));
+    const lang = normalizeLang(ctx.cfg.language);
+    const own = ctx.p('i18n', `${lang}.json`);
+    if (!LANGUAGES.includes(lang) && exists(own) && readJson(own)._translate) add('language', true, `Document language "${lang}": headings and labels still to translate (once)`, `the agent translates the headings of src/*/*.md (keep the {#anchors}) and the values of tadforce/i18n/${lang}.json, then removes its "_translate" line`, false, 'warn');
     add('metadata', facts, facts ? `Metadata: ${snapshot ? 'retrieved from the org' : 'local sources'} → facts/facts.json` : 'Metadata not collected yet', facts ? null : 'doctor retrieves it once the questions are answered');
   }
   return { tools, ws, cfg, alias, status, list, facts, snapshot };
@@ -298,6 +301,7 @@ export async function run(args) {
         for (const q of framing) {
           const a = (await rl.question(`  ${q.question}${q.options ? ` (${q.options.join('/')})` : ''}${q.recommended ? ` [${q.recommended}]` : ''}: `)).trim();
           answers[q.id] = a || q.recommended || (q.optional ? '' : undefined);
+          if (q.id === 'lang' && /^(other|autre)$/i.test(a)) answers.lang = (await rl.question('  Language code (es, de, it, pt, nl, ar, ja…): ')).trim() || 'en';
         }
         const flags = { confirm: true, specs: answers.specs || false };
         for (const [k, v] of Object.entries(answers)) if (v !== undefined) flags[k === 'logo' ? 'logo' : k] = v === '' && ['integrator', 'author'].includes(k) ? 'none' : v === '' ? undefined : v;

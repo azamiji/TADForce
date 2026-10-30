@@ -11,7 +11,7 @@ if (!owner || !/^[A-Za-z0-9-]+$/.test(owner)) {
   process.exit(1);
 }
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const FILES = ['README.md', 'README.fr.md', 'package.json', 'CITATION.cff', '.claude-plugin/plugin.json', 'docs/index.html'];
+const FILES = ['README.md', 'package.json', 'CITATION.cff', '.claude-plugin/plugin.json', 'docs/index.html'];
 for (const f of FILES) {
   const p = path.join(ROOT, f);
   if (!fs.existsSync(p)) continue;

@@ -4,14 +4,14 @@
     "name": "Jihad AZAMI HASSANI"
   },
   "metadata": {
-    "description": "TADForce — technical architecture documents for Salesforce orgs, written by your agent from the org's own metadata."
+    "description": "TADForce — AI-Powered Salesforce Technical Documentation, written by your agent from the org's own metadata."
   },
   "plugins": [
     {
       "name": "tadforce",
       "source": "./",
-      "description": "Generate, review and validate the Technical Architecture Document of any Salesforce org (/tadforce, /tadforce-review).",
-      "version": "0.2.0",
+      "description": "AI-Powered Salesforce Technical Documentation: generate, review, validate and update the Technical Architecture Document of any Salesforce org (/tadforce, /tadforce-review, /tadforce-update).",
+      "version": "0.3.0",
       "author": { "name": "Jihad AZAMI HASSANI" },
       "license": "Apache-2.0",
       "category": "documentation"

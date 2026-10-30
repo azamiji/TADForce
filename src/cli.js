@@ -38,7 +38,7 @@ const COMMANDS = { ...MAIN, ...ADVANCED };
 
 function help(all) {
   const v = readJson(path.join(PKG_ROOT, 'package.json')).version;
-  console.log(`${c.violet('▲')} ${c.bold('TADForce')} ${v} — technical architecture documents for Salesforce orgs. ${c.dim('No evidence, no sentence.')}\n`);
+  console.log(`${c.violet('▲')} ${c.bold('TADForce')} ${v} — AI-Powered Salesforce Technical Documentation. ${c.dim('No evidence, no sentence.')}\n`);
   console.log(`Usage: ${c.bold('npx tadforce <command> [options]')}\n`);
   for (const [k, [, d]] of Object.entries(MAIN)) console.log(`  ${c.cyan(k.padEnd(15))} ${d}`);
   if (all) {

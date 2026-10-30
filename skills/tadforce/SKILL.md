@@ -19,7 +19,7 @@ The CLI (`npx tadforce …`) does everything deterministic: org access, retrieve
 6. **Numbers come from facts.** Write counts as `{{n:apex.classes}}`, links as `{{ref:section-id}}`. Never type a count by hand.
 7. **Client document ≠ internal review.** The TAD is factual and positive. Debt, risks and recommendations go to the Improvement Axes document.
 8. **Technical names in code font must exist** in the inventory (`tadforce validate` checks it).
-9. **Write in the document language** (`tadforce.config.json › language`). Keep Salesforce terms in English (Lead, Queue, Record Type, Named Credential…).
+9. **Write in the document language** (`tadforce.config.json › language` — any language; outside English and French, translate the headings and labels once, see `references/workflow.md › Other languages`). Keep Salesforce terms in English (Lead, Queue, Record Type, Named Credential…).
 10. **Ask in batches.** Group your questions; never ask what the facts already answer.
 
 ## The run

@@ -6,7 +6,7 @@ Ask in **blocks**, each in one message, with your proposed answer for every item
 
 `npx tadforce doctor --json` returns these questions with a `recommended` answer each (from the org when connected). Ask them all in one message:
 
-1. Document language — recommended: the org default language.
+1. Document language — recommended: the org default language. English and French are built in; any other language works (the headings and labels are translated once, see `workflow.md › Other languages`).
 2. Client name and short code (file names) — recommended: `Organization.Name` / `<CODE>`.
 3. Integrator — **optional**. Blank: the document names the client only (no empty « Integrator » line, no badge).
 4. Author — **optional**. Blank: no author is shown anywhere. Never put your own name or the agent's.

@@ -4,7 +4,7 @@ import readline from 'node:readline/promises';
 import { exists, writeText, writeJson, copyDir, readJson } from '../util/fsx.js';
 import { defaultConfig, findWorkspace } from '../util/config.js';
 import { WORKSPACE_DIR, CONFIG_FILE, SKILLS } from '../util/paths.js';
-import { LANGUAGES } from '../util/i18n.js';
+import { LANGUAGES, normalizeLang } from '../util/i18n.js';
 import { log } from '../util/log.js';
 import { run as doctor } from './doctor.js';
 
@@ -100,7 +100,7 @@ export async function run(args) {
     const prev = existing ? readJson(path.join(ws, CONFIG_FILE)) : {};
     const base = defaultConfig(prev);
     if (interactive) log.step('A few facts only you can confirm (Enter keeps the default):');
-    const language = args.lang || (await ask(rl, `Document language (${LANGUAGES.join('/')})`, base.language));
+    const language = args.lang || (await ask(rl, `Document language (${LANGUAGES.join('/')} built in, or any code: es, de, it, pt, ar…)`, base.language));
     const clientName = args.client || (await ask(rl, 'Client name', prev.client?.name || base.client.name));
     const short = args.short || (await ask(rl, 'Client short name (used in file names)', prev.client?.short || clientName.replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase()));
     const integrator = args.integrator || (await ask(rl, 'Integrator (blank if none)', base.integrator.name || ''));
@@ -109,7 +109,7 @@ export async function run(args) {
     const alias = args.org || (await ask(rl, 'Salesforce org alias (blank: decide later)', base.org.alias || ''));
     const cfg = defaultConfig({
       ...prev,
-      language: LANGUAGES.includes(language) ? language : 'en',
+      language: normalizeLang(language),
       client: { ...base.client, name: clientName, short },
       integrator: { ...base.integrator, name: integrator || null },
       document: { ...base.document, author: author || null, title, reference: prev.document?.reference || `TAD-${short}-CRM`, environment: args.environment || base.document.environment, status: language === 'fr' && !prev.document?.status ? 'Pour revue' : base.document.status, classification: language === 'fr' && !prev.document?.classification ? 'Confidentiel' : base.document.classification },

@@ -2,15 +2,30 @@ import path from 'node:path';
 import { readJson, exists } from './fsx.js';
 import { TEMPLATES } from './paths.js';
 
+/** Languages shipped with skeletons and interface labels. Any other language works from the English ones. */
 export const LANGUAGES = ['en', 'fr'];
 
-export function loadI18n(lang) {
-  const l = LANGUAGES.includes(lang) ? lang : 'en';
-  const base = readJson(path.join(TEMPLATES, 'i18n', 'en.json'));
-  if (l === 'en') return { lang: 'en', dict: base };
-  const p = path.join(TEMPLATES, 'i18n', `${l}.json`);
-  const loc = exists(p) ? readJson(p) : {};
-  return { lang: l, dict: merge(base, loc) };
+/** A language code as written in the config: en, fr, es, de, pt-BR… (anything else falls back to en). */
+export function normalizeLang(lang) {
+  const m = /^([a-z]{2,3})(?:[-_]([a-z]{2}))?$/i.exec(String(lang || '').trim());
+  return m ? m[1].toLowerCase() + (m[2] ? '-' + m[2].toUpperCase() : '') : 'en';
+}
+
+/** Skeletons and specs come in the built-in languages; other languages start from English. */
+export const templateLang = (lang) => (LANGUAGES.includes(normalizeLang(lang)) ? normalizeLang(lang) : 'en');
+
+/**
+ * Interface and document labels: English, then the built-in translation, then the workspace's own
+ * file (tadforce/i18n/<lang>.json) — the translation the agent writes for any other language.
+ */
+export function loadI18n(lang, ws = null) {
+  const l = normalizeLang(lang);
+  let dict = readJson(path.join(TEMPLATES, 'i18n', 'en.json'));
+  const builtIn = path.join(TEMPLATES, 'i18n', `${l}.json`);
+  if (l !== 'en' && exists(builtIn)) dict = merge(dict, readJson(builtIn));
+  const own = ws && path.join(ws, 'i18n', `${l}.json`);
+  if (own && exists(own)) dict = merge(dict, readJson(own));
+  return { lang: l, dict };
 }
 
 function merge(a, b) {
@@ -29,5 +44,6 @@ export function t(dict, key, vars = {}) {
 export function formatNumber(n, lang) {
   if (typeof n !== 'number' || !Number.isFinite(n)) return String(n);
   // fr-FR uses a narrow no-break space as thousands separator, as in the reference document.
-  return new Intl.NumberFormat(lang === 'fr' ? 'fr-FR' : 'en-US').format(n);
+  const locale = lang === 'fr' ? 'fr-FR' : lang === 'en' || !lang ? 'en-US' : lang;
+  try { return new Intl.NumberFormat(locale).format(n); } catch { return new Intl.NumberFormat('en-US').format(n); }
 }

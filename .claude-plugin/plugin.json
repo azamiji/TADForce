@@ -1,7 +1,7 @@
 {
   "name": "tadforce",
-  "version": "0.2.0",
-  "description": "Point it at a Salesforce org, get the Technical Architecture Document a senior architect would write: evidence-based, reproducible, reviewable in the browser. All Salesforce products and industries.",
+  "version": "0.3.0",
+  "description": "AI-Powered Salesforce Technical Documentation — the Technical Architecture Document of any Salesforce org, written from the org's own metadata: evidence-based, reproducible, reviewable in the browser, kept up to date. All Salesforce products and industries.",
   "author": {
     "name": "Jihad AZAMI HASSANI",
     "url": "https://github.com/azamiji"

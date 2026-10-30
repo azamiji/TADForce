@@ -2,7 +2,7 @@
 
 <img src="assets/banner.svg" alt="TADForce — point it at a Salesforce org, get the architecture document a senior architect would write" width="100%">
 
-### The architect's scribe for Salesforce orgs.
+### AI-Powered Salesforce Technical Documentation
 
 **Four commands. One org. One Technical Architecture Document — evidence-based, reproducible, reviewable in the browser.**
 
@@ -20,7 +20,7 @@
 [![Copilot](https://img.shields.io/badge/GitHub%20Copilot-skill-6E40C9)](#-quick-start)
 [![Read-only](https://img.shields.io/badge/org%20access-read--only-16A34A)](#-read-only-by-design)
 
-[**Live demo**](https://azamiji.github.io/TADForce/) · [Quick start](#-quick-start) · [The four commands](#-four-commands) · [Every project type](#-every-kind-of-salesforce-project) · [Français](README.fr.md)
+[**Live demo**](https://azamiji.github.io/TADForce/) · [Quick start](#-quick-start) · [The four commands](#-four-commands) · [Every project type](#-every-kind-of-salesforce-project)
 
 </div>
 
@@ -140,7 +140,7 @@ The document carries **the client's logo and colours**: the logo is searched in 
 | **No org access**, sources only | `--source local` documents the package directories of the project |
 | **Unlocked or managed packages** | Namespaces and installed packages are detected and documented with their evidence |
 | **Any cloud, any industry** | Sections switch on only when the product is detected, each with its writing guide (below) |
-| **French or English** | Document, skeletons and interface in both; Salesforce terms stay in English |
+| **Any language** | English and French built in. Any other language (Spanish, German, Italian, Portuguese, Arabic, Japanese…): pick it in `doctor`, your agent translates the headings and labels once, then writes in that language. Salesforce terms stay in English |
 
 ### Products and industries
 
@@ -219,7 +219,7 @@ The TADForce CLI sends nothing anywhere: no telemetry, no server, no account. It
 
 ## 🗺️ Roadmap
 
-- [ ] More languages for the skeletons (es, de, pt, it)
+- [ ] Built-in skeletons for more languages (es, de, pt, it) — any language already works through the agent; contributions welcome
 - [ ] Your own template: add, hide or rename chapters from `tadforce/templates/`
 - [ ] More examples: Service + Experience Cloud, an ISV package
 - [ ] Salesforce CLI plugin wrapper (`sf tad …`)
@@ -232,7 +232,17 @@ Issues and pull requests are welcome — new product modules, new extractors, ne
 
 ## 👥 Community
 
-TADForce was born in the **Salesforce Architect Community Group of Casablanca**. Share your generated documents (anonymised!), your module ideas and your war stories in the issues. Star the repo if TADForce saved you a week. ⭐
+TADForce was born for the **Salesforce ecosystem**: architects, consultants, integrators and in-house teams who need documentation they can trust.
+
+Your experience is what makes it better. Tell us, in the [issues](https://github.com/azamiji/TADForce/issues) and [discussions](https://github.com/azamiji/TADForce/discussions):
+
+- **How it went** — the kind of org and project, the time it took, what worked out of the box.
+- **How good the result was** — sections that read like a senior architect wrote them, and sections that did not.
+- **What to improve** — a product it should detect better, a section that misses the point, a question it should have asked.
+
+Please share your feedback, not your documents: they describe your clients' systems.
+
+If TADForce saved you a week, **star the repo** ⭐ — it is how other Salesforce teams find it.
 
 ## 👤 Author
 

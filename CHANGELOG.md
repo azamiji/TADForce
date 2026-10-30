@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0 — 2026-10-30
+
+- Any document language: English and French built in; for any other language (`es`, `de`, `it`, `pt`, `ar`, `ja`…) the skeletons start in English and the agent translates the headings and `tadforce/i18n/<lang>.json` once. Numbers follow the language's format.
+- Tagline: « AI-Powered Salesforce Technical Documentation ». README community section rewritten for the whole Salesforce ecosystem.
+- One README, in English (README.fr.md removed).
+
 ## 0.2.0 — 2026-10-30
 
 Four commands for the whole run: **doctor → build → review → update**. The fine-grained commands stay (`tadforce help --all`).

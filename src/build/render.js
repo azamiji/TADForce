@@ -107,7 +107,7 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
   const problems = [];
   const facts = loadFacts(wsCtx.ws);
   if (!facts) throw new Error('facts/facts.json not found: run `tadforce facts` first.');
-  const { lang, dict } = loadI18n(cfg.language);
+  const { lang, dict } = loadI18n(cfg.language, wsCtx.ws);
   const glossary = wsCtx.glossary() || {};
   const srcDir = wsCtx.p('src', doc);
   if (!exists(srcDir)) throw new Error(`No sources in ${srcDir}: run \`tadforce scaffold --doc ${doc}\`.`);

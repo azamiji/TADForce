@@ -7,6 +7,7 @@ import { AREAS, fingerprints } from '../facts/fingerprints.js';
 import { loadWorkspace, sourceDirs } from '../util/config.js';
 import { TEMPLATES } from '../util/paths.js';
 import { log, c } from '../util/log.js';
+import { templateLang } from '../util/i18n.js';
 import * as org from './org.js';
 import * as docs from './docs.js';
 
@@ -121,7 +122,7 @@ export async function run(args) {
   for (const m of modulesAfter.filter((x) => !modulesBefore.includes(x))) note('modules', `new product detected: ${m}`);
   for (const m of modulesBefore.filter((x) => !modulesAfter.includes(x))) note('modules', `product no longer detected: ${m}`);
   const specs = readYaml(path.join(TEMPLATES, 'specs', 'sections.yml'), {}).sections || {};
-  const sections = affectedSections(areas, specs, sectionLocations(ctx2.cfg.language === 'fr' ? 'fr' : 'en'));
+  const sections = affectedSections(areas, specs, sectionLocations(templateLang(ctx2.cfg.language)));
 
   // 4. New version in the document control.
   const cfg = ctx2.cfg;

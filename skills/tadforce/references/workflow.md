@@ -25,6 +25,16 @@ What `doctor` does by itself, read-only:
 - metadata, as chosen (`source`): **org** (recommended — the org is the truth) retrieves every useful type with a `*` manifest into `tadforce/.snapshot` (`force-app` is never touched; large orgs take several minutes: tell the human); **local** reads the package directories; **both** combines them. Then `facts/facts.json`, `facts/org.json` (aggregates), `facts/questions.json`, the chapter skeletons in `tadforce/src/`;
 - branding from evidence: the client logo searched in the snapshot (static resources, content assets, site assets named *logo*), the colours from the org's Lightning theme (`BrandingSet`), else from the logo. Never fetch a logo from the web without the human's go-ahead; when they agree, pass its URL with `--logo`.
 
+### Other languages
+
+English and French are built in. Any other language (`--lang es`, `de`, `it`, `pt`, `nl`, `ar`, `ja`…) works too: the skeletons are scaffolded in English and `tadforce/i18n/<lang>.json` is created from the English labels. Once, before writing:
+
+1. Translate the headings of every `tadforce/src/*/*.md` file into the document language. Keep the `{#anchors}`, the `{-}` markers, the `<!-- tad:… -->` lines and the `@@…@@` directives exactly as they are.
+2. Translate every value of `tadforce/i18n/<lang>.json` (cover, tables, figures, buttons of the HTML). Keep the keys and the `{placeholders}`; set `meta.htmlLang`. Delete the `_translate` line.
+3. Write the sections in that language; Salesforce terms stay in English.
+
+`doctor` shows a reminder until step 2 is done. To ship the language for everyone, contribute it (issue template « New language »).
+
 ### Optional inputs
 
 - **Functional specifications** (`--specs`): copied into `knowledge/inputs/specs/`. Read them before chapters 3 and 5; they are evidence level P2/P3 (`evidence-rules.md`). They explain the *why*; the metadata still decides the *what*.
