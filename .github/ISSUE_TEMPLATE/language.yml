@@ -1,0 +1,15 @@
+name: New language
+description: Translate the document skeletons and the interface into a new language
+labels: [i18n, good first issue]
+body:
+  - type: input
+    id: language
+    attributes:
+      label: Language
+      description: e.g. Spanish (es), German (de), Portuguese (pt), Italian (it)
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        What it takes: `templates/i18n/<lang>.json` (same keys as `en.json`), `templates/tad/<lang>/` and `templates/axes/<lang>/` (same anchors and `tad:pending` markers as `en`), and `<lang>` in `LANGUAGES` (`src/util/i18n.js`). `npm test` checks the keys and the anchors.

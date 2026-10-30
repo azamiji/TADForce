@@ -8,3 +8,5 @@ Thumbs.db
 .forbidden-local.txt
 # backups written by the build when an HTML held unsaved comments
 *_comments_*.html
+.sf/
+.sfdx/

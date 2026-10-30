@@ -1,6 +1,6 @@
 {
   "name": "tadforce",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Point it at a Salesforce org. Get the technical architecture document a senior architect would write — evidence-based, reproducible, reviewable.",
   "type": "module",
   "bin": {

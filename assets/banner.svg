@@ -56,11 +56,11 @@
   <text x="274" y="214" font-family="Segoe UI, Inter, Helvetica Neue, Arial, sans-serif" font-size="23" fill="#C9D6EA">Point it at a Salesforce org. Get the architecture document</text>
   <text x="274" y="244" font-family="Segoe UI, Inter, Helvetica Neue, Arial, sans-serif" font-size="23" fill="#C9D6EA">a senior architect would write.</text>
   <g font-family="Consolas, SFMono-Regular, Menlo, monospace" font-size="17">
-    <rect x="274" y="268" width="356" height="38" rx="9" fill="#0E1E3A" stroke="#2A3F66"/>
+    <rect x="274" y="268" width="376" height="38" rx="9" fill="#0E1E3A" stroke="#2A3F66"/>
     <text x="292" y="293" fill="#7DD3FC">$</text>
-    <text x="312" y="293" fill="#E2E8F0">npx tadforce init</text>
-    <text x="490" y="293" fill="#8B5CF6">→ /tadforce</text>
-    <rect x="610" y="279" width="9" height="17" fill="#C084FC">
+    <text x="312" y="293" fill="#E2E8F0">npx tadforce doctor</text>
+    <text x="510" y="293" fill="#8B5CF6">→ /tadforce</text>
+    <rect x="630" y="279" width="9" height="17" fill="#C084FC">
       <animate attributeName="opacity" values="1;0;1" dur="1.1s" repeatCount="indefinite"/>
     </rect>
   </g>

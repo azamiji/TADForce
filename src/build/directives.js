@@ -75,14 +75,16 @@ function annexes(ctx) {
       [t(dict, 'control.title'), `${ctx.docName || t(dict, 'meta.docName')} — ${cfg.document.title}`],
       [t(dict, 'control.reference'), ctx.doc === 'axes' ? cfg.document.reference + '-AX' : cfg.document.reference],
       [t(dict, 'control.client'), cfg.client.name],
-      [t(dict, 'control.integrator'), cfg.integrator.name],
+      ...(cfg.integrator.name ? [[t(dict, 'control.integrator'), cfg.integrator.name]] : []),
+      ...(cfg.document.author ? [[t(dict, 'control.preparedBy'), cfg.document.author]] : []),
       [t(dict, 'control.version'), `${cfg.document.version}${cfg.document.status ? ' — ' + cfg.document.status : ''}`],
       [t(dict, 'control.date'), cfg.document.date],
       [t(dict, 'control.classification'), cfg.document.classification],
-      [t(dict, 'control.scope'), t(dict, 'control.scopeValue', { environment: cfg.document.environment, client: cfg.client.name, date: cfg.document.date })],
+      [t(dict, 'control.scope'), t(dict, 'control.scopeValue', { environment: cfg.document.environment, client: cfg.client.name, date: cfg.document.date })
+        + (cfg.scope && (cfg.scope.include || []).length ? ' — ' + t(dict, 'control.scopeLimited', { scope: cfg.scope.include.map((x) => '`' + x + '`').join(', ') }) : '')],
     ]),
     'version-history': () => mdTable([t(dict, 'control.version'), t(dict, 'control.date'), t(dict, 'control.author'), t(dict, 'control.purpose')],
-      (cfg.document.history && cfg.document.history.length ? cfg.document.history : [{ version: cfg.document.version, date: cfg.document.date, author: cfg.integrator.name, purpose: t(dict, 'control.firstVersion', { client: cfg.client.name }) }])
+      (cfg.document.history && cfg.document.history.length ? cfg.document.history : [{ version: cfg.document.version, date: cfg.document.date, author: [cfg.document.author, cfg.integrator.name].filter(Boolean).join(' — ') || cfg.client.name, purpose: t(dict, 'control.firstVersion', { client: cfg.client.name }) }])
         .map((h) => [h.version, h.date, h.author, h.purpose])),
     legend: () => `<div class="legend">\n<span class="lg actor">${t(dict, 'legend.actor')}</span>\n<span class="lg sf">${t(dict, 'legend.sf')}</span>\n<span class="lg ext">${t(dict, 'legend.ext')}</span>\n<span class="lg data">${t(dict, 'legend.data')}</span>\n</div>`,
     'key-figures': () => mdTable([A('domain'), A('count')], [

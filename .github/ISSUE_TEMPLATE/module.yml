@@ -1,0 +1,21 @@
+name: Product module or industry
+description: A Salesforce product, cloud or industry that TADForce should detect and document better
+labels: [module]
+body:
+  - type: input
+    id: product
+    attributes:
+      label: Product
+      description: e.g. Net Zero Cloud, Field Service mobile, Data Cloud segments
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Metadata evidence
+      description: Metadata types, namespaces or objects that prove the product is used
+  - type: textarea
+    id: document
+    attributes:
+      label: What the document should say
+      description: Sections an architect expects for this product, and the pitfalls

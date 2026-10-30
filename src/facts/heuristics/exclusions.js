@@ -67,6 +67,31 @@ export function applyExclusions(facts, knowledge = {}) {
   return applied.sort((a, b) => (a.type + a.name).localeCompare(b.type + b.name));
 }
 
+// Org-wide components (profiles, roles, queues, report folders…) are shared by every project: never scoped out.
+const SCOPED_TYPES = new Set(['apex', 'trigger', 'lwc', 'aura', 'vfPage', 'flexipage', 'app', 'tab', 'quickAction', 'flow', 'omniScript', 'integrationProcedure', 'dataMapper', 'flexCard', 'object', 'cmdt', 'permissionSet', 'permissionSetGroup', 'namedCredential', 'externalCredential', 'remoteSite', 'connectedApp', 'authProvider', 'staticResource']);
+
+/**
+ * Keep only the part of the org a project owns (tadforce.config.json › scope.include, name patterns with `*`).
+ * Standard objects stay: a project extends them, it does not own them. Returns the components set aside.
+ */
+export function applyScope(facts, scope = {}) {
+  const include = (scope.include || []).filter(Boolean).map(matcher);
+  if (!include.length) return [];
+  const out = [];
+  for (const [type, get, field] of COLLECTIONS) {
+    if (!SCOPED_TYPES.has(type)) continue;
+    const list = get(facts);
+    if (!Array.isArray(list)) continue;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const k = keyOf(list[i], field);
+      if (type === 'object' && !String(k).includes('__')) continue;
+      if (type === 'apex' && list[i].test && include.some((m) => m(String(k).replace(/_?Tests?$/i, '')))) continue;
+      if (!include.some((m) => m(k))) { out.push({ type, name: k }); list.splice(i, 1); }
+    }
+  }
+  return out.sort((a, b) => (a.type + a.name).localeCompare(b.type + b.name));
+}
+
 const SUSPICIOUS = new Set(['test', 'tests', 'poc', 'demo', 'demos', 'sample', 'samples', 'dryrun', 'repro', 'tmp', 'temp', 'old', 'deprecated', 'obsolete', 'backup', 'bkp', 'copy', 'draft', 'example', 'examples', 'playground', 'todelete', 'unused', 'legacy', 'dummy', 'fake', 'mock']);
 
 export function nameWords(name) {

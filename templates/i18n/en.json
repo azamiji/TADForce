@@ -72,7 +72,7 @@
     "captureInFile": " [capture attached in the file]",
     "copied": "List copied to the clipboard.",
     "copyPrompt": "Copy the list:",
-    "pickFile": "Choose the file to replace (this same HTML file) or a new location.",
+    "pickFile": "Choose THIS same HTML file to replace it, so that the comments stay in one file.",
     "htmlPage": "HTML page",
     "saved": "Saved: {name}",
     "downloaded": "File downloaded: {name} — replace the original with this version.",
@@ -80,7 +80,8 @@
     "docxRunning": "Generating the Word document…",
     "docxDone": "Word document generated (open it with Microsoft Word).",
     "docxFailed": "DOCX generation failed: {error}",
-    "defaultFile": "TAD.html"
+    "defaultFile": "TAD.html",
+    "savedServer": "Saved in {name} — the same file, comments included."
   },
   "doc": {
     "figure": "Figure",
@@ -88,7 +89,8 @@
       "integrator": "{integrator} contribution",
       "note": "Note",
       "reco": "Recommendation",
-      "warn": "Caution"
+      "warn": "Caution",
+      "team": "Project team note"
     },
     "page": "Page",
     "kicker": "Technical Architecture Document",
@@ -104,7 +106,9 @@
     },
     "confidential": "Document prepared by {integrator} for {client}. Restricted distribution {client} / {integrator}.",
     "axesConfidential": "Internal document of {integrator}. Not for distribution to the client without review.",
-    "generatedBy": "Generated with TADForce"
+    "generatedBy": "Generated with TADForce",
+    "confidentialSolo": "Document prepared for {client}. Restricted distribution.",
+    "axesConfidentialSolo": "Internal document of the project team. Not for distribution to the client without review."
   },
   "control": {
     "element": "Item",
@@ -120,7 +124,9 @@
     "author": "Author",
     "purpose": "Purpose",
     "scopeValue": "Salesforce organization ({environment}) of {client}, state as of {date}",
-    "firstVersion": "Consolidated version submitted to {client} for review and approval"
+    "firstVersion": "Consolidated version submitted to {client} for review and approval",
+    "preparedBy": "Prepared by",
+    "scopeLimited": "Scope limited to: {scope}"
   },
   "legend": {
     "actor": "Actors: users, populations, channels",

@@ -9,7 +9,7 @@ import { extractUi, placements } from './extractors/ui.js';
 import { extractSecurity } from './extractors/security.js';
 import { extractIntegration } from './extractors/integration.js';
 import { extractMisc, detectNamespaces } from './extractors/misc.js';
-import { applyExclusions, exclusionCandidates } from './heuristics/exclusions.js';
+import { applyExclusions, applyScope, exclusionCandidates } from './heuristics/exclusions.js';
 import { detectModules } from './heuristics/modules.js';
 import { detectNaming } from './heuristics/naming.js';
 import { computeSignals } from './heuristics/signals.js';
@@ -19,7 +19,7 @@ export const FACTS_SCHEMA = 1;
 /**
  * Build facts.json from source-format metadata. Pure and deterministic: same input, same bytes.
  * @param {string[]} dirs   source directories (snapshot or package directories)
- * @param {object} knowledge { exclusions, glossary }
+ * @param {object} knowledge { exclusions, glossary, scope }
  * @param {object} [opts]   { base: path used to relativise roots, org: org facts, codeAnalyzer }
  */
 export function extractFacts(dirs, knowledge = {}, opts = {}) {
@@ -36,6 +36,7 @@ export function extractFacts(dirs, knowledge = {}, opts = {}) {
   const refs = references(roots, apex, ui, automation, integration);
   const facts = { schema: FACTS_SCHEMA, apex, data, automation, ui, security, integration, misc, namespaces };
 
+  const outOfScope = applyScope(facts, knowledge.scope || {});
   const applied = applyExclusions(facts, knowledge.exclusions || {});
   // placements are recomputed so that excluded containers no longer count as usages
   const placementsAfter = {};
@@ -49,6 +50,7 @@ export function extractFacts(dirs, knowledge = {}, opts = {}) {
   for (const a of facts.ui.aura) a.placedIn = placementsAfter[a.name] || [];
 
   facts.exclusions = { applied, candidates: exclusionCandidates(facts, refs) };
+  if ((knowledge.scope?.include || []).length) facts.scope = { include: [...knowledge.scope.include], outOfScope: outOfScope.length };
   facts.modules = detectModules(facts);
   // Products used without metadata traces are declared by a human in glossary.yml › products.
   for (const p of (knowledge.glossary && knowledge.glossary.products) || []) {

@@ -6,8 +6,8 @@ authors:
   - family-names: "AZAMI HASSANI"
     given-names: "Jihad"
     affiliation: "Salesforce Architect Community Group, Casablanca"
-version: 0.1.0
-date-released: 2026-10-28
+version: 0.2.0
+date-released: 2026-10-30
 license: Apache-2.0
 repository-code: "https://github.com/azamiji/TADForce"
 keywords:

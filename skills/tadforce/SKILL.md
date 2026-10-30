@@ -12,7 +12,7 @@ The CLI (`npx tadforce …`) does everything deterministic: org access, retrieve
 ## Golden rules
 
 1. **Read-only.** Never deploy, never modify `force-app`, never read business records. TADForce only allows read-only `sf` commands and aggregate queries.
-2. **No evidence, no sentence.** Every statement relies on metadata (P1), a document provided by the project (P2/P3), or is written as *to be confirmed*. See `references/evidence-rules.md`.
+2. **No evidence, no sentence.** Every statement relies on metadata (P1), a document provided by the project (P2/P3 — functional specifications are in `knowledge/inputs/specs/`), or is written as *to be confirmed*. See `references/evidence-rules.md`.
 3. **Never name a system by guessing.** External systems come from `knowledge/glossary.yml`, confirmed by a human. A field called `LegacyCoreId__c` does not tell you the system is called « Legacy Core ».
 4. **Never document what is decommissioned or excluded.** Ask about the candidates in `facts/questions.json`; record the answers in `knowledge/exclusions.yml`.
 5. **The client's vocabulary is law.** Apply `glossary.yml › terms` everywhere, diagrams included.
@@ -24,21 +24,15 @@ The CLI (`npx tadforce …`) does everything deterministic: org access, retrieve
 
 ## The run
 
-Follow `references/workflow.md` step by step. In short:
+Four commands: **doctor → build → review → update**. Follow `references/workflow.md`. In short:
 
 | Step | You run | Human action |
 |---|---|---|
-| 0. Workspace | `npx tadforce status` (or `npx tadforce init --yes …` if none) | — |
-| 1. Prerequisites | `npx tadforce doctor --json`; fix what you can | install Node / sf CLI / a browser if missing |
-| 2. Startup questions | `npx tadforce detect` (once an org is authorized) → propose answers | confirm language, client, integrator, environment, title, logos |
-| 3. Org access | `npx tadforce auth --alias <a> [--sandbox]` | log in in the browser and click **Allow** |
-| 4. Facts | `npx tadforce prepare --org <a>` (manifest `*` → retrieve → facts → scaffold) | — |
-| 5. Facts questions | read `tadforce/facts/questions.json`, ask, write `knowledge/*.yml`, rerun `npx tadforce facts --org <a>` | name the systems, confirm exclusions and decommissioned features, provide inputs |
-| 6. Quality inputs (optional) | Salesforce skills `platform-architecture-analyze`, `dx-code-analyzer-run` (JSON into `knowledge/inputs/`) | — |
-| 7. Write | loop: `npx tadforce next --json` → read the spec, the facts, the code → replace the marker | — |
-| 8. Build | `npx tadforce build --pdf --docx` until `validate` shows 0 errors | — |
-| 9. Hand over | give the paths of the HTML/PDF/DOCX, the score, the points to review | review, comment in the HTML, save |
-| 10. Review loop | `/tadforce-review` | — |
+| 1. Doctor | `npx tadforce doctor --json`, in a loop until `ok: true`. Answer its `questions` in one message (Block A of `references/questions.md`), then pass the answers as flags: `--confirm --lang … --client … --integrator …\|none --author …\|none --title … [--scope …] [--logo …] [--specs …\|--no-specs]`. Ask Blocks B–D, write `knowledge/*.yml`, then `--facts-reviewed` | log in once in the browser if asked; confirm the answers |
+| 2. Write | loop: `npx tadforce next --json` → read the spec, the facts, the specifications in `knowledge/inputs/specs/`, the code → replace the marker | — |
+| 3. Build | `npx tadforce build --pdf --docx` until validation shows 0 errors; hand over the paths, the score, the points to confirm | — |
+| 4. Review | `/tadforce-review` (`npx tadforce review --json`) | `npx tadforce review`: comment in the page, Save — always the same file |
+| Later | `/tadforce-update` (`npx tadforce update --json`) | — |
 
 ## Writing a section
 

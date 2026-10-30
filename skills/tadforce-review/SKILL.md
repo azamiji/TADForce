@@ -7,13 +7,16 @@ description: Process the review comments that readers left in a TADForce HTML do
 
 Readers comment directly in the HTML (💬 Comment, ＋ Capture an area, 💾 Save). Comments are stored inside the file, with the quoted passage, the section and an optional screenshot. Your job: turn every comment into a lasting correction, and answer it.
 
+The document has **one file across versions**: `tadforce/out/TAD_<CODE>.html`. The human opens it with `npx tadforce review`: Save in the page writes into that same file, so no comment is lost in a copy.
+
 ## 1. Collect
 
 ```bash
-npx tadforce comments <path/to/saved.html> --json      # default: tadforce/out/TAD_<CODE>_v<version>.html
+npx tadforce review --json                  # open comments of tadforce/out/TAD_<CODE>.html
+npx tadforce review <path/to/other.html> --json
 ```
 
-If the human saved the file elsewhere (downloads folder), use that path. Images are attached in the file: open the HTML in a browser if you need to see a capture.
+If the human sent a copy from elsewhere (e-mail, downloads folder), use that path and add it to `commentsFrom` (step 3). Images are attached in the file: open the HTML in a browser if you need to see a capture.
 
 ## 2. Classify each open comment
 
@@ -34,10 +37,10 @@ When the comment contradicts the metadata, do not silently obey: answer with the
 1. Edit `tadforce/src/<doc>/*.md` (never the built HTML).
 2. Edit the knowledge files; then `npx tadforce facts` if exclusions or systems changed.
 3. In `tadforce/tadforce.config.json`, under `review.<doc>`:
-   - add the saved HTML path to `commentsFrom` (relative to `tadforce/`), so comments are carried into the new build;
+   - comments of `out/TAD_<CODE>.html` itself are carried over automatically; only a copy saved elsewhere goes to `commentsFrom` (path relative to `tadforce/`);
    - add one entry per handled comment to `resolutions`: `"<comment id>": "<what you changed, one or two sentences, with section numbers>"`;
    - add ids to `dropImages` when a capture is no longer useful (keeps the file small).
-4. `npx tadforce build --pdf --docx` — handled comments appear as **resolved**, with your answer, in the panel of the new HTML. The previous file is kept as `…_comments_<date>.html` when it held unsaved work.
+4. `npx tadforce build --pdf --docx` — handled comments appear as **resolved**, with your answer, in the panel of the same HTML file. When the readers also edited text in the page, the build keeps a copy (`…_comments_<date>.html`): report those edits into the sources.
 
 ## 4. Report
 

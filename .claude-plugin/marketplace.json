@@ -11,7 +11,7 @@
       "name": "tadforce",
       "source": "./",
       "description": "Generate, review and validate the Technical Architecture Document of any Salesforce org (/tadforce, /tadforce-review).",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "author": { "name": "Jihad AZAMI HASSANI" },
       "license": "Apache-2.0",
       "category": "documentation"

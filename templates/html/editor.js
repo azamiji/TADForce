@@ -361,8 +361,16 @@
     var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
     document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
   }
+  // Opened through `tadforce review` / `build --open`: the local server writes back to the same file.
+  var served = location.protocol === 'http:' && location.hostname === '127.0.0.1';
   async function save() {
     var html = serialize();
+    if (served) {
+      try {
+        var r = await fetch(location.pathname, { method: 'PUT', headers: { 'content-type': 'text/html; charset=utf-8' }, body: html });
+        if (r.ok) { setDirty(false); toast(T('savedServer', { name: fileName() }), 3500); return; }
+      } catch (e) { /* server stopped: fall back to the file picker */ }
+    }
     if (window.showSaveFilePicker) {
       try {
         if (!fileHandle) {

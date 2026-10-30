@@ -6,6 +6,7 @@ import { loadWorkspace, sourceDirs } from '../util/config.js';
 import { TEMPLATES } from '../util/paths.js';
 import { extractFacts, readCodeAnalyzer, loadFacts } from '../facts/index.js';
 import { collectOrgFacts } from '../facts/org.js';
+import { fingerprints } from '../facts/fingerprints.js';
 import { buildDocument, readComments, outputName, DOCS } from '../build/render.js';
 import { exportPdf, exportDocx } from '../build/export.js';
 import { closeBrowser } from '../build/browser.js';
@@ -22,7 +23,7 @@ export async function facts(args) {
   log.banner('facts');
   log.step(`Reading metadata from ${dirs.map((d) => path.relative(ctx.project, d) || '.').join(', ')}`);
   let orgFacts = exists(ctx.p('facts', 'org.json')) ? JSON.parse(readText(ctx.p('facts', 'org.json'))) : null;
-  const knowledge = { exclusions: ctx.exclusions(), glossary: ctx.glossary() };
+  const knowledge = { exclusions: ctx.exclusions(), glossary: ctx.glossary(), scope: ctx.cfg.scope };
   let f = extractFacts(dirs, knowledge, { base: ctx.project, org: orgFacts, codeAnalyzer: readCodeAnalyzer(ctx.ws) });
   if (args.org) {
     const alias = typeof args.org === 'string' ? args.org : ctx.cfg.org.alias;
@@ -34,6 +35,8 @@ export async function facts(args) {
     if (orgFacts.errors.length) log.warn(`${orgFacts.errors.length} org query(ies) failed — see facts/org.json`);
   }
   writeJson(ctx.p('facts', 'facts.json'), f);
+  // baseline for `tadforce update`: what this version of the document was written from
+  writeJson(ctx.p('facts', 'fingerprints.json'), fingerprints(dirs));
   const questions = buildQuestions(f, orgFacts);
   writeJson(ctx.p('facts', 'questions.json'), questions);
   const k = f.counts;
@@ -82,16 +85,29 @@ export async function scaffold(args) {
 export async function build(args) {
   const ctx = loadWorkspace(args.cwd || process.cwd());
   log.banner('build');
+  // HTML always; PDF and Word on demand (asked once in a terminal when neither flag nor config says).
+  if (args.pdf === undefined && args.docx === undefined && process.stdin.isTTY && !args.json && !args.yes) {
+    const rl = (await import('node:readline/promises')).createInterface({ input: process.stdin, output: process.stdout });
+    try {
+      const a = (await rl.question('  Formats besides HTML — pdf, docx, both or none? [both] ')).trim().toLowerCase() || 'both';
+      args.pdf = a === 'both' || a.includes('pdf');
+      args.docx = a === 'both' || a.includes('doc');
+    } finally { rl.close(); }
+  }
   let failed = 0;
+  const built = [];
   try {
     for (const doc of docsOf(args)) {
       if (!exists(ctx.p('src', doc))) { log.warn(`src/${doc} missing — skipped`); continue; }
       const r = await buildDocument(ctx, doc, { render: args.render !== false });
+      built.push(r);
+      if (r.pending.length) log.warn(`${r.pending.length} section(s) of ${doc} still to write — your agent writes them (tadforce next), then build again.`);
       log.ok(`${path.relative(ctx.project, r.html)} (${r.sizeKB} KB, ${r.figures} figures)`);
       const wantPdf = args.pdf ?? ctx.cfg.outputs.pdf;
       const wantDocx = args.docx ?? ctx.cfg.outputs.docx;
-      if (wantPdf && args.render !== false) { const p = r.html.replace(/\.html$/, '.pdf'); const s = await exportPdf(r.html, p); log.ok(`${path.relative(ctx.project, p)} (${Math.round(s / 1024)} KB)`); }
-      if (wantDocx && args.render !== false) { const p = r.html.replace(/\.html$/, '.docx'); const s = await exportDocx(r.html, p); log.ok(`${path.relative(ctx.project, p)} (${Math.round(s / 1024)} KB)`); }
+      const archive = path.join(path.dirname(r.html), outputName(ctx.cfg, doc, { versioned: true }));
+      if (wantPdf && args.render !== false) { const p = archive + '.pdf'; const s = await exportPdf(r.html, p); log.ok(`${path.relative(ctx.project, p)} (${Math.round(s / 1024)} KB)`); }
+      if (wantDocx && args.render !== false) { const p = archive + '.docx'; const s = await exportDocx(r.html, p); log.ok(`${path.relative(ctx.project, p)} (${Math.round(s / 1024)} KB)`); }
       const v = validateDocument(ctx, doc, { buildReport: r });
       report(v, doc);
       if (!v.ok) failed++;
@@ -99,6 +115,7 @@ export async function build(args) {
   } finally {
     await closeBrowser();
   }
+  if (args.open && built[0]) { const { open } = await import('./review.js'); await open(built[0].html); }
   return args.strict && failed ? 1 : 0;
 }
 

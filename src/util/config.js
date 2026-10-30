@@ -15,8 +15,10 @@ export function defaultConfig(overrides = {}) {
   const cfg = {
     language: 'en',
     client: { name: 'Client', short: 'CLIENT', logo: null },
-    integrator: { name: 'Integrator', logo: null },
+    // integrator and author are optional: when empty they are left out of the document.
+    integrator: { name: null, logo: null },
     document: {
+      author: null,
       title: 'Salesforce CRM Platform',
       subtitle: '',
       reference: 'TAD-CLIENT-CRM',
@@ -28,8 +30,15 @@ export function defaultConfig(overrides = {}) {
       history: [],
     },
     org: { alias: null },
+    // Functional specifications and other documents provided by the project (evidence level P2), relative to tadforce/.
+    inputs: { specs: [] },
+    // Part of the org to document: name patterns ("NWB_*") and package directories. Empty: the whole org.
+    scope: { include: [], packageDirectories: [] },
     brand: { ...DEFAULT_BRAND },
-    source: { dir: '.snapshot/source' },
+    // mode: org (retrieved snapshot), local (the project's package directories) or both. null: not chosen yet.
+    source: { dir: '.snapshot/source', mode: null },
+    // What tadforce doctor already asked or searched, so that it never asks twice.
+    setup: {},
     manifest: { mode: 'curated', includePackages: false },
     outputs: { dir: 'out', pdf: true, docx: true },
     review: { tad: { commentsFrom: [], resolutions: {}, dropImages: [] }, axes: { commentsFrom: [], resolutions: {}, dropImages: [] } },
@@ -73,13 +82,22 @@ export function loadWorkspace(cwd) {
   };
 }
 
-/** Resolve the metadata source directory: the retrieved snapshot, else the project's package dirs. */
+/** Metadata source directories: the retrieved snapshot and/or the project's package dirs (source.mode). */
 export function sourceDirs(wsCtx) {
+  const mode = wsCtx.cfg.source.mode;
   const snap = wsCtx.p(wsCtx.cfg.source.dir);
+  const local = localDirs(wsCtx);
+  if (mode === 'local') return local;
+  if (mode === 'both') return [...(exists(snap) ? [snap] : []), ...local];
   if (exists(snap)) return [snap];
+  return local;
+}
+
+function localDirs(wsCtx) {
   const sfdx = path.join(wsCtx.project, 'sfdx-project.json');
   if (exists(sfdx)) {
-    const dirs = (readJson(sfdx).packageDirectories || []).map((d) => path.join(wsCtx.project, d.path)).filter(exists);
+    const only = (wsCtx.cfg.scope && wsCtx.cfg.scope.packageDirectories) || [];
+    const dirs = (readJson(sfdx).packageDirectories || []).filter((d) => !only.length || only.includes(d.path)).map((d) => path.join(wsCtx.project, d.path)).filter(exists);
     if (dirs.length) return dirs;
   }
   return [];

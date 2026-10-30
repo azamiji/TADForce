@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.0 — 2026-10-30
+
+Four commands for the whole run: **doctor → build → review → update**. The fine-grained commands stay (`tadforce help --all`).
+
+- `doctor` is now the whole setup, in one loop until everything is green: tools, SFDX project and workspace, org connection (reuses the project's `target-org`, opens the browser login only when needed), metadata from the org, the local sources or both, then the framing questions (each with a recommended answer) and the questions on systems and exclusions. Agents answer with flags and `--json`.
+- New framing answers: **author** (optional — nothing shown when blank), **integrator** now optional (the document then names the client only), **functional specifications** (`--specs`, copied into `knowledge/inputs/specs/`), **scope** (`--scope "NWB_*"`, `--package-dirs`) to document one project in a shared org.
+- Client branding from evidence: the logo is searched in the snapshot (static resources, content assets, site assets) or given as a file or URL; the colours come from the org's Lightning theme (`BrandingSet`), else from the logo, with WCAG contrast checked.
+- `review`: opens the document from a local server; **Save writes into the same file**. The HTML keeps one name across versions (`TAD_<CODE>.html`) and the comments saved in it are carried into every rebuild; PDF and DOCX keep the version in their name.
+- `update`: archives the previous facts, reads the org again, compares content fingerprints, lists the sections touched by what changed, bumps the version and writes the history line. New skill and command `tadforce-update`.
+- `build` asks for PDF / Word in a terminal when no flag says, warns about sections still to write, and `--open` opens the result for review.
+- The Improvement Axes (a separate file, built by default next to the TAD) carry the integrator's brand only: its logo on the cover, its name in the footer; the client's brand when there is no integrator.
+- README: GIFs recorded from the demo (`tools/record-demo.js`), banner showing `npx tadforce doctor`, “every kind of Salesforce project” and “what leaves your machine” sections. Release workflow (npm with provenance) and issue templates.
+
 ## 0.1.0 — 2026-10-28
 
 First public version.

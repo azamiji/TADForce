@@ -1,6 +1,6 @@
 {
   "name": "tadforce",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Point it at a Salesforce org, get the Technical Architecture Document a senior architect would write: evidence-based, reproducible, reviewable in the browser. All Salesforce products and industries.",
   "author": {
     "name": "Jihad AZAMI HASSANI",

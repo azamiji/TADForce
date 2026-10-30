@@ -72,7 +72,7 @@
     "captureInFile": " [capture jointe dans le fichier]",
     "copied": "Liste copiée dans le presse-papiers.",
     "copyPrompt": "Copiez la liste :",
-    "pickFile": "Choisissez le fichier à remplacer (ce même fichier HTML) ou un nouvel emplacement.",
+    "pickFile": "Choisissez CE MÊME fichier HTML pour le remplacer : les commentaires restent dans un seul fichier.",
     "htmlPage": "Page HTML",
     "saved": "Enregistré : {name}",
     "downloaded": "Fichier téléchargé : {name} — remplacez l'original par cette version.",
@@ -80,7 +80,8 @@
     "docxRunning": "Génération du document Word en cours…",
     "docxDone": "Document Word généré (ouvrir avec Microsoft Word).",
     "docxFailed": "Échec de la génération DOCX : {error}",
-    "defaultFile": "TAD.html"
+    "defaultFile": "TAD.html",
+    "savedServer": "Enregistré dans {name} — le même fichier, commentaires compris."
   },
   "doc": {
     "figure": "Figure",
@@ -88,7 +89,8 @@
       "integrator": "Apport {integrator}",
       "note": "À noter",
       "reco": "Recommandation",
-      "warn": "Attention"
+      "warn": "Attention",
+      "team": "Note de l'équipe projet"
     },
     "page": "Page",
     "kicker": "Document d'architecture technique",
@@ -104,7 +106,9 @@
     },
     "confidential": "Document établi par {integrator} pour {client}. Diffusion restreinte {client} / {integrator}.",
     "axesConfidential": "Document interne de {integrator}. Ne pas diffuser au client sans relecture.",
-    "generatedBy": "Généré avec TADForce"
+    "generatedBy": "Généré avec TADForce",
+    "confidentialSolo": "Document établi pour {client}. Diffusion restreinte.",
+    "axesConfidentialSolo": "Document interne de l'équipe projet. Ne pas diffuser au client sans relecture."
   },
   "control": {
     "element": "Élément",
@@ -120,7 +124,9 @@
     "author": "Auteur",
     "purpose": "Objet",
     "scopeValue": "Organisation Salesforce ({environment}) de {client}, état au {date}",
-    "firstVersion": "Version consolidée remise à {client} pour revue et validation"
+    "firstVersion": "Version consolidée remise à {client} pour revue et validation",
+    "preparedBy": "Établi par",
+    "scopeLimited": "Périmètre limité à : {scope}"
   },
   "legend": {
     "actor": "Acteurs : utilisateurs, populations, canaux",

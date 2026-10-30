@@ -4,19 +4,23 @@ Ask in **blocks**, each in one message, with your proposed answer for every item
 
 ## Block A — startup (before or right after authorization)
 
-Propose from `npx tadforce detect`:
+`npx tadforce doctor --json` returns these questions with a `recommended` answer each (from the org when connected). Ask them all in one message:
 
-1. Document language — proposed: `<en|fr>` (org default language: `<locale>`).
-2. Client name and short code (file names) — proposed: `<Organization.Name>` / `<CODE>`.
-3. Integrator (who signs the document) — proposed: `<from the user e-mail domain>`.
-4. Environment documented — proposed: `<Production|Sandbox>` (from `IsSandbox`).
-5. Document title — proposed: « Salesforce CRM Platform » (or the client's name for the solution).
-6. Logos (client, integrator) — paths, or none (initials badges).
-7. Target org alias — proposed: `<alias>`; manifest mode `curated` (recommended) or `full`.
+1. Document language — recommended: the org default language.
+2. Client name and short code (file names) — recommended: `Organization.Name` / `<CODE>`.
+3. Integrator — **optional**. Blank: the document names the client only (no empty « Integrator » line, no badge).
+4. Author — **optional**. Blank: no author is shown anywhere. Never put your own name or the agent's.
+5. Document title — recommended: « Salesforce CRM Platform » (or the client's name for the solution).
+6. Scope — **optional**: name patterns of the components the project owns (`NWB_*,Loan*`), when the org is shared with other teams. Blank: the whole org.
+7. Client logo — **optional**: a file or a URL. Blank: TADForce searches the org (static resources, content assets, site assets), then falls back to an initials badge. The document colours follow the org's Lightning theme, else the logo. If none is found and the client has a public website, you may *offer* to look for the logo there — fetch it only after the human says yes.
+8. Functional specifications — **optional**: paths to PDF / DOCX / MD files (copied into `knowledge/inputs/specs/`).
+9. Metadata — `org` (recommended: retrieve everything from the org), `local` (the sources of this project), or `both`.
+
+Answer with `npx tadforce doctor --json --confirm --lang fr --client "…" --short ABC --integrator none --author "…" --title "…" [--scope "…"] [--logo …] [--specs … | --no-specs] [--source org]`.
 
 FR example:
 
-> Pour démarrer, je propose : langue **français** (langue par défaut de l'org : fr_FR) · client **« Banque Exemple »** (code `BEX`) · intégrateur **« Acme Conseil »** · environnement **Production** · titre **« Plateforme CRM Salesforce »** · pas de logo (pastilles avec initiales). Je confirme ? Indiquez seulement ce qui change.
+> Pour démarrer, je propose : langue **français** (langue par défaut de l'org : fr_FR) · client **« Banque Exemple »** (code `BEX`) · intégrateur : **aucun** · auteur : **aucun** · titre **« Plateforme CRM Salesforce »** · périmètre : **toute l'org** · logo : **cherché dans l'org** · spécifications fonctionnelles : **aucune** · métadonnées : **depuis l'org**. Je confirme ? Indiquez seulement ce qui change.
 
 ## Block B — external systems (from `facts/questions.json › systems`)
 

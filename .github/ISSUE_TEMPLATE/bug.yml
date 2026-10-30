@@ -1,0 +1,21 @@
+name: Bug
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Command and output
+      description: The command you ran and its output (`--json` helps). Remove client names, hosts and org IDs.
+      render: shell
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: "`npx tadforce --version` · `sf --version` · OS · AI agent"

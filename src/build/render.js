@@ -85,10 +85,15 @@ export function badgeLogo(name, color) {
   return 'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64');
 }
 
-export function outputName(cfg, doc) {
+/**
+ * Base name of a built document. The HTML keeps the same name from one version to the next
+ * (the review comments live in it); `{ versioned: true }` adds the version, for PDF and DOCX archives.
+ */
+export function outputName(cfg, doc, { versioned = false } = {}) {
   const short = String(cfg.client.short || cfg.client.name || 'CLIENT').replace(/[^\w-]+/g, '_');
   const custom = cfg.outputs && cfg.outputs.names && cfg.outputs.names[doc];
-  return custom || `${doc === 'tad' ? 'TAD' : 'Axes'}_${short}_v${cfg.document.version}`;
+  const base = custom || `${doc === 'tad' ? 'TAD' : 'Axes'}_${short}`;
+  return versioned && !custom ? `${base}_v${cfg.document.version}` : base;
 }
 
 const md = new MarkdownIt({ html: true, linkify: false, typographer: false });
@@ -137,7 +142,7 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
     const k = /\[!(\w+)\]\s*/.exec(inner);
     if (!k) return m;
     const kind = k[1].toLowerCase();
-    const title = { integrator: t(dict, 'doc.callout.integrator', { integrator: cfg.integrator.name }), note: t(dict, 'doc.callout.note'), reco: t(dict, 'doc.callout.reco'), warn: t(dict, 'doc.callout.warn') }[kind] || kind;
+    const title = { integrator: cfg.integrator.name ? t(dict, 'doc.callout.integrator', { integrator: cfg.integrator.name }) : t(dict, 'doc.callout.team'), note: t(dict, 'doc.callout.note'), reco: t(dict, 'doc.callout.reco'), warn: t(dict, 'doc.callout.warn') }[kind] || kind;
     return `<aside class="callout ${kind}"><div class="ct">${escapeHtml(title)}</div>${inner.replace(k[0], '')}</aside>`;
   });
 
@@ -181,13 +186,25 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
   const brand = cfg.brand;
   const cssStr = (s) => String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   const css = readText(path.join(TEMPLATES, 'html', 'style.css'))
-    .replace('{{PRINT_FOOTER}}', cssStr(`${docName} — ${cfg.document.title} · ${cfg.client.name} · ${cfg.document.classification}`))
+    .replace('{{PRINT_FOOTER}}', cssStr(doc === 'axes' && cfg.integrator.name ? `${docName} — ${cfg.document.title} · ${cfg.integrator.name} · ${t(dict, 'doc.axesKicker')}` : `${docName} — ${cfg.document.title} · ${cfg.client.name} · ${cfg.document.classification}`))
     .replace('{{PRINT_PAGE}}', cssStr(t(dict, 'doc.page')));
   const brandCss = `:root{--brand:${brand.primary};--accent:${brand.accent};--accent2:${brand.accent2};--grad:linear-gradient(90deg,${brand.gradient[0]},${brand.gradient[1]});--th:${brand.tableHeader};--kpiMore:"${cssStr(t(dict, 'ui.kpiMore'))}"}@media print{:root{--brand:${brand.primary};--th:${brand.tableHeader}}}`;
   const logo = (who) => {
     const p = cfg[who].logo && wsCtx.p(cfg[who].logo);
     return p && exists(p) ? dataUri(p) : badgeLogo(cfg[who].short || cfg[who].name, who === 'client' ? brand.primary : brand.accent2);
   };
+  // Integrator and author are optional: without them the document only names the client.
+  const integrator = cfg.integrator.name || null;
+  const author = cfg.document.author || null;
+  const preparedBy = [author, integrator].filter(Boolean).join(' — ');
+  const sideLogo = integrator ? logo('integrator') : logo('client');
+  // The Improvement Axes are the integrator's internal document: its brand only (the client's when there is none).
+  const internal = doc === 'axes' && integrator;
+  const coverLogos = internal
+    ? `<img src="${logo('integrator')}" alt="${escapeHtml(integrator)}">`
+    : integrator
+      ? `<img src="${logo('integrator')}" alt="${escapeHtml(integrator)}"><img src="${logo('client')}" alt="${escapeHtml(cfg.client.name)}">`
+      : `<img src="${logo('client')}" alt="${escapeHtml(cfg.client.name)}">`;
   const vendor = (f) => readText(path.join(TEMPLATES, 'vendor', f));
   const coverTpl = readText(path.join(TEMPLATES, 'html', 'cover.html'));
   const tokens = {
@@ -196,26 +213,28 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
     '{{CSS}}': css,
     '{{BRAND_CSS}}': brandCss,
     '{{TITLE}}': escapeHtml(`${docName} — ${cfg.document.title} — ${cfg.client.name}`),
-    '{{DESCRIPTION}}': escapeHtml(`${docName} — ${cfg.document.title} — ${cfg.client.name} (${cfg.integrator.name})`),
+    '{{DESCRIPTION}}': escapeHtml(`${docName} — ${cfg.document.title} — ${cfg.client.name}${integrator ? ` (${integrator})` : ''}`),
     '{{COVER}}': coverTpl,
     '{{COVER_KICKER}}': escapeHtml(doc === 'tad' ? t(dict, 'doc.kicker') : t(dict, 'doc.axesKicker')),
-    '{{COVER_NOTE}}': escapeHtml(t(dict, doc === 'tad' ? 'doc.confidential' : 'doc.axesConfidential', { client: cfg.client.name, integrator: cfg.integrator.name })),
+    '{{COVER_NOTE}}': escapeHtml(t(dict, (doc === 'tad' ? 'doc.confidential' : 'doc.axesConfidential') + (integrator ? '' : 'Solo'), { client: cfg.client.name, integrator })),
     '{{DOC_TITLE}}': escapeHtml(cfg.document.title),
     '{{DOC_SUBTITLE}}': escapeHtml(cfg.document.subtitle || [cfg.client.name, ...facts.modules.clouds.filter((x) => !['events', 'shield', 'slack'].includes(x.id)).slice(0, 3).map((x) => x.name)].join(' · ')),
     '{{DOC_REFERENCE}}': escapeHtml(doc === 'tad' ? cfg.document.reference : cfg.document.reference + '-AX'),
     '{{DOC_VERSION}}': escapeHtml(`${cfg.document.version}${cfg.document.status ? ' — ' + cfg.document.status : ''}`),
     '{{DOC_DATE}}': escapeHtml(cfg.document.date),
     '{{DOC_CLASSIFICATION}}': escapeHtml(doc === 'tad' ? cfg.document.classification : t(dict, 'doc.axesKicker')),
-    '{{INTEGRATOR_NAME}}': escapeHtml(cfg.integrator.name),
+    '{{INTEGRATOR_NAME}}': escapeHtml(integrator || cfg.client.name),
+    '{{COVER_LOGOS}}': coverLogos,
+    '{{PREPARED_BY_ROW}}': preparedBy ? `<div><b>${escapeHtml(t(dict, 'doc.meta.author'))}</b><span>${escapeHtml(preparedBy)}</span></div>` : '',
     '{{CLIENT_NAME}}': escapeHtml(cfg.client.name),
     '{{TOC}}': toc.join(''),
     '{{FIGLIST}}': figs,
     '{{BODY}}': html,
-    '{{INTEGRATOR_LOGO}}': logo('integrator'),
+    '{{INTEGRATOR_LOGO}}': sideLogo,
     '{{CLIENT_LOGO}}': logo('client'),
     '{{SIDE_TITLE}}': escapeHtml(`${docName} — ${cfg.document.title}`),
     '{{SIDE_SUB}}': escapeHtml(`${cfg.client.name} · v${cfg.document.version} · ${cfg.document.date}`),
-    '{{FOOTER}}': escapeHtml(`${cfg.integrator.name} · ${cfg.client.name} · ${doc === 'tad' ? cfg.document.classification : t(dict, 'doc.axesKicker')}`) + ` · <span class="gen">${escapeHtml(t(dict, 'doc.generatedBy'))}</span>`,
+    '{{FOOTER}}': escapeHtml(`${integrator ? integrator + ' · ' : ''}${internal ? '' : cfg.client.name + ' · '}${doc === 'tad' ? cfg.document.classification : t(dict, 'doc.axesKicker')}`) + ` · <span class="gen">${escapeHtml(t(dict, 'doc.generatedBy'))}</span>`,
     '{{I18N_JSON}}': JSON.stringify({ editor: dict.editor }).replace(/</g, '\\u003c'),
     '{{BRAND_JSON}}': JSON.stringify(brand).replace(/</g, '\\u003c'),
     '{{DOCX_LIB}}': vendor('html-docx.js'),
@@ -241,6 +260,14 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
     if (!exists(p)) { problems.push({ level: 'warn', code: 'comments-missing', message: `commentsFrom file not found: ${rel}` }); continue; }
     carried.push(...readComments(readText(p)));
   }
+  // The HTML keeps one name across versions: the comments already saved in it are carried over too.
+  const outDir = wsCtx.p(cfg.outputs.dir || 'out');
+  const htmlPath = path.join(outDir, outputName(cfg, doc) + '.html');
+  const prev = exists(htmlPath) ? readText(htmlPath) : null;
+  if (prev) {
+    const known = new Set(carried.map((c) => c.id));
+    for (const c of readComments(prev)) if (!known.has(c.id)) carried.push(c);
+  }
   for (const c of carried) {
     if (c.status === 'résolu') c.status = 'resolved';
     const res = review.resolutions && review.resolutions[c.id];
@@ -252,19 +279,12 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
     out = out.replace('<script type="application/json" id="tad-comments">[]</script>', () => `<script type="application/json" id="tad-comments">${payload}</script>`);
   }
 
-  const outDir = wsCtx.p(cfg.outputs.dir || 'out');
-  const base = outputName(cfg, doc);
-  const htmlPath = path.join(outDir, base + '.html');
   let backup = null;
-  if (exists(htmlPath)) {
-    const prev = readText(htmlPath);
-    const prevIds = new Set(readComments(prev).map((c) => c.id));
-    const carriedIds = new Set(carried.map((c) => c.id));
-    if ([...prevIds].some((id) => !carriedIds.has(id)) || prev.includes('data-edited="1"')) {
-      backup = htmlPath.replace(/\.html$/, `_comments_${stamp()}.html`);
-      writeText(backup, prev);
-      problems.push({ level: 'warn', code: 'backup', message: `Existing file held comments or in-browser edits: copy kept as ${path.basename(backup)}. Carry them over with review.${doc}.commentsFrom.` });
-    }
+  // In-browser text edits cannot be merged into the Markdown sources: keep a copy so that nothing is lost.
+  if (prev && prev.includes('data-edited="1"')) {
+    backup = htmlPath.replace(/\.html$/, `_comments_${stamp()}.html`);
+    writeText(backup, prev);
+    problems.push({ level: 'warn', code: 'backup', message: `Existing file held in-browser text edits: copy kept as ${path.basename(backup)}. Report the edits into src/${doc}/*.md (comments are carried over automatically).` });
   }
   writeText(htmlPath, out);
   return { doc, html: htmlPath, backup, sizeKB: Math.round(out.length / 1024), figures: nfig, mermaid: figures.length, problems, pending, headings: pre.headings };
