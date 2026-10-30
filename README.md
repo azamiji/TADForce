@@ -47,11 +47,9 @@ From your Salesforce DX project (or an empty folder):
 npx tadforce doctor
 ```
 
-Then, in your AI agent (Claude Code, Codex, Cursor, Copilot…):
+That one command installs everything: it downloads TADForce, installs the agent skills in your project, connects to the org, collects the metadata and asks you the few questions only a human can answer. When everything is green, it says so and **offers to hand over to your AI agent** (Claude Code, Codex, Gemini CLI or Cursor, detected on your machine), which writes, builds and validates the document — nothing else to type.
 
-```text
-/tadforce
-```
+Already in your agent? Type `/tadforce`: it runs the same checks, then writes.
 
 <table>
 <tr><th width="33%">A — Claude Code plugin</th><th width="33%">B — Any agent (Agent Skills)</th><th width="33%">C — Deterministic / CI</th></tr>

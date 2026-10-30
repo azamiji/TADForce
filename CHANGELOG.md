@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 — 2026-10-30
+
+- `doctor` follows the user step by step and never acts without a yes: it confirms the Salesforce project (outside a project it creates nothing and proposes the projects found nearby), proposes the default org instead of taking it (« no » opens the Salesforce login and asks again once connected), asks which metadata to use — retrieve everything read-only, local sources, or retrieved by the user — and waits for the go before a long retrieve.
+- Six framing questions, each with a recommended answer, accepted all at once in one keystroke; the same for the branding (logo and colours) and for the systems and exclusions. The short code is derived from the client name (Northwind Bank → NB).
+- Every answer is saved in the project: a later `doctor` resumes where it stopped.
+- `doctor` ends on the writing: once everything is green, it says so and offers to start the AI agent found on the machine (Claude Code, Codex, Gemini CLI, Cursor) on `/tadforce`. `--agent <id>` picks one (remembered), `--no-launch` stops at the prerequisites. Never from CI, `--json` or inside an agent session.
+
 ## 0.3.0 — 2026-10-30
 
 - Any document language: English and French built in; for any other language (`es`, `de`, `it`, `pt`, `ar`, `ja`…) the skeletons start in English and the agent translates the headings and `tadforce/i18n/<lang>.json` once. Numbers follow the language's format.

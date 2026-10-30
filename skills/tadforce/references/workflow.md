@@ -13,10 +13,15 @@ npx tadforce doctor --json
 | `next` says | You do |
 |---|---|
 | install the missing tools | `sf-cli` missing: you may run `npm install --global @salesforce/cli` after asking. Node or a browser missing: human action (or `npx @puppeteer/browsers install chrome-headless-shell@stable` + `TADFORCE_CHROME`) |
-| the human logs in | No org, or an expired session. Ask the human to run `npx tadforce doctor` in a terminal (it opens the browser) or `sf org login web --alias <a> --set-default [--instance-url https://test.salesforce.com]`. No org at all: `--source local` documents the local sources |
-| ask the human these questions | Block A of `questions.md`: one message, a recommendation for each. Then `npx tadforce doctor --json --confirm --lang fr --client "…" --short ABC --integrator "…"\|none --author "…"\|none --title "…" [--scope "NWB_*,Loan*"] [--logo <file\|url>] [--specs a.pdf,b.docx \| --no-specs] [--source org\|local\|both]` |
-| write the answers to the knowledge files | Blocks B, C and D of `questions.md` → `knowledge/glossary.yml`, `knowledge/exclusions.yml`; then `npx tadforce facts` and `npx tadforce doctor --json --facts-reviewed` |
+| question `project` | Confirm with the human that this Salesforce project is the one to document → `--project yes`. Not in a project: `doctor` creates nothing; it proposes the projects found nearby → `--project <path>` (then always pass `--cwd <path>`), or `--project create` only if the human asks for a new project here |
+| question `org` | Show the org (alias, user, URL) and ask whether the TAD is about it → `--org <alias>`. Another org, or none connected: the human logs in (`sf org login web --alias <a> [--instance-url https://test.salesforce.com]`, it opens the browser), then ask again and pass `--org <a>`. No org at all: `--source local` |
+| framing questions | Block A of `questions.md`: one message, the recommended answer for each, « accept all » allowed → `--confirm --lang … --client "…" --integrator …|none --author …|none [--specs …|--no-specs] [--scope …]` |
+| question `source` | org (retrieve everything, read-only, several minutes), local, or self (the human retrieves first). The answer **is the go**: ask before passing `--source org` — the retrieve starts right away. `self`: wait until the human says the retrieve is done, then `--source local` |
+| question `branding` | Show the logo and colours found → `--branding keep`, or `--logo <file|url>` |
+| systems / exclusions / features | Blocks B, C and D of `questions.md`, recommended answers shown → write `knowledge/*.yml`, `npx tadforce facts`, then `--facts-reviewed` |
 | `tadforce build` | Ready: write and build |
+
+Run by a person in a terminal, a green `doctor` starts the AI agent found on the machine on `/tadforce` (`--agent claude|codex|gemini|cursor`, `--no-launch` to stop there). Run by you (`--json`, or inside an agent session), it never starts another agent: carry on with the writing.
 
 What `doctor` does by itself, read-only:
 

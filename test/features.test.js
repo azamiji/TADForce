@@ -164,3 +164,11 @@ test('comments saved in the HTML survive a rebuild of the same file', async () =
     assert.equal(r2.backup, null, 'no copy: the comments are carried over in place');
   } finally { w.cleanup(); }
 });
+
+test('doctor never starts an agent from inside an agent session', async () => {
+  const { insideAgent, AGENTS } = await import('../src/util/agents.js');
+  const saved = process.env.TADFORCE_NO_LAUNCH;
+  process.env.TADFORCE_NO_LAUNCH = '1';
+  try { assert.equal(insideAgent(), true); } finally { if (saved === undefined) delete process.env.TADFORCE_NO_LAUNCH; else process.env.TADFORCE_NO_LAUNCH = saved; }
+  assert.deepEqual(AGENTS.find((a) => a.id === 'claude').args, ['/tadforce']);
+});

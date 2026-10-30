@@ -13,6 +13,7 @@ import { sfVersion, sfJson, sfInteractive, soql } from '../sf/sf.js';
 import { findBrowser, closeBrowser } from '../build/browser.js';
 import { findLogoCandidates, orgThemeColors, imageColors, paletteFrom } from '../build/brand.js';
 import { log, c, setQuiet } from '../util/log.js';
+import { installedAgents, insideAgent, launchAgent } from '../util/agents.js';
 import { ensureWorkspace, installSkills } from './init.js';
 import * as org from './org.js';
 import * as docs from './docs.js';
@@ -70,6 +71,12 @@ async function proposals(alias) {
   return out;
 }
 
+/** Short code for file names: initials of a multi-word name (Northwind Bank → NB), else the name cut to 8. */
+export function shortCode(name) {
+  const words = name.normalize('NFD').replace(/[̀-ͯ]/g, '').split(/[^A-Za-z0-9]+/).filter(Boolean);
+  return (words.length > 1 ? words.map((w) => w[0]).join('') : words[0] || 'CLIENT').slice(0, 8).toUpperCase();
+}
+
 const listArg = (v) => (typeof v !== 'string' ? undefined : v.split(',').map((x) => x.trim()).filter(Boolean));
 
 /** Answers given as flags (the agent's way of answering) are written to the config. */
@@ -77,7 +84,7 @@ async function applyAnswers(ctx, args) {
   const cfg = ctx.cfg;
   const set = (cond, fn) => { if (cond) fn(); };
   set(args.lang, () => { cfg.language = normalizeLang(args.lang); });
-  set(args.client, () => { cfg.client.name = String(args.client); if (!args.short && (cfg.client.short === 'CLIENT' || !cfg.client.short)) cfg.client.short = String(args.client).replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase(); });
+  set(args.client, () => { cfg.client.name = String(args.client); if (!args.short && (cfg.client.short === 'CLIENT' || !cfg.client.short)) cfg.client.short = shortCode(String(args.client)); });
   set(args.short, () => { cfg.client.short = String(args.short); });
   set(args.integrator !== undefined, () => { cfg.integrator.name = args.integrator === true || args.integrator === '' || args.integrator === 'none' ? null : String(args.integrator); });
   set(args.author !== undefined, () => { cfg.document.author = args.author === true || args.author === '' || args.author === 'none' ? null : String(args.author); });
@@ -103,6 +110,8 @@ async function applyAnswers(ctx, args) {
   if (args.specs !== undefined) cfg.setup.specsAsked = true; // --no-specs: none provided
   if (args.confirm || args.yes) cfg.setup.confirmed = true;
   if (args.factsReviewed) cfg.setup.factsReviewed = true;
+  if (args.branding === 'keep') cfg.setup.brandingConfirmed = true;
+  if (cfg.document.reference === 'TAD-CLIENT-CRM' && cfg.client.short !== 'CLIENT') cfg.document.reference = `TAD-${cfg.client.short}-CRM`;
   ctx.save(cfg);
 }
 
@@ -159,34 +168,13 @@ async function brand(ctx) {
   return notes;
 }
 
-/** Questions only a human can answer, each with a recommended answer. */
-function framingQuestions(cfg, prop, alias, hasLocal) {
-  const q = [];
-  const ask = (id, question, recommended, extra = {}) => q.push({ id, question, recommended, ...extra });
-  if (!cfg.setup.confirmed) {
-    ask('lang', `Document language — ${LANGUAGES.join(', ')} built in, or any language code (es, de, it, pt, nl, ar, ja…): the agent then translates the headings and labels once`, prop.language || cfg.language, { options: [...LANGUAGES, 'other'] });
-    ask('client', 'Client name, as it must appear in the document', prop.client || cfg.client.name);
-    ask('short', 'Client short name (file names, references)', cfg.client.short !== 'CLIENT' ? cfg.client.short : String(prop.client || cfg.client.name).replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase());
-    ask('integrator', 'Integrator, if any (blank: the document only names the client)', cfg.integrator.name || '', { optional: true });
-    ask('author', 'Author of the document (blank: no author shown)', cfg.document.author || '', { optional: true });
-    ask('title', 'Document title', cfg.document.title);
-    ask('scope', 'Part of the org to document — name patterns such as NWB_*,Loan* (blank: the whole org)', (cfg.scope.include || []).join(','), { optional: true });
-    ask('logo', `Client logo — a file or a URL${cfg.client.logo ? ` (current: ${cfg.client.logo})` : ' (blank: searched in the org, then a badge with initials)'}`, cfg.client.logo || '', { optional: true });
-  }
-  if (!cfg.setup.specsAsked && !(cfg.inputs.specs || []).length) ask('specs', 'Functional specifications or other project documents (PDF, DOCX, MD) — comma-separated paths (blank: none)', '', { optional: true });
-  if (!cfg.source.mode) {
-    ask('source', 'Metadata to document', alias ? 'org' : 'local', { options: ['org', 'local', 'both'], help: 'org: retrieve every metadata type from the org (recommended — the org is the truth); local: the force-app sources already here' + (hasLocal ? '' : ' (none found)') + '; both: org first, local sources added' });
-  }
-  return q;
-}
-
 /** Systems to name and exclusions to confirm, from facts/questions.json. */
 function factQuestions(ctx) {
   const p = ctx.p('facts', 'questions.json');
   if (!exists(p) || ctx.cfg.setup.factsReviewed) return [];
   const qs = readJson(p);
   const out = [];
-  for (const s of qs.systems || []) out.push({ id: `system:${s.key}`, kind: 'system', question: `Which system is ${s.key}? (name as the client calls it; blank: to be confirmed)`, endpoints: s.endpoints, writeTo: 'knowledge/glossary.yml › systems' });
+  for (const s of qs.systems || []) out.push({ id: `system:${s.key}`, kind: 'system', question: `Which system is ${s.key}? (name as the client calls it)`, recommended: '', endpoints: s.endpoints, writeTo: 'knowledge/glossary.yml › systems' });
   for (const g of (qs.exclusions && qs.exclusions.groups) || []) out.push({ id: `exclude:${g.reason}`, kind: 'exclusion', question: `${g.count} component(s): ${g.reason}. Exclude from the document? (all / none / list of names)`, recommended: 'none', items: g.items, writeTo: 'knowledge/exclusions.yml › exclude' });
   out.push({ id: 'features', kind: 'features', question: 'Any feature decommissioned or switched off that the document must not describe? (blank: none)', recommended: '', writeTo: 'knowledge/exclusions.yml › features' });
   return out;
@@ -203,6 +191,10 @@ function editYaml(file, key, items) {
 /** Interactive answers to the facts questions, written to the knowledge files. */
 async function askFacts(ctx, rl, questions) {
   const systems = [], exclude = [], features = [];
+  log.step('What the metadata cannot tell:');
+  questions.forEach((q, i) => console.log(`  ${i + 1}. ${q.question}`));
+  console.log(`     ${c.dim('recommended: systems « to be confirmed » in the document, nothing excluded, no decommissioned feature')}`);
+  if (yes((await rl.question('  Accept the recommended answers? [Y/n] ')).trim())) return 0;
   for (const q of questions) {
     const a = (await rl.question(`  ${q.question}${q.items ? '\n    ' + c.dim(q.items.slice(0, 12).join(', ') + (q.items.length > 12 ? ` … +${q.items.length - 12}` : '')) : ''}${q.endpoints ? '\n    ' + c.dim(q.endpoints.join(', ')) : ''}\n  > `)).trim();
     if (!a) continue;
@@ -219,132 +211,308 @@ async function askFacts(ctx, rl, questions) {
   return systems.length + exclude.length + features.length;
 }
 
+/** Framing questions (5 to 6), each with a recommended answer. Title and short code are derived. */
+function framingQuestions(cfg, prop) {
+  if (cfg.setup.confirmed) return [];
+  const q = [];
+  const ask = (id, question, recommended, extra = {}) => q.push({ id, question, recommended, ...extra });
+  ask('lang', `Document language (${LANGUAGES.join(', ')} built in, or any code: es, de, it, pt, ar…)`, prop.language || cfg.language, { options: [...LANGUAGES, 'other'] });
+  ask('client', 'Client name, as it must appear in the document', prop.client || (cfg.client.name !== 'Client' ? cfg.client.name : ''));
+  ask('integrator', 'Integrator (blank: the document only names the client)', cfg.integrator.name || '', { optional: true });
+  ask('author', 'Author of the document (blank: no author shown)', cfg.document.author || '', { optional: true });
+  ask('specs', 'Functional specifications to use, comma-separated paths (blank: none)', (cfg.inputs.specs || []).join(','), { optional: true });
+  ask('scope', 'Part of the org to document, name patterns such as NWB_* (blank: the whole org)', (cfg.scope.include || []).join(','), { optional: true });
+  return q;
+}
+
+/** Interactive batch: the list with its recommendations, then « accept all » or one by one. */
+async function askBatch(rl, title, questions) {
+  log.step(title);
+  questions.forEach((q, i) => console.log(`  ${i + 1}. ${q.question}\n     ${c.dim('recommended:')} ${q.recommended === '' || q.recommended == null ? c.dim('(blank)') : c.bold(String(q.recommended))}`));
+  const all = (await rl.question('  Accept all the recommended answers? [Y/n] ')).trim();
+  const answers = {};
+  if (/^(|y|o|yes|oui)$/i.test(all)) { for (const q of questions) answers[q.id] = q.recommended ?? ''; return answers; }
+  for (const q of questions) {
+    const a = (await rl.question(`  ${q.question}${q.options ? ` (${q.options.join('/')})` : ''}${q.recommended ? ` [${q.recommended}]` : ''}: `)).trim();
+    answers[q.id] = a || q.recommended || '';
+    if (q.id === 'lang' && /^(other|autre)$/i.test(a)) answers.lang = (await rl.question('  Language code (es, de, it, pt, nl, ar, ja…): ')).trim() || 'en';
+  }
+  return answers;
+}
+
+const yes = (a, def = true) => (a === '' ? def : /^(y|o|yes|oui)$/i.test(a));
+
+/** Salesforce DX projects in this folder's sub-folders and next to it (two levels), for the user to pick from. */
+function findProjects(start) {
+  const out = new Set();
+  const visit = (dir, depth) => {
+    let entries = [];
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    if (entries.some((e) => e.isFile() && e.name === 'sfdx-project.json')) out.add(dir);
+    if (depth <= 0) return;
+    for (const e of entries) if (e.isDirectory() && !/^(node_modules|\.|force-app$)/.test(e.name)) visit(path.join(dir, e.name), depth - 1);
+  };
+  visit(start, 2);
+  visit(path.dirname(start), 1);
+  out.delete(start);
+  return [...out].slice(0, 9);
+}
+
+const hasLocalSources = (project) => (readJson(path.join(project, 'sfdx-project.json')).packageDirectories || [])
+  .some((d) => exists(path.join(project, d.path)) && fs.readdirSync(path.join(project, d.path), { recursive: true }).some((f) => String(f).endsWith('-meta.xml')));
+
+/**
+ * Step 2 — which Salesforce project. Never creates anything without a yes. Returns the project folder,
+ * or { stop } with the question to hand back.
+ */
+async function resolveProject(start, args, rl) {
+  const ws = findWorkspace(start);
+  const confirmed = ws && defaultConfig(readJson(path.join(ws, CONFIG_FILE))).setup.projectConfirmed;
+  if (exists(path.join(start, 'sfdx-project.json'))) {
+    if (confirmed || args.project === 'yes' || args.yes) return start;
+    const name = readJson(path.join(start, 'sfdx-project.json')).name || path.basename(start);
+    if (!rl) return { stop: { id: 'project', question: `Generate the TAD for the Salesforce project "${name}" (${start})?`, recommended: 'yes', options: ['yes', '<path of another project>'] } };
+    if (yes((await rl.question(`  Salesforce project found: ${c.bold(name)} (${start}).\n  Generate the TAD for this project? [Y/n] `)).trim())) return start;
+    const other = (await rl.question('  Path of the project to document (blank: stop): ')).trim();
+    return other ? resolveProject(path.resolve(other), { ...args, project: 'yes' }, rl) : { stop: null };
+  }
+  if (args.project === 'create') return start;
+  if (args.project && args.project !== 'yes') return resolveProject(path.resolve(String(args.project)), { ...args, project: 'yes' }, rl);
+  const found = findProjects(start);
+  if (!rl) return { stop: { id: 'project', question: `No Salesforce DX project in ${start}. Which project should the TAD document? A path, or "create" to create a new project here.`, recommended: found[0] || '', options: [...found, 'create'] } };
+  console.log(`  ${c.yellow('⚠')} ${start} is not a Salesforce DX project (no sfdx-project.json).`);
+  found.forEach((p, i) => console.log(`    ${i + 1}. ${p}`));
+  console.log(`    ${c.dim('or a path · c = create a new project here · Enter = stop')}`);
+  const a = (await rl.question(`  Project to document${found.length ? ' [1]' : ''}: `)).trim();
+  if (!a && found.length) return found[0];
+  if (/^\d+$/.test(a) && found[Number(a) - 1]) return found[Number(a) - 1];
+  if (/^c$/i.test(a)) return start;
+  if (a) return resolveProject(path.resolve(a), { ...args, project: 'yes' }, rl);
+  console.log('  Open your Salesforce project folder (cd <path>), then run tadforce doctor again.');
+  return { stop: null };
+}
+
+/**
+ * Step 3 — which org. The default org is proposed, never taken silently; « no » opens the Salesforce
+ * login and asks again once an org is connected. Returns { ok } or { stop } with the question to hand back.
+ */
+async function confirmOrg(project, ctx, args, rl) {
+  const cfg = ctx.cfg;
+  if (cfg.source.mode === 'local') return { ok: true };
+  const explicit = typeof args.org === 'string' ? args.org : null;
+  let alias = explicit || (cfg.setup.orgConfirmed ? cfg.org.alias : await resolveAlias(project, {}, { org: {} }));
+  let status = alias ? await orgStatus(alias) : { ok: false, reason: 'none' };
+  const keep = () => { cfg.org.alias = alias; cfg.setup.orgConfirmed = true; ctx.save(cfg); return { ok: true }; };
+  if (status.ok && (explicit || cfg.setup.orgConfirmed)) return keep();
+  const describe = () => `${c.bold(alias)} (${status.username}, ${status.instanceUrl})`;
+  if (!rl) {
+    return { stop: alias && status.ok
+      ? { id: 'org', question: `Generate the TAD from the org "${alias}" (${status.username}, ${status.instanceUrl})?`, recommended: alias, options: [alias, 'another org: the human runs `sf org login web --alias <a>` (opens the browser), then --org <a>', 'local: document the local sources only (--source local)'] }
+      : { id: 'org', question: alias ? `The org "${alias}" is not connected (session expired). The human logs in again: \`sf org login web --alias ${alias}\`, then --org ${alias}.` : 'No org connected. The human logs in: `sf org login web --alias <a>` (opens the browser), then --org <a>; or --source local.', recommended: alias || null, human: true } };
+  }
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (alias && status.ok) {
+      const a = (await rl.question(`  ${attempt ? 'Connected' : 'Default org'}: ${describe()}\n  Generate the TAD from this org? [Y/n/l = local sources only] `)).trim();
+      if (yes(a)) return keep();
+      if (/^l/i.test(a)) { cfg.source.mode = 'local'; ctx.save(cfg); return { ok: true }; }
+    } else if (alias) console.log(`  ${c.yellow('⚠')} The org "${alias}" is not connected (session expired): log in again.`);
+    // « no », or no usable org: open the Salesforce CLI login and wait for it.
+    const def = alias && !status.ok ? alias : 'tad-org';
+    const next = (await rl.question(`  Alias for the org to connect [${def}]: `)).trim() || def;
+    const sandbox = yes((await rl.question('  Is it a sandbox? [y/N] ')).trim(), false);
+    log.human('a browser window opens: log in to the org, then click « Allow ». Waiting for the login…');
+    if (!sfInteractive(['org', 'login', 'web', '--alias', next, ...(sandbox ? ['--instance-url', 'https://test.salesforce.com'] : [])])) { log.warn('Login did not complete.'); continue; }
+    alias = next; status = await orgStatus(alias);
+  }
+  return { stop: null };
+}
+
+/** Step 5 — which metadata, and the go before a long retrieve. Returns { mode } or { stop }. */
+async function chooseSource(project, ctx, args, rl) {
+  const cfg = ctx.cfg;
+  const local = hasLocalSources(project);
+  // local sources need no go: there is no long retrieve
+  if (cfg.source.mode === 'local' || (cfg.source.mode && cfg.setup.sourceGo)) return { mode: cfg.source.mode };
+  if (typeof args.source === 'string') { cfg.source.mode = args.source === 'self' ? 'local' : args.source; cfg.setup.sourceGo = args.source !== 'self'; ctx.save(cfg); if (args.source !== 'self') return { mode: cfg.source.mode }; }
+  const org = cfg.source.mode !== 'local' && cfg.org.alias;
+  const options = [
+    ...(org ? [{ id: 'org', text: `retrieve all the metadata of ${cfg.org.alias}, read-only (several minutes)` }] : []),
+    ...(local ? [{ id: 'local', text: 'use only the metadata already in this project (force-app…)' }] : []),
+    { id: 'self', text: 'you retrieve the metadata yourself first, then give the go' },
+  ];
+  const recommended = org ? 'org' : local ? 'local' : 'self';
+  if (!rl) return { stop: { id: 'source', question: 'Which metadata should the TAD be written from? (--source answers it and is the go: the retrieve starts right away)', recommended, options: options.map((o) => `${o.id}: ${o.text}`) } };
+  log.step('Metadata for the document:');
+  options.forEach((o, i) => console.log(`    ${i + 1}. ${o.text}${o.id === recommended ? c.dim('  (recommended)') : ''}`));
+  const a = (await rl.question(`  Your choice [${options.findIndex((o) => o.id === recommended) + 1}]: `)).trim();
+  const pick = options[Number(a) - 1] || options.find((o) => o.id === recommended);
+  if (pick.id === 'self') {
+    console.log(`  Retrieve the metadata into this project, for example:\n    ${c.cyan('sf project retrieve start --manifest manifest/package.xml')}`);
+    const done = (await rl.question('  Press Enter when your retrieve is done (s = stop for now): ')).trim();
+    if (/^s/i.test(done)) return { stop: null };
+    cfg.source.mode = 'local'; cfg.setup.sourceGo = true; ctx.save(cfg);
+    return { mode: 'local' };
+  }
+  if (pick.id === 'org' && !yes((await rl.question('  The retrieve takes several minutes, read-only. Start now? [Y/n] ')).trim())) {
+    console.log('  Run tadforce doctor again when you are ready: your answers are kept.');
+    return { stop: null };
+  }
+  cfg.source.mode = pick.id; cfg.setup.sourceGo = true; ctx.save(cfg);
+  return { mode: pick.id };
+}
+
+/** Step 6a — logo and colours found from evidence, confirmed in one question. */
+async function confirmBranding(ctx, args, rl, say) {
+  for (const n of await brand(ctx)) say(() => log.ok(n));
+  const cfg = loadWorkspace(ctx.project).cfg;
+  if (cfg.setup.brandingConfirmed) return null;
+  const logo = cfg.client.logo || 'none (a badge with the initials)';
+  const colours = cfg.brand.source ? `${cfg.brand.gradient[0]} (from the ${cfg.brand.source})` : 'TADForce default colours';
+  if (!rl) return { id: 'branding', question: `Branding: logo ${logo}; colours ${colours}. Keep it? (--branding keep, or --logo <file|url>)`, recommended: 'keep' };
+  const a = (await rl.question(`  Logo: ${c.bold(logo)} · colours: ${c.bold(colours)}\n  Keep it? [Y / path or URL of another logo] `)).trim();
+  const c2 = loadWorkspace(ctx.project);
+  if (a && !yes(a, false) && !/^n/i.test(a)) {
+    try { c2.cfg.client.logo = await importAsset(c2, a, 'client-logo'); c2.save(c2.cfg); for (const n of await brand(loadWorkspace(ctx.project))) say(() => log.ok(n)); } catch (e) { log.warn(e.message); }
+  }
+  const c3 = loadWorkspace(ctx.project); c3.cfg.setup.brandingConfirmed = true; c3.save(c3.cfg);
+  return null;
+}
+
 /** One pass: where the workspace stands, and what remains. */
 async function evaluate(project, args) {
   const tools = await checks(project);
   const ws = findWorkspace(project);
   const cfg = ws ? defaultConfig(readJson(path.join(ws, CONFIG_FILE))) : defaultConfig();
-  const alias = tools.find((t) => t.id === 'sf-cli').ok ? await resolveAlias(project, args, cfg) : null;
-  const status = alias ? await orgStatus(alias) : { ok: false, reason: 'none' };
   const list = [...tools];
   const add = (id, ok, message, fix = null, human = false, level = ok ? 'ok' : 'error') => list.push({ id, ok, level, message, fix, human });
-  add('workspace', !!ws, ws ? `Workspace: ${path.relative(project, ws) || '.'}` : 'No TADForce workspace yet', ws ? null : 'created by doctor', false, ws ? 'ok' : 'warn');
-  const wantOrg = cfg.source.mode !== 'local';
-  if (wantOrg) {
-    if (status.ok) add('org', true, `Org: ${alias} (${status.instanceUrl})`);
-    else if (status.reason === 'none') add('org', false, 'No org connected to this project', 'log in once in the browser (doctor opens it), or `--source local` to document the local sources only', true);
-    else add('org', false, `Org "${alias}" is not connected (${status.detail || 'session expired'})`, 'log in again in the browser (doctor opens it)', true);
+  if (ws) add('workspace', true, `Workspace: ${path.relative(project, ws) || '.'}`);
+  if (cfg.source.mode !== 'local' && cfg.setup.orgConfirmed && cfg.org.alias) {
+    const status = await orgStatus(cfg.org.alias);
+    add('org', status.ok, status.ok ? `Org: ${cfg.org.alias} (${status.instanceUrl})` : `Org "${cfg.org.alias}" is not connected`, status.ok ? null : 'log in again (doctor opens the browser)', !status.ok);
   }
-  let facts = false, snapshot = false;
+  let facts = false;
   if (ws) {
     const ctx = loadWorkspace(project);
-    snapshot = exists(ctx.p(ctx.cfg.source.dir));
     facts = exists(ctx.p('facts', 'facts.json'));
     const lang = normalizeLang(ctx.cfg.language);
     const own = ctx.p('i18n', `${lang}.json`);
     if (!LANGUAGES.includes(lang) && exists(own) && readJson(own)._translate) add('language', true, `Document language "${lang}": headings and labels still to translate (once)`, `the agent translates the headings of src/*/*.md (keep the {#anchors}) and the values of tadforce/i18n/${lang}.json, then removes its "_translate" line`, false, 'warn');
-    add('metadata', facts, facts ? `Metadata: ${snapshot ? 'retrieved from the org' : 'local sources'} → facts/facts.json` : 'Metadata not collected yet', facts ? null : 'doctor retrieves it once the questions are answered');
+    if (facts) add('metadata', true, `Metadata: ${exists(ctx.p(ctx.cfg.source.dir)) && ctx.cfg.source.mode !== 'local' ? 'retrieved from the org' : 'local sources'} → facts/facts.json`);
   }
-  return { tools, ws, cfg, alias, status, list, facts, snapshot };
+  return { tools, ws, cfg, list, facts };
 }
 
 export async function run(args) {
-  const project = path.resolve(args.cwd || process.cwd());
+  const start = path.resolve(args.cwd || process.cwd());
   const interactive = process.stdin.isTTY && !args.json && !args.yes;
   const rl = interactive ? readline.createInterface({ input: process.stdin, output: process.stdout }) : null;
   const say = (fn) => { if (!args.json) fn(); };
   if (args.json) setQuiet(true);
   say(() => log.banner('doctor'));
   try {
-    for (let round = 1; round <= 8; round++) {
-      let st = await evaluate(project, args);
-      // 1. Tools: TADForce installs what it may, the rest is a human action.
-      const sfMissing = st.tools.find((t) => t.id === 'sf-cli' && !t.ok);
-      if (sfMissing && rl && /^(y|o|yes|oui|)$/i.test((await rl.question(`  Salesforce CLI missing. Install it now with npm? [Y/n] `)).trim())) {
-        spawnSync('npm', ['install', '--global', '@salesforce/cli'], { stdio: 'inherit', shell: process.platform === 'win32' });
-        continue;
-      }
-      const blocking = st.tools.filter((t) => t.level === 'error');
-      if (blocking.length) return finish(args, st, [], [], 'install the missing tools, then run tadforce doctor again');
-
-      // 2. Workspace (with the skills for the agents of this project)
-      if (!st.ws) {
-        await quietly(args.json, () => { ensureWorkspace(project, defaultConfig({ org: { alias: st.alias || null } })); installSkills(project, null); });
-        say(() => log.ok('Workspace created: tadforce/ (skills installed for your agents)'));
-        st = await evaluate(project, args);
-      }
-      const ctx = loadWorkspace(project);
-      ctx.cfg.setup = ctx.cfg.setup || {};
-      const hasLocal = (readJson(path.join(project, 'sfdx-project.json')).packageDirectories || []).some((d) => exists(path.join(project, d.path)) && fs.readdirSync(path.join(project, d.path), { recursive: true }).some((f) => String(f).endsWith('-meta.xml')));
-      await applyAnswers(ctx, args);
-
-      // 3. Org connection: reuse the project's target-org, log in only when needed.
-      if (ctx.cfg.source.mode !== 'local' && !st.status.ok) {
-        if (!rl) return finish(args, st, [], [], 'the human logs in: run `tadforce doctor` in a terminal (it opens the browser), or `sf org login web --alias <alias> --set-default`');
-        if (hasLocal && /^l/i.test((await rl.question('  No org connected. Log in now, or document the local sources only? [Login/local] ')).trim())) { ctx.cfg.source.mode = 'local'; ctx.save(ctx.cfg); continue; }
-        const def = st.alias || 'tadforce-org';
-        const alias = (await rl.question(`  Org alias to log in [${def}]: `)).trim() || def;
-        const sandbox = /^(y|o|yes|oui)$/i.test((await rl.question('  Is it a sandbox? [y/N] ')).trim());
-        log.human('a browser window opens: log in to the org, then click « Allow ».');
-        if (sfInteractive(['org', 'login', 'web', '--alias', alias, '--set-default', ...(sandbox ? ['--instance-url', 'https://test.salesforce.com'] : [])])) { ctx.cfg.org.alias = alias; ctx.save(ctx.cfg); }
-        continue;
-      }
-      if (st.alias && ctx.cfg.org.alias !== st.alias && st.status.ok) { ctx.cfg.org.alias = st.alias; ctx.save(ctx.cfg); }
-
-      // 4. Framing questions (one batch, each with a recommendation)
-      const prop = st.status.ok ? await proposals(st.alias) : {};
-      const framing = framingQuestions(ctx.cfg, prop, st.status.ok ? st.alias : null, hasLocal);
-      if (framing.length) {
-        if (!rl) return finish(args, st, framing, [], 'ask the human these questions in one message, then run `tadforce doctor --json --confirm --<id> "<answer>"…`');
-        log.step('A few facts only you can confirm (Enter keeps the recommendation):');
-        const answers = {};
-        for (const q of framing) {
-          const a = (await rl.question(`  ${q.question}${q.options ? ` (${q.options.join('/')})` : ''}${q.recommended ? ` [${q.recommended}]` : ''}: `)).trim();
-          answers[q.id] = a || q.recommended || (q.optional ? '' : undefined);
-          if (q.id === 'lang' && /^(other|autre)$/i.test(a)) answers.lang = (await rl.question('  Language code (es, de, it, pt, nl, ar, ja…): ')).trim() || 'en';
-        }
-        const flags = { confirm: true, specs: answers.specs || false };
-        for (const [k, v] of Object.entries(answers)) if (v !== undefined) flags[k === 'logo' ? 'logo' : k] = v === '' && ['integrator', 'author'].includes(k) ? 'none' : v === '' ? undefined : v;
-        await applyAnswers(loadWorkspace(project), flags);
-        continue;
-      }
-
-      // 5. Metadata: retrieve from the org (curated `*` manifest) and/or read the local sources, then facts.
-      const mode = ctx.cfg.source.mode || 'org';
-      if (!st.facts || args.refresh) {
-        const a = { ...args, cwd: project, org: mode === 'local' ? false : ctx.cfg.org.alias, quiet: args.json };
-        if (mode !== 'local') {
-          say(() => log.step('Retrieving the metadata from the org (read-only, into tadforce/.snapshot)…'));
-          for (const fn of [org.manifest, org.retrieve]) { const code = await quietly(args.json, () => fn(a)); if (code) return finish(args, st, [], [], 'retrieve failed: see the messages above'); }
-        }
-        await quietly(args.json, () => docs.facts(a));
-        await quietly(args.json, () => docs.scaffold(a));
-        args.refresh = false;
-        continue;
-      }
-
-      // 6. Branding from evidence
-      for (const n of await brand(loadWorkspace(project))) say(() => log.ok(n));
-
-      // 7. Facts questions (systems, exclusions, decommissioned features)
-      const fq = factQuestions(loadWorkspace(project));
-      if (fq.length) {
-        if (!rl) return finish(args, st, [], fq, 'ask the human, write the answers to the knowledge files, then run `tadforce doctor --json --facts-reviewed`');
-        log.step('What the metadata cannot tell (Enter: skip / to be confirmed):');
-        const changed = await askFacts(loadWorkspace(project), rl, fq);
-        const c2 = loadWorkspace(project); c2.cfg.setup.factsReviewed = true; c2.save(c2.cfg);
-        if (changed) await quietly(args.json, () => docs.facts({ cwd: project, org: c2.cfg.source.mode === 'local' ? false : c2.cfg.org.alias }));
-        continue;
-      }
-
-      st = await evaluate(project, args);
-      return finish(args, st, [], [], null);
+    // 1. Tools: TADForce installs what it may, the rest is a human action.
+    let st = await evaluate(start, args);
+    if (st.tools.find((t) => t.id === 'sf-cli' && !t.ok) && rl && yes((await rl.question('  Salesforce CLI missing. Install it now with npm? [Y/n] ')).trim())) {
+      spawnSync('npm', ['install', '--global', '@salesforce/cli'], { stdio: 'inherit', shell: process.platform === 'win32' });
+      st = await evaluate(start, args);
     }
-    log.fail('doctor stopped after 8 rounds: run it again.');
-    return 1;
+    if (st.tools.some((t) => t.level === 'error' && t.id !== 'sfdx-project')) return finish(args, st, [], 'install the missing tools, then run tadforce doctor again');
+
+    // 2. The Salesforce project the TAD is about (confirmed, never created without a yes).
+    const p = await resolveProject(start, args, rl);
+    if (typeof p !== 'string') return p.stop ? finish(args, st, [p.stop], 'ask the human, then run `tadforce doctor --json --project <yes|path|create>`') : 1;
+    const project = p;
+    if (project !== start) say(() => log.ok(`Project: ${project}`));
+    if (!findWorkspace(project)) {
+      await quietly(args.json, () => { ensureWorkspace(project, defaultConfig()); installSkills(project, null); });
+      say(() => log.ok('Workspace created: tadforce/ (skills installed for your agents)'));
+    }
+    let ctx = loadWorkspace(project);
+    ctx.cfg.setup.projectConfirmed = true; ctx.save(ctx.cfg);
+    await applyAnswers(ctx, args);
+    ctx = loadWorkspace(project);
+
+    // 3. The org: the default one is proposed; « no » opens the login and asks again.
+    const o = await confirmOrg(project, ctx, args, rl);
+    if (!o.ok) return o.stop ? finish(args, await evaluate(project, args), [o.stop], 'ask the human, then run `tadforce doctor --json --org <alias>` (or --source local)') : 1;
+    ctx = loadWorkspace(project);
+
+    // 4. Framing: 6 questions, each with a recommended answer; « accept all » in one keystroke.
+    const prop = ctx.cfg.org.alias && ctx.cfg.source.mode !== 'local' ? await proposals(ctx.cfg.org.alias) : {};
+    const framing = framingQuestions(ctx.cfg, prop);
+    if (framing.length) {
+      if (!rl) return finish(args, await evaluate(project, args), framing, 'ask the human in one message (recommended answers shown; « accept all » is fine), then run `tadforce doctor --json --confirm --lang … --client "…" --integrator …|none --author …|none [--specs …|--no-specs] [--scope …]`');
+      const a = await askBatch(rl, 'A few facts only you can confirm:', framing);
+      await applyAnswers(loadWorkspace(project), {
+        confirm: true, lang: a.lang, client: a.client || undefined,
+        integrator: a.integrator || 'none', author: a.author || 'none',
+        specs: a.specs || false, scope: a.scope || undefined,
+      });
+      ctx = loadWorkspace(project);
+    }
+
+    // 5. Metadata: org, local or retrieved by the user — and a go before a long retrieve.
+    if (!exists(ctx.p('facts', 'facts.json')) || args.refresh) {
+      const s = await chooseSource(project, ctx, args, rl);
+      if (!s.mode) return s.stop ? finish(args, await evaluate(project, args), [s.stop], 'ask the human; the answer is the go: `tadforce doctor --json --source org|local|self`') : 1;
+      const a = { ...args, cwd: project, org: s.mode === 'local' ? false : ctx.cfg.org.alias, quiet: args.json };
+      if (s.mode !== 'local') {
+        say(() => log.step('Retrieving the metadata from the org (read-only, into tadforce/.snapshot)…'));
+        for (const fn of [org.manifest, org.retrieve]) { const code = await quietly(args.json, () => fn(a)); if (code) return finish(args, await evaluate(project, args), [], 'the retrieve failed: see the messages above'); }
+      }
+      await quietly(args.json, () => docs.facts(a));
+      await quietly(args.json, () => docs.scaffold(a));
+      ctx = loadWorkspace(project);
+    }
+
+    // 6. Branding (logo, colours) and what the metadata cannot tell — recommended answers again.
+    const b = await confirmBranding(ctx, args, rl, say);
+    if (b) return finish(args, await evaluate(project, args), [b], 'ask the human, then run `tadforce doctor --json --branding keep` (or --logo <file|url>)');
+    const fq = factQuestions(loadWorkspace(project));
+    if (fq.length) {
+      if (!rl) return finish(args, await evaluate(project, args), fq, 'ask the human in one message (recommended answers shown), write the answers to the knowledge files, then run `tadforce doctor --json --facts-reviewed`');
+      const changed = await askFacts(loadWorkspace(project), rl, fq);
+      const c2 = loadWorkspace(project); c2.cfg.setup.factsReviewed = true; c2.save(c2.cfg);
+      if (changed) await quietly(args.json, () => docs.facts({ cwd: project, org: c2.cfg.source.mode === 'local' ? false : c2.cfg.org.alias }));
+    }
+
+    // 7. All green: say it, and offer to start the writing.
+    const code = finish(args, await evaluate(project, args), [], null);
+    // CI, agents (--json) and agent sessions stop here; a person in a terminal is offered the writing.
+    if (code || args.json || args.launch === false || !process.stdin.isTTY || insideAgent()) return code;
+    return handOver(project, args, rl);
   } finally {
     if (rl) rl.close();
   }
+}
+
+/**
+ * Everything is green: offer to start the AI agent on the writing, in this terminal. The agent is chosen
+ * once (--agent claude|codex|gemini|cursor) and remembered; --no-launch stops at the prerequisites.
+ */
+async function handOver(project, args, rl) {
+  const ctx = loadWorkspace(project);
+  const found = installedAgents();
+  const wanted = typeof args.agent === 'string' ? args.agent : ctx.cfg.setup.agent;
+  let agent = found.find((a) => a.id === wanted) || (wanted ? null : found[0]);
+  if (!agent) {
+    log.human(found.length ? `agent "${wanted}" not found; installed: ${found.map((a) => a.id).join(', ')} (--agent <id>).` : 'open your AI agent (Claude Code, Codex, Cursor, Copilot…) in this folder and type /tadforce to write the document.');
+    return 0;
+  }
+  if (rl) {
+    if (!yes((await rl.question(`  Launch the writing of the document now with ${agent.name}? [Y/n] `)).trim())) {
+      log.info(`Later: open your agent in ${project} and type /tadforce.`);
+      rl.close(); return 0;
+    }
+    if (found.length > 1 && !wanted) {
+      const pick = (await rl.question(`  Agent (${found.map((a) => a.id).join('/')}) [${agent.id}]: `)).trim();
+      agent = found.find((a) => a.id === pick) || agent;
+    }
+    rl.close();
+  }
+  ctx.cfg.setup.agent = agent.id; ctx.save(ctx.cfg);
+  log.step(`Handing over to ${agent.name}: it writes the document, then builds and validates it…`);
+  return launchAgent(agent, project);
 }
 
 async function quietly(json, fn) {
@@ -353,10 +521,10 @@ async function quietly(json, fn) {
   try { return await fn(); } finally { console.log = orig; }
 }
 
-function finish(args, st, framing, facts, next) {
+function finish(args, st, questions, next) {
   const ok = !next && st.list.every((x) => x.level !== 'error');
   if (args.json) {
-    console.log(JSON.stringify({ ok, checks: st.list, questions: [...framing, ...facts], next: next || 'tadforce build' }, null, 2));
+    console.log(JSON.stringify({ ok, checks: st.list, questions, next: next || 'tadforce build' }, null, 2));
     return ok ? 0 : 1;
   }
   for (const x of st.list) {

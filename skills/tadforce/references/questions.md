@@ -4,23 +4,22 @@ Ask in **blocks**, each in one message, with your proposed answer for every item
 
 ## Block A — startup (before or right after authorization)
 
-`npx tadforce doctor --json` returns these questions with a `recommended` answer each (from the org when connected). Ask them all in one message:
+`npx tadforce doctor --json` asks, in this order and one step at a time: the **project** (is this the Salesforce project to document?), the **org** (is this the org?), then these framing questions — six, each with a `recommended` answer. Ask them all in one message and let the human accept them all at once:
 
 1. Document language — recommended: the org default language. English and French are built in; any other language works (the headings and labels are translated once, see `workflow.md › Other languages`).
-2. Client name and short code (file names) — recommended: `Organization.Name` / `<CODE>`.
-3. Integrator — **optional**. Blank: the document names the client only (no empty « Integrator » line, no badge).
+2. Client name, as it must appear in the document — recommended: `Organization.Name`. The short code (file names) and the reference are derived from it.
+3. Integrator — **optional**. Blank: the document names the client only (no empty « Integrator » line, no badge). The Improvement Axes then carry the client's brand.
 4. Author — **optional**. Blank: no author is shown anywhere. Never put your own name or the agent's.
-5. Document title — recommended: « Salesforce CRM Platform » (or the client's name for the solution).
+5. Functional specifications — **optional**: paths to PDF / DOCX / MD files (copied into `knowledge/inputs/specs/`).
 6. Scope — **optional**: name patterns of the components the project owns (`NWB_*,Loan*`), when the org is shared with other teams. Blank: the whole org.
-7. Client logo — **optional**: a file or a URL. Blank: TADForce searches the org (static resources, content assets, site assets), then falls back to an initials badge. The document colours follow the org's Lightning theme, else the logo. If none is found and the client has a public website, you may *offer* to look for the logo there — fetch it only after the human says yes.
-8. Functional specifications — **optional**: paths to PDF / DOCX / MD files (copied into `knowledge/inputs/specs/`).
-9. Metadata — `org` (recommended: retrieve everything from the org), `local` (the sources of this project), or `both`.
 
-Answer with `npx tadforce doctor --json --confirm --lang fr --client "…" --short ABC --integrator none --author "…" --title "…" [--scope "…"] [--logo …] [--specs … | --no-specs] [--source org]`.
+Answer with `npx tadforce doctor --json --confirm --lang fr --client "…" --integrator none --author none [--specs … | --no-specs] [--scope "…"]`. The title stays « Salesforce CRM Platform » unless the human gives one (`--title`).
+
+Then come the metadata choice (`source`, which is also the go for the retrieve), the **branding** (logo and colours found in the org — never fetch a logo from the web without the human's go-ahead), and Blocks B to D.
 
 FR example:
 
-> Pour démarrer, je propose : langue **français** (langue par défaut de l'org : fr_FR) · client **« Banque Exemple »** (code `BEX`) · intégrateur : **aucun** · auteur : **aucun** · titre **« Plateforme CRM Salesforce »** · périmètre : **toute l'org** · logo : **cherché dans l'org** · spécifications fonctionnelles : **aucune** · métadonnées : **depuis l'org**. Je confirme ? Indiquez seulement ce qui change.
+> Pour démarrer, je propose : langue **français** (langue par défaut de l'org : fr_FR) · client **« Banque Exemple »** · intégrateur : **aucun** · auteur : **aucun** · spécifications fonctionnelles : **aucune** · périmètre : **toute l'org**. Je valide tout ? Indiquez seulement ce qui change.
 
 ## Block B — external systems (from `facts/questions.json › systems`)
 
