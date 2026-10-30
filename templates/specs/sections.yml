@@ -67,6 +67,7 @@ sections:
   purpose.scope:
     doc: tad
     intent: "What is in and out of scope."
+    facts: [scope, exclusions.applied, modules.clouds]
     must:
       - "Two-column table 'Included | Excluded'."
       - "Excluded column names the internals of external systems, package internals, business data, and CI/CD administration when the client owns it."
@@ -199,8 +200,9 @@ sections:
   data.cmdt:
     doc: tad
     intent: "Which business rules are configured in Custom Metadata (changed without deploying code)."
+    facts: [data.cmdtTypes, counts.cmdt]
     must:
-      - "Table 'Type | What it configures'."
+      - "Table 'Type | What it configures' — what each type decides for the business, not its fields (the generated table above already lists types and record counts)."
       - "Optional '> [!INTEGRATOR]' callout."
   data.events:
     doc: tad

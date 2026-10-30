@@ -36,6 +36,7 @@ export function extractFacts(dirs, knowledge = {}, opts = {}) {
   const refs = references(roots, apex, ui, automation, integration);
   const facts = { schema: FACTS_SCHEMA, apex, data, automation, ui, security, integration, misc, namespaces };
 
+  const shipped = removeSalesforceShipped(facts);
   const outOfScope = applyScope(facts, knowledge.scope || {});
   const applied = applyExclusions(facts, knowledge.exclusions || {});
   // placements are recomputed so that excluded containers no longer count as usages
@@ -51,7 +52,8 @@ export function extractFacts(dirs, knowledge = {}, opts = {}) {
 
   facts.exclusions = { applied, candidates: exclusionCandidates(facts, refs) };
   if ((knowledge.scope?.include || []).length) facts.scope = { include: [...knowledge.scope.include], outOfScope: outOfScope.length };
-  facts.modules = detectModules(facts);
+  facts.modules = detectModules(facts, opts.org || null);
+  if (Object.keys(shipped).length) facts.salesforceShipped = shipped;
   // Products used without metadata traces are declared by a human in glossary.yml › products.
   for (const p of (knowledge.glossary && knowledge.glossary.products) || []) {
     if (!p || !p.name || facts.modules.clouds.some((c) => c.name === p.name)) continue;
@@ -72,6 +74,23 @@ export function extractFacts(dirs, knowledge = {}, opts = {}) {
   for (const t of facts.apex.triggers) delete t._tokens;
   clearReadCache();
   return facts;
+}
+
+// Components Salesforce ships in every org (standard apps, platform permission set groups…): not the project's architecture.
+const SHIPPED = /^(standard__|force__|sfdcInternalInt__|sf_devops)/;
+
+/** Set aside what Salesforce ships with the org; returns how many of each kind, by facts path. */
+function removeSalesforceShipped(f) {
+  const out = {};
+  // the utility bars of Salesforce's own apps go with them
+  const bars = new Set(f.ui.apps.filter((x) => SHIPPED.test(String(x.name)) && x.utilityBar).map((x) => x.utilityBar));
+  for (let i = f.ui.flexipages.length - 1; i >= 0; i--) if (bars.has(f.ui.flexipages[i].name)) { f.ui.flexipages.splice(i, 1); out['ui.utilityBars'] = (out['ui.utilityBars'] || 0) + 1; }
+  for (const [key, list] of [['ui.apps', f.ui.apps], ['ui.tabs', f.ui.tabs], ['ui.flexipages', f.ui.flexipages], ['security.permissionSets', f.security.permissionSets], ['security.permissionSetGroups', f.security.permissionSetGroups]]) {
+    let n = 0;
+    for (let i = list.length - 1; i >= 0; i--) if (SHIPPED.test(String(list[i].name))) { list.splice(i, 1); n++; }
+    if (n) out[key] = n;
+  }
+  return out;
 }
 
 /** Cross-references: where Apex classes, LWC/Aura and FlexiPages are used. */

@@ -73,7 +73,8 @@ export function validateDocument(wsCtx, doc, { buildReport = null } = {}) {
       const pend = /<!--\s*tad:pending\s+([\w.-]+)\s*-->/.exec(line);
       // sections inside a false <!-- tad:if --> block are not part of this org's document
       if (pend && (!buildReport || buildReport.pending.includes(pend[1]))) add('error', 'pending', `Section "${pend[1]}" is not written yet.`, where);
-      if (/\bTODO\b|\bTBD\b|lorem ipsum/i.test(line)) add('error', 'todo', 'Placeholder text left in the document.', where);
+      // upper-case markers as whole words only: « Método », « todo » (Spanish « all ») are text, not placeholders
+      if (/(?<![\p{L}\p{N}_])(TODO|TBD|FIXME)(?![\p{L}\p{N}_])/u.test(line) || /lorem ipsum/i.test(line)) add('error', 'todo', 'Placeholder text left in the document.', where);
       for (const [id, re] of SECRET_PATTERNS) if (re.test(line)) add('error', 'secret', `Possible secret or org identifier (${id}).`, where);
       for (const a of avoid) if (new RegExp(`\\b${escapeRe(a.avoid)}\\b`, 'i').test(line)) add('error', 'terminology', `"${a.avoid}" must be written "${a.use}" (glossary).`, where);
       for (const fk of forbiddenFeatures) if (new RegExp(`\\b${escapeRe(fk.k)}\\b`, 'i').test(line)) add('error', 'decommissioned', `Mentions "${fk.k}" (decommissioned feature: ${fk.feature}).`, where);
@@ -91,7 +92,7 @@ export function validateDocument(wsCtx, doc, { buildReport = null } = {}) {
         if (/[*_]$/.test(id) || /^\*/.test(id)) continue; // naming patterns such as `NWB_*` or `*Service`
         if (!looksLikeComponent(id) || COMMON.has(id) || inventory.has(id)) continue;
         if (/^[\w]+\.[\w]+$/.test(id) && inventory.has(id.split('.')[1])) continue;
-        add('warn', 'unknown-component', `\`${id}\` is not in the metadata inventory (typo, other org, or package component?).`, where);
+        add('warn', 'unknown-component', `\`${id}\` is not in the metadata inventory (${(wsCtx.cfg.scope && wsCtx.cfg.scope.include || []).length ? 'out of the project scope, ' : ''}typo, other org, or package component?).`, where);
       }
     });
     if (inCode) add('error', 'unclosed-code', 'Unclosed code fence.', `src/${doc}/${f}`);

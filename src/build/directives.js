@@ -1,6 +1,6 @@
 // Deterministic content generated from facts: appendices, ERDs, figures, KPI tiles, placeholders.
 import path from 'node:path';
-import { t, formatNumber } from '../util/i18n.js';
+import { t, formatNumber, formatDate } from '../util/i18n.js';
 import { exists, readText } from '../util/fsx.js';
 import { contextView, layersBlock } from './figures.js';
 
@@ -57,7 +57,11 @@ export function resolveValues(text, ctx, problems) {
     const src = kind === 'cfg' ? ctx.cfg : ctx.facts;
     let v = kind === 'n' ? (get(ctx.facts.counts, p) ?? get(ctx.facts, p)) : get(src, p);
     if (kind === 'n' && Array.isArray(v)) v = v.length;
-    if (v === undefined || v === null) { problems.push({ level: 'error', code: 'unknown-placeholder', message: `Unknown placeholder ${m}` }); return `⟨${m.slice(2, -2)}⟩`; }
+    if (v === undefined || v === null || v === '') {
+      problems.push({ level: 'error', code: 'unknown-placeholder', message: kind === 'cfg' && get(ctx.cfg, p) !== undefined ? `${m} is empty in tadforce.config.json: fill it, or put the sentence inside <!-- tad:if cfg.${p} -->` : `Unknown placeholder ${m}` });
+      return `⟨${m.slice(2, -2)}⟩`;
+    }
+    if (kind === 'cfg' && /date$/i.test(p)) return formatDate(v, ctx.lang);
     return kind === 'n' && typeof v === 'number' ? formatNumber(v, ctx.lang) : String(v);
   });
 }
@@ -78,14 +82,14 @@ function annexes(ctx) {
       ...(cfg.integrator.name ? [[t(dict, 'control.integrator'), cfg.integrator.name]] : []),
       ...(cfg.document.author ? [[t(dict, 'control.preparedBy'), cfg.document.author]] : []),
       [t(dict, 'control.version'), `${cfg.document.version}${cfg.document.status ? ' — ' + cfg.document.status : ''}`],
-      [t(dict, 'control.date'), cfg.document.date],
-      [t(dict, 'control.classification'), cfg.document.classification],
-      [t(dict, 'control.scope'), t(dict, 'control.scopeValue', { environment: cfg.document.environment, client: cfg.client.name, date: cfg.document.date })
-        + (cfg.scope && (cfg.scope.include || []).length ? ' — ' + t(dict, 'control.scopeLimited', { scope: cfg.scope.include.map((x) => '`' + x + '`').join(', ') }) : '')],
+      [t(dict, 'control.date'), formatDate(cfg.document.date, ctx.lang)],
+      [t(dict, 'control.classification'), ctx.doc === 'axes' ? t(dict, 'doc.axesKicker') : cfg.document.classification],
+      [t(dict, 'control.scope'), t(dict, cfg.source && cfg.source.mode === 'local' ? 'control.scopeValueLocal' : 'control.scopeValue', { environment: cfg.document.environment, client: cfg.client.name, date: formatDate(cfg.document.date, ctx.lang) })
+        + (cfg.scope && (cfg.scope.include || []).length ? ' — ' + t(dict, 'control.scopeLimited', { scope: cfg.scope.label || cfg.scope.include.join(', ') }) : '')],
     ]),
     'version-history': () => mdTable([t(dict, 'control.version'), t(dict, 'control.date'), t(dict, 'control.author'), t(dict, 'control.purpose')],
-      (cfg.document.history && cfg.document.history.length ? cfg.document.history : [{ version: cfg.document.version, date: cfg.document.date, author: [cfg.document.author, cfg.integrator.name].filter(Boolean).join(' — ') || cfg.client.name, purpose: t(dict, 'control.firstVersion', { client: cfg.client.name }) }])
-        .map((h) => [h.version, h.date, h.author, h.purpose])),
+      (cfg.document.history && cfg.document.history.length ? cfg.document.history : [{ version: cfg.document.version, date: cfg.document.date, author: [cfg.document.author, cfg.integrator.name].filter(Boolean).join(' — ') || '—', purpose: t(dict, 'control.firstVersion', { client: cfg.client.name }) }])
+        .map((h) => [h.version, formatDate(h.date, ctx.lang), h.author || '—', h.purpose])),
     legend: () => `<div class="legend">\n<span class="lg actor">${t(dict, 'legend.actor')}</span>\n<span class="lg sf">${t(dict, 'legend.sf')}</span>\n<span class="lg ext">${t(dict, 'legend.ext')}</span>\n<span class="lg data">${t(dict, 'legend.data')}</span>\n</div>`,
     'key-figures': () => mdTable([A('domain'), A('count')], [
       [t(dict, 'keyfig.apps'), n(f.counts.ui.apps)], [t(dict, 'keyfig.pages'), n(f.counts.ui.flexipages)], [t(dict, 'keyfig.lwc'), n(f.counts.ui.lwc)],
@@ -193,7 +197,8 @@ export function erd(facts, objectNames, caption) {
   if (names.length === 1 && names[0] === 'auto') {
     const degree = {};
     for (const o of facts.data.objects.filter((x) => !x.namespace)) {
-      for (const r of o.relations) for (const to of r.to) { if (to === o.name || to === 'User' || to === 'Group') continue; degree[o.name] = (degree[o.name] || 0) + 1; degree[to] = (degree[to] || 0) + 1; }
+      // only objects documented here: an out-of-scope or excluded target never becomes a box
+      for (const r of o.relations) for (const to of r.to) { if (to === o.name || to === 'User' || to === 'Group' || !byName.has(to)) continue; degree[o.name] = (degree[o.name] || 0) + 1; degree[to] = (degree[to] || 0) + 1; }
     }
     names = Object.entries(degree).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 12).map(([k]) => k);
   }
@@ -282,8 +287,8 @@ export function resolveDirectives(text, ctx, problems) {
     if (kind === 'FIGURE') {
       if (arg === 'context') return '<div class="fig-body hand">' + contextView(ctx.facts, ctx.glossary, ctx.cfg, ctx.dict) + '</div>\n<p class="figcap">Figure — ' + (caption || t(ctx.dict, 'context.caption')) + '</p>';
       if (arg === 'layers') return layersBlock(ctx.facts, ctx.dict);
-      if (arg === 'roles') return rolesFigure(ctx.facts, caption || 'Role hierarchy');
-      if (arg === 'integrations') return integrationsFigure(ctx.facts, ctx.cfg, ctx.dict, caption || 'Integration map');
+      if (arg === 'roles') return rolesFigure(ctx.facts, caption || t(ctx.dict, 'figures.roles'));
+      if (arg === 'integrations') return integrationsFigure(ctx.facts, ctx.cfg, ctx.dict, caption || t(ctx.dict, 'figures.integrations'));
       problems.push({ level: 'error', code: 'unknown-figure', message: `Unknown figure @@FIGURE:${arg}@@` });
       return '';
     }

@@ -41,6 +41,16 @@ export function t(dict, key, vars = {}) {
   return s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined ? String(vars[k]) : m));
 }
 
+const locale = (lang) => (lang === 'fr' ? 'fr-FR' : lang === 'en' || !lang ? 'en-GB' : lang);
+
+/** 2026-10-30 → 30 October 2026 / 30 octobre 2026 / 30 de octubre de 2026. Anything else is kept as written. */
+export function formatDate(value, lang) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+  if (!m) return value;
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  try { return new Intl.DateTimeFormat(locale(lang), { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(d); } catch { return value; }
+}
+
 export function formatNumber(n, lang) {
   if (typeof n !== 'number' || !Number.isFinite(n)) return String(n);
   // fr-FR uses a narrow no-break space as thousands separator, as in the reference document.

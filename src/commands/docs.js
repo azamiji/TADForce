@@ -2,7 +2,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { exists, writeJson, readText, copyDir, stableStringify } from '../util/fsx.js';
-import { loadWorkspace, sourceDirs } from '../util/config.js';
+import { loadWorkspace, sourceDirs, sourceFlags } from '../util/config.js';
+import { resolveConditionals } from '../build/directives.js';
 import { TEMPLATES } from '../util/paths.js';
 import { LANGUAGES, normalizeLang, templateLang } from '../util/i18n.js';
 import { extractFacts, readCodeAnalyzer, loadFacts } from '../facts/index.js';
@@ -12,14 +13,17 @@ import { buildDocument, readComments, outputName, DOCS } from '../build/render.j
 import { exportPdf, exportDocx } from '../build/export.js';
 import { closeBrowser } from '../build/browser.js';
 import { validateDocument } from '../validate/index.js';
-import { log, c } from '../util/log.js';
+import { log, c, setQuiet } from '../util/log.js';
 import * as org from './org.js';
 
 const docsOf = (args) => (!args.doc || args.doc === 'all' ? DOCS : String(args.doc).split(','));
 
 export async function facts(args) {
   const ctx = loadWorkspace(args.cwd || process.cwd());
-  const dirs = args.source ? [path.resolve(args.source)] : sourceDirs(ctx);
+  if (args.json) setQuiet(true); // stdout carries the JSON only
+  // --source names a folder: one that does not exist is an error, never an empty inventory
+  if (typeof args.source === 'string' && !exists(path.resolve(args.source))) throw new Error(`--source: no such folder ${path.resolve(args.source)} (use the folder that holds the metadata, e.g. force-app).`);
+  const dirs = typeof args.source === 'string' ? [path.resolve(args.source)] : sourceDirs(ctx);
   if (!dirs.length) throw new Error('No metadata found: run `tadforce retrieve` (or point --source at a force-app folder).');
   log.banner('facts');
   log.step(`Reading metadata from ${dirs.map((d) => path.relative(ctx.project, d) || '.').join(', ')}`);
@@ -41,6 +45,8 @@ export async function facts(args) {
   const questions = buildQuestions(f, orgFacts);
   writeJson(ctx.p('facts', 'questions.json'), questions);
   const k = f.counts;
+  if (args.json) { console.log(JSON.stringify({ components: f.inventory.length, counts: k, modules: f.modules.products, sources: f.sources, questions: { systems: questions.systems.length, exclusions: questions.exclusions.total } }, null, 2)); return f.inventory.length ? 0 : 1; }
+  if (!f.inventory.length) log.warn(`No component found in ${dirs.map((d) => path.relative(ctx.project, d) || '.').join(', ')}: is the metadata there?`);
   log.ok(`facts.json: ${k.apex.classes} classes (+${k.apex.tests} tests), ${k.apex.triggers} triggers, ${k.flows.active} active flows, ${k.ui.lwc} LWC, ${k.objects.custom} custom objects, ${k.security.permissionSetGroups} PSG`);
   log.info(`modules: ${Object.entries(f.modules).filter(([kk, v]) => v === true).map(([kk]) => kk).join(', ') || 'none'}${f.modules.products.length ? ' · products: ' + f.modules.products.join(', ') : ''}`);
   if (questions.systems.length) log.human(`${questions.systems.length} external endpoint(s) need a system name → knowledge/glossary.yml (see facts/questions.json).`);
@@ -52,7 +58,7 @@ export async function facts(args) {
 export function buildQuestions(f, orgFacts) {
   const byReason = {};
   for (const cnd of f.exclusions.candidates) {
-    const key = cnd.reasons[0].replace(/name suggests .*/, 'name suggests test / demo / POC / sample');
+    const key = cnd.reasons[0].replace(/name suggests .*/, 'name suggests an unused component (test, demo, POC, sample, old, legacy…)');
     (byReason[key] ||= []).push(`${cnd.type}:${cnd.name}`);
   }
   if (orgFacts && orgFacts.volumes) {
@@ -116,8 +122,10 @@ export async function build(args) {
       built.push(r);
       if (r.pending.length) log.warn(`${r.pending.length} section(s) of ${doc} still to write — your agent writes them (tadforce next), then build again.`);
       log.ok(`${path.relative(ctx.project, r.html)} (${r.sizeKB} KB, ${r.figures} figures)`);
-      const wantPdf = args.pdf ?? ctx.cfg.outputs.pdf;
-      const wantDocx = args.docx ?? ctx.cfg.outputs.docx;
+      // naming one format (--pdf) means that one only; with no flag, the config decides
+      const named = args.pdf !== undefined || args.docx !== undefined;
+      const wantPdf = named ? args.pdf === true : ctx.cfg.outputs.pdf;
+      const wantDocx = named ? args.docx === true : ctx.cfg.outputs.docx;
       const archive = path.join(path.dirname(r.html), outputName(ctx.cfg, doc, { versioned: true }));
       if (wantPdf && args.render !== false) { const p = archive + '.pdf'; const s = await exportPdf(r.html, p); log.ok(`${path.relative(ctx.project, p)} (${Math.round(s / 1024)} KB)`); }
       if (wantDocx && args.render !== false) { const p = archive + '.docx'; const s = await exportDocx(r.html, p); log.ok(`${path.relative(ctx.project, p)} (${Math.round(s / 1024)} KB)`); }
@@ -128,6 +136,9 @@ export async function build(args) {
   } finally {
     await closeBrowser();
   }
+  // the sections listed by `update` are now in a built document: a later update starts afresh
+  const upd = ctx.p('facts', 'update.json');
+  if (built.length && exists(upd)) { const u = JSON.parse(readText(upd)); if (!u.built) writeJson(upd, { ...u, built: true }); }
   if (args.open && built[0]) { const { open } = await import('./review.js'); await open(built[0].html); }
   return args.strict && failed ? 1 : 0;
 }
@@ -135,7 +146,10 @@ export async function build(args) {
 function report(v, doc) {
   const icon = v.ok ? c.green('✔') : c.red('✖');
   console.log(`${icon} validate ${doc}: score ${v.score}/100 — ${v.errors.length} error(s), ${v.warnings.length} warning(s)`);
-  const show = [...v.errors, ...v.warnings.slice(0, Math.max(0, 25 - v.errors.length))];
+  // what a reader must act on first, then real problems, then the sections still to write (often many)
+  const urgent = (w) => ['comment-reopened', 'open-comments', 'backup', 'comments-missing'].includes(w.code);
+  const pending = v.errors.filter((e) => e.code === 'pending');
+  const show = [...v.warnings.filter(urgent), ...v.errors.filter((e) => e.code !== 'pending'), ...v.warnings.filter((w) => !urgent(w)), ...pending];
   for (const i of show.slice(0, 40)) console.log(`   ${i.level === 'error' ? c.red('error') : c.yellow('warn ')} ${c.dim(i.code)} ${i.message}${i.where ? c.dim('  ' + i.where) : ''}`);
   const hidden = v.errors.length + v.warnings.length - Math.min(40, show.length);
   if (hidden > 0) console.log(c.dim(`   … ${hidden} more (tadforce validate --json)`));
@@ -177,19 +191,26 @@ export async function comments(args) {
 export async function status(args) {
   const ctx = loadWorkspace(args.cwd || process.cwd());
   const f = loadFacts(ctx.ws);
-  const line = (ok, s) => console.log(`${ok ? c.green('✔') : c.dim('○')} ${s}`);
-  log.banner('status');
-  line(!!ctx.cfg.org.alias, `org: ${ctx.cfg.org.alias || 'not set'}`);
-  line(exists(ctx.p('.snapshot', 'package.xml')), 'manifest');
-  line(exists(ctx.p(ctx.cfg.source.dir)), 'snapshot retrieved');
+  const report = { source: ctx.cfg.source.mode || 'org', org: ctx.cfg.org.alias || null, components: f ? f.inventory.length : 0, pending: {} };
+  const line = (ok, s) => { if (!args.json) console.log(`${ok ? c.green('✔') : c.dim('○')} ${s}`); };
+  if (!args.json) log.banner('status');
+  if (ctx.cfg.source.mode === 'local') line(true, 'source: local metadata of the project');
+  else {
+    line(!!ctx.cfg.org.alias, `org: ${ctx.cfg.org.alias || 'not chosen yet (tadforce doctor)'}`);
+    line(exists(ctx.p(ctx.cfg.source.dir)), 'metadata retrieved from the org');
+  }
   line(!!f, `facts${f ? ` (${f.inventory.length} components${f.org ? ', org facts' : ''})` : ''}`);
   for (const doc of DOCS) {
     const dir = ctx.p('src', doc);
     if (!exists(dir)) { line(false, `src/${doc}`); continue; }
-    const text = fs.readdirSync(dir).filter((x) => x.endsWith('.md')).map((x) => readText(path.join(dir, x))).join('\n');
+    // same count as next and validate: sections inside a false <!-- tad:if --> are not part of this document
+    const scope = f ? { modules: f.modules, counts: f.counts, org: f.org, cfg: ctx.cfg, facts: f, glossary: ctx.glossary(), source: sourceFlags(ctx.cfg) } : {};
+    const text = fs.readdirSync(dir).filter((x) => x.endsWith('.md')).map((x) => resolveConditionals(readText(path.join(dir, x)), scope)).join('\n');
     const pending = (text.match(/<!--\s*tad:pending/g) || []).length;
+    report.pending[doc] = pending;
     line(pending === 0, `src/${doc}: ${pending ? pending + ' section(s) to write' : 'written'}`);
   }
+  if (args.json) console.log(JSON.stringify(report, null, 2));
   return 0;
 }
 

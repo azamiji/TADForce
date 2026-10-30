@@ -132,7 +132,7 @@ The document carries **the client's logo and colours**: the logo is searched in 
 
 | Your situation | How TADForce handles it |
 |---|---|
-| **A whole org**, as-built | `doctor` retrieves everything with a curated `*` manifest (130 types, foldered reports and dashboards, standard objects) |
+| **A whole org**, as-built | `doctor` retrieves everything with a curated `*` manifest (105 types — only what the document uses, foldered reports and dashboards, standard objects) |
 | **One project in a shared org** (several BUs, several integrators) | Scope: `--scope "NWB_*,Loan*"` or `--package-dirs`. Out-of-scope components leave facts, counts and tables; standard objects and org-wide settings stay |
 | **Before or during the build** | Give your functional specifications (`--specs SFD.pdf,…`): they become evidence (level P2/P3) next to the metadata |
 | **No org access**, sources only | `--source local` documents the package directories of the project |

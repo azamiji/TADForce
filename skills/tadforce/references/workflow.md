@@ -18,7 +18,7 @@ npx tadforce doctor --json
 | framing questions | Block A of `questions.md`: one message, the recommended answer for each, « accept all » allowed → `--confirm --lang … --client "…" --integrator …|none --author …|none [--specs …|--no-specs] [--scope …]` |
 | question `source` | org (retrieve everything, read-only, several minutes), local, or self (the human retrieves first). The answer **is the go**: ask before passing `--source org` — the retrieve starts right away. `self`: wait until the human says the retrieve is done, then `--source local` |
 | question `branding` | Show the logo and colours found → `--branding keep`, or `--logo <file|url>` |
-| systems / exclusions / features | Blocks B, C and D of `questions.md`, recommended answers shown → write `knowledge/*.yml`, `npx tadforce facts`, then `--facts-reviewed` |
+| systems / exclusions / features | Blocks B, C and D of `questions.md`, recommended answers shown → write `knowledge/*.yml`, then `--facts-reviewed` (it recomputes the facts with your answers) |
 | `tadforce build` | Ready: write and build |
 
 Run by a person in a terminal, a green `doctor` starts the AI agent found on the machine on `/tadforce` (`--agent claude|codex|gemini|cursor`, `--no-launch` to stop there). Run by you (`--json`, or inside an agent session), it never starts another agent: carry on with the writing.
@@ -27,18 +27,19 @@ What `doctor` does by itself, read-only:
 
 - creates the SFDX project and the `tadforce/` workspace if missing, installs the skills for the agents found;
 - reuses the project's `target-org` (`sf config get target-org`) — no separate login step when the project already has one;
-- metadata, as chosen (`source`): **org** (recommended — the org is the truth) retrieves every useful type with a `*` manifest into `tadforce/.snapshot` (`force-app` is never touched; large orgs take several minutes: tell the human); **local** reads the package directories; **both** combines them. Then `facts/facts.json`, `facts/org.json` (aggregates), `facts/questions.json`, the chapter skeletons in `tadforce/src/`;
+- metadata, as chosen (`source`): **org** (recommended — the org is the truth) retrieves every useful type with a `*` manifest into `tadforce/.snapshot` (`force-app` is never touched; a large org takes 10 to 20 minutes — tell the human before, and follow the progress printed on stderr); **local** reads the package directories; **both** combines them. Then `facts/facts.json`, `facts/org.json` (aggregates), `facts/questions.json`, the chapter skeletons in `tadforce/src/`;
 - branding from evidence: the client logo searched in the snapshot (static resources, content assets, site assets named *logo*), the colours from the org's Lightning theme (`BrandingSet`), else from the logo. Never fetch a logo from the web without the human's go-ahead; when they agree, pass its URL with `--logo`.
 
 ### Other languages
 
 English and French are built in. Any other language (`--lang es`, `de`, `it`, `pt`, `nl`, `ar`, `ja`…) works too: the skeletons are scaffolded in English and `tadforce/i18n/<lang>.json` is created from the English labels. Once, before writing:
 
-1. Translate the headings of every `tadforce/src/*/*.md` file into the document language. Keep the `{#anchors}`, the `{-}` markers, the `<!-- tad:… -->` lines and the `@@…@@` directives exactly as they are.
+1. Translate the headings **and the body text** of every `tadforce/src/*/*.md` file (chapter 2 and the axes method hold ready-made paragraphs). Keep the `{#anchors}`, the `{-}` markers, the `<!-- tad:… -->` lines and the `@@…@@` directives as they are — except the caption after `|` in a directive (`@@ERD:A,B|caption@@`), which you translate.
 2. Translate every value of `tadforce/i18n/<lang>.json` (cover, tables, figures, buttons of the HTML). Keep the keys and the `{placeholders}`; set `meta.htmlLang`. Delete the `_translate` line.
-3. Write the sections in that language; Salesforce terms stay in English.
+3. Translate `document.title`, `status`, `classification` and `environment` in `tadforce/tadforce.config.json` (their defaults are English).
+4. Write the sections in that language; Salesforce terms and metadata values stay as they are. Dates and numbers follow the language by themselves.
 
-`doctor` shows a reminder until step 2 is done. To ship the language for everyone, contribute it (issue template « New language »).
+Batch it: one script or one file write per kind (headings map, labels file), not one edit per heading. `doctor` shows a reminder while the labels file or chapters with English headings remain. To ship the language for everyone, contribute it (issue template « New language »).
 
 ### Optional inputs
 

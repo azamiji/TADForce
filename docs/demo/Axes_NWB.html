@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="TADForce 0.2.0">
+<meta name="generator" content="TADForce 0.4.0">
 <title>Improvement Axes — Salesforce CRM Platform — Northwind Bank</title>
 <meta name="description" content="Improvement Axes — Salesforce CRM Platform — Northwind Bank (Acme Integrators)">
 <style>:root{
@@ -268,7 +268,7 @@ a.kpi:hover::after{opacity:1}
 <nav id="side" aria-label="Contents">
   <div class="brand">
     <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIiB2aWV3Qm94PSIwIDAgMTYwIDE2MCI+PHJlY3Qgd2lkdGg9IjE2MCIgaGVpZ2h0PSIxNjAiIHJ4PSIzMiIgZmlsbD0iIzlCMUZFOCIvPjx0ZXh0IHg9IjgwIiB5PSI5NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IlNlZ29lIFVJLEFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iNjAiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IiNmZmYiPkFJPC90ZXh0Pjwvc3ZnPg==" alt="Acme Integrators" class="logo-int">
-    <div><div class="bt">Improvement Axes — Salesforce CRM Platform</div><div class="bs">Northwind Bank · v1.0 · 2026-10-28</div></div>
+    <div><div class="bt">Improvement Axes — Salesforce CRM Platform</div><div class="bs">Northwind Bank · v1.0 · 28 October 2026</div></div>
   </div>
   <div class="search"><input id="q" type="search" placeholder="Filter contents…" aria-label="Filter contents…"></div>
   <ul class="toc" id="toc"><li class="l1"><a href="#doc-control">Document control</a><ul></ul></li><li class="l1"><a href="#ax-summary"><span class="num">1</span> Summary</a><ul><li class="l2"><a href="#ax-overview"><span class="num">1.1</span> Signals at a glance</a></li></ul></li><li class="l1"><a href="#ax-method"><span class="num">2</span> Method</a><ul></ul></li><li class="l1"><a href="#ax-findings"><span class="num">3</span> Findings</a><ul><li class="l2"><a href="#ax-trusted"><span class="num">3.1</span> Trusted — security, compliance, reliability</a></li><li class="l2"><a href="#ax-easy"><span class="num">3.2</span> Easy — user experience and operations</a></li><li class="l2"><a href="#ax-adaptable"><span class="num">3.3</span> Adaptable — maintainability and scalability</a></li></ul></li><li class="l1"><a href="#ax-register"><span class="num">4</span> Improvement register</a><ul></ul></li><li class="l1"><a href="#ax-roadmap"><span class="num">5</span> Roadmap</a><ul></ul></li><li class="l1"><a href="#ax-appendix">Appendix</a><ul><li class="l2"><a href="#ax-candidates">Components that look unused</a></li></ul></li></ul>
@@ -303,7 +303,7 @@ a.kpi:hover::after{opacity:1}
 <div class="meta">
   <div><b>Reference</b><span>TAD-NWB-CRM-AX</span></div>
   <div><b>Version</b><span>1.0 — For review</span></div>
-  <div><b>Date</b><span>2026-10-28</span></div>
+  <div><b>Date</b><span>28 October 2026</span></div>
   <div><b>Prepared by</b><span>Acme Integrators</span></div>
   <div><b>Recipient</b><span>Northwind Bank</span></div>
   <div><b>Classification</b><span>Improvement axes · internal</span></div>
@@ -343,15 +343,15 @@ a.kpi:hover::after{opacity:1}
 </tr>
 <tr>
 <td>Date</td>
-<td>2026-10-28</td>
+<td>28 October 2026</td>
 </tr>
 <tr>
 <td>Classification</td>
-<td>Confidential — fictional example</td>
+<td>Improvement axes · internal</td>
 </tr>
 <tr>
 <td>Scope</td>
-<td>Salesforce organization (Production) of Northwind Bank, state as of 2026-10-28</td>
+<td>Salesforce organization (Production) of Northwind Bank, state as of 28 October 2026</td>
 </tr>
 </tbody>
 </table></div>
@@ -14426,6 +14426,31 @@ module.exports = {
     } catch (e) { toast(T('docxFailed', { error: e.message }), 5000); }
   }
 
+  // A rebuilt document carries the comments, not their highlights: find each quoted passage again.
+  function reanchor(c) {
+    if (c.kind === 'zone' || !c.quote || marksOf(c.id).length) return;
+    var q = c.quote.replace(/…$/, '').trim(), probe = q.slice(0, 40);
+    if (probe.length < 6) return;
+    for (var zi = 0; zi < zones.length; zi++) {
+      if (!zones[zi]) continue;
+      var w = document.createTreeWalker(zones[zi], NodeFilter.SHOW_TEXT, null), n;
+      while ((n = w.nextNode())) {
+        if (n.parentElement.closest('svg, mark.tad-cmt')) continue;
+        var i = n.nodeValue.indexOf(probe);
+        if (i < 0) continue;
+        var r = document.createRange();
+        r.setStart(n, i); r.setEnd(n, Math.min(n.nodeValue.length, i + q.length));
+        wrapRange(r, c.id);
+        return;
+      }
+    }
+    // the quoted words were corrected: pin the comment on its section heading instead
+    var heads = document.querySelectorAll('article.doc h1, article.doc h2, article.doc h3');
+    for (var hi = 0; hi < heads.length; hi++) {
+      if (c.section && heads[hi].textContent.indexOf(c.section) >= 0) { insertPin(heads[hi], c.id); return; }
+    }
+  }
+  comments.forEach(reanchor);
   comments.forEach(function (c) { if (c.status === 'resolved') marksOf(c.id).forEach(function (m) { m.classList.add('resolved'); }); });
   render();
 })();

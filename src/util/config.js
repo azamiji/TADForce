@@ -65,7 +65,7 @@ export function findWorkspace(cwd = process.cwd()) {
 export function loadWorkspace(cwd) {
   const ws = findWorkspace(cwd);
   if (!ws) {
-    const err = new Error(`No TADForce workspace found under ${cwd}. Run \`npx tadforce init\` first.`);
+    const err = new Error(`No TADForce workspace found under ${cwd}. Run \`npx tadforce doctor\` in your Salesforce project first.`);
     err.code = 'NO_WORKSPACE';
     throw err;
   }
@@ -81,6 +81,9 @@ export function loadWorkspace(cwd) {
     save: (next) => writeJson(path.join(ws, CONFIG_FILE), next),
   };
 }
+
+/** Flags for the skeletons' conditions: `<!-- tad:if source.local -->`. */
+export const sourceFlags = (cfg) => ({ local: cfg.source.mode === 'local', org: cfg.source.mode !== 'local' });
 
 /** Metadata source directories: the retrieved snapshot and/or the project's package dirs (source.mode). */
 export function sourceDirs(wsCtx) {

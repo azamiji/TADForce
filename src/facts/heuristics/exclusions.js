@@ -26,6 +26,7 @@ export const COLLECTIONS = [
   ['namedCredential', (f) => f.integration.namedCredentials],
   ['externalCredential', (f) => f.integration.externalCredentials],
   ['remoteSite', (f) => f.integration.remoteSites],
+  ['cspTrustedSite', (f) => f.integration.cspTrustedSites],
   ['connectedApp', (f) => f.integration.connectedApps],
   ['authProvider', (f) => f.integration.authProviders],
   ['report', (f) => f.misc.reports.names, null],
@@ -64,11 +65,21 @@ export function applyExclusions(facts, knowledge = {}) {
       }
     }
   }
+  // the tests of an excluded class leave with it (LegacyRateHelper → LegacyRateHelperTest, …_Test, …Tests)
+  const gone = new Set(applied.filter((a) => a.type === 'apex').map((a) => String(a.name).toLowerCase()));
+  const classes = facts.apex.classes;
+  for (let i = classes.length - 1; i >= 0; i--) {
+    const base = String(classes[i].name).toLowerCase().replace(/_?tests?$/, '');
+    if (classes[i].test && base !== String(classes[i].name).toLowerCase() && gone.has(base)) {
+      applied.push({ type: 'apex', name: classes[i].name, reason: `test of an excluded class`, feature: null });
+      classes.splice(i, 1);
+    }
+  }
   return applied.sort((a, b) => (a.type + a.name).localeCompare(b.type + b.name));
 }
 
 // Org-wide components (profiles, roles, queues, report folders…) are shared by every project: never scoped out.
-const SCOPED_TYPES = new Set(['apex', 'trigger', 'lwc', 'aura', 'vfPage', 'flexipage', 'app', 'tab', 'quickAction', 'flow', 'omniScript', 'integrationProcedure', 'dataMapper', 'flexCard', 'object', 'cmdt', 'permissionSet', 'permissionSetGroup', 'namedCredential', 'externalCredential', 'remoteSite', 'connectedApp', 'authProvider', 'staticResource']);
+const SCOPED_TYPES = new Set(['apex', 'trigger', 'lwc', 'aura', 'vfPage', 'flexipage', 'app', 'tab', 'quickAction', 'flow', 'omniScript', 'integrationProcedure', 'dataMapper', 'flexCard', 'object', 'cmdt', 'permissionSet', 'permissionSetGroup', 'namedCredential', 'externalCredential', 'remoteSite', 'cspTrustedSite', 'connectedApp', 'authProvider', 'staticResource']);
 
 /**
  * Keep only the part of the org a project owns (tadforce.config.json › scope.include, name patterns with `*`).
@@ -115,6 +126,7 @@ export function exclusionCandidates(facts, refs) {
     for (const item of list) {
       const name = keyOf(item, field);
       if (type === 'apex' && item.test) continue;
+      if (type === 'object' && !String(name).includes('__')) continue; // standard objects (AiEval…TestCase, Devops…Test) are Salesforce's
       const bad = nameWords(name).filter((w) => SUSPICIOUS.has(w));
       if (bad.length) add(type, name, `name suggests ${bad.join('/')}`);
     }

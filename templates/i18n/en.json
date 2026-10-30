@@ -126,7 +126,8 @@
     "scopeValue": "Salesforce organization ({environment}) of {client}, state as of {date}",
     "firstVersion": "Consolidated version submitted to {client} for review and approval",
     "preparedBy": "Prepared by",
-    "scopeLimited": "Scope limited to: {scope}"
+    "scopeLimited": "Scope limited to: {scope}",
+    "scopeValueLocal": "Salesforce DX project of {client} (metadata sources), state as of {date}"
   },
   "legend": {
     "actor": "Actors: users, populations, channels",
@@ -171,7 +172,8 @@
     "ec": "{n} External Credentials",
     "rest": "{n} Apex REST services",
     "apps2": "{n} connected apps",
-    "caption": "Logical architecture in layers"
+    "caption": "Logical architecture in layers",
+    "servicesTitle": "Services"
   },
   "context": {
     "salesforce": "Salesforce organization",
@@ -362,5 +364,9 @@
     "nc": "Named / External credentials",
     "rest": "Apex REST services",
     "reports": "Reports / dashboards"
+  },
+  "figures": {
+    "roles": "Role hierarchy",
+    "integrations": "Integration map"
   }
 }

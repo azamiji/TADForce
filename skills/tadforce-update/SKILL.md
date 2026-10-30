@@ -13,14 +13,14 @@ The document already exists. Do not rewrite it: find what changed, and rewrite o
 npx tadforce update --json
 ```
 
-It archives the previous facts (`tadforce/facts/history/<date>/`), retrieves a fresh snapshot (`source.mode`), recomputes the facts, compares content fingerprints and returns:
+It retrieves a fresh snapshot (`source.mode`), recomputes the facts, compares content fingerprints and returns:
 
 - `changes.added | changed | removed` — components, by metadata folder (`classes:InvoiceService`, `flows:Case_Routing`…);
 - `counts` — every count that moved (`apex.classes: [132, 140]`);
-- `sections[]` — the sections to review: `id`, `file`, `anchor` (the heading `{#id}` the section sits under) and the `reasons`;
-- `from` → `to` — the version bump, already written to the document history.
+- `sections[]` — the written sections to review: `id`, `file`, `anchor` (the heading `{#id}` the section sits under), `reasons` and `relevance`: **components** (a component it describes was added, changed or removed: rewrite) or **counts** (only numbers moved: check that the text states no number the facts now contradict). Sections still to write are not listed;
+- `from` → `to` — the version bump, already written to the document history (the facts of `from` are archived in `facts/history/v<from>/`, never overwritten).
 
-Nothing changed: say so and stop.
+`upToDate: true`: nothing changed — say so and stop.
 
 ## 2. Ask, once
 
@@ -38,6 +38,8 @@ For each section of `sections[]`:
 A section listed only for moved counts usually needs no change: check that the text holds no number or statement that the new counts contradict.
 
 Then, in chapter 15 (Outlook) or the Improvement Axes, record what the update revealed that the client should know (new debt goes to the Axes, never to the TAD).
+
+Comments answered before the update (`review.tad.resolutions`) may no longer be true: re-read each one against the new behaviour and correct its answer.
 
 ## 4. Build and report
 

@@ -126,7 +126,8 @@
     "scopeValue": "Organisation Salesforce ({environment}) de {client}, état au {date}",
     "firstVersion": "Version consolidée remise à {client} pour revue et validation",
     "preparedBy": "Établi par",
-    "scopeLimited": "Périmètre limité à : {scope}"
+    "scopeLimited": "Périmètre limité à : {scope}",
+    "scopeValueLocal": "Projet Salesforce DX de {client} (sources de métadonnées), état au {date}"
   },
   "legend": {
     "actor": "Acteurs : utilisateurs, populations, canaux",
@@ -171,7 +172,8 @@
     "ec": "{n} External Credentials",
     "rest": "{n} services Apex REST",
     "apps2": "{n} applications connectées",
-    "caption": "Architecture logique en couches"
+    "caption": "Architecture logique en couches",
+    "servicesTitle": "Services"
   },
   "context": {
     "salesforce": "Organisation Salesforce",
@@ -362,5 +364,9 @@
     "nc": "Named / External credentials",
     "rest": "Services Apex REST",
     "reports": "Rapports / tableaux de bord"
+  },
+  "figures": {
+    "roles": "Hiérarchie des rôles",
+    "integrations": "Carte des intégrations"
   }
 }

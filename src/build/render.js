@@ -3,8 +3,9 @@ import path from 'node:path';
 import MarkdownIt from 'markdown-it';
 import { exists, readText, writeText, readJson } from '../util/fsx.js';
 import { TEMPLATES, PKG_ROOT } from '../util/paths.js';
-import { loadI18n, t } from '../util/i18n.js';
+import { loadI18n, t, formatDate } from '../util/i18n.js';
 import { loadFacts } from '../facts/index.js';
+import { sourceFlags } from '../util/config.js';
 import { CLASSDEFS, renderMermaid, escapeHtml } from './mermaid.js';
 import { resolveConditionals, resolveIncludes, resolveDirectives, resolveValues } from './directives.js';
 
@@ -115,7 +116,7 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
   if (!files.length) throw new Error(`No Markdown chapters in ${srcDir}.`);
 
   let text = files.map((f) => readText(path.join(srcDir, f))).join('\n\n');
-  const scope = { modules: facts.modules, counts: facts.counts, org: facts.org, cfg, facts, glossary };
+  const scope = { modules: facts.modules, counts: facts.counts, org: facts.org, cfg, facts, glossary, source: sourceFlags(cfg) };
   const docName = doc === 'tad' ? t(dict, 'meta.docName') : t(dict, 'meta.axesName');
   const ctx = { facts, cfg, dict, lang, glossary, doc, docName, chapterTitle: (k) => `{{title:ch-${k}}}` };
   text = resolveConditionals(text, scope);
@@ -221,7 +222,7 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
     '{{DOC_SUBTITLE}}': escapeHtml(cfg.document.subtitle || [cfg.client.name, ...facts.modules.clouds.filter((x) => !['events', 'shield', 'slack'].includes(x.id)).slice(0, 3).map((x) => x.name)].join(' · ')),
     '{{DOC_REFERENCE}}': escapeHtml(doc === 'tad' ? cfg.document.reference : cfg.document.reference + '-AX'),
     '{{DOC_VERSION}}': escapeHtml(`${cfg.document.version}${cfg.document.status ? ' — ' + cfg.document.status : ''}`),
-    '{{DOC_DATE}}': escapeHtml(cfg.document.date),
+    '{{DOC_DATE}}': escapeHtml(formatDate(cfg.document.date, lang)),
     '{{DOC_CLASSIFICATION}}': escapeHtml(doc === 'tad' ? cfg.document.classification : t(dict, 'doc.axesKicker')),
     '{{INTEGRATOR_NAME}}': escapeHtml(integrator || cfg.client.name),
     '{{COVER_LOGOS}}': coverLogos,
@@ -233,7 +234,7 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
     '{{INTEGRATOR_LOGO}}': sideLogo,
     '{{CLIENT_LOGO}}': logo('client'),
     '{{SIDE_TITLE}}': escapeHtml(`${docName} — ${cfg.document.title}`),
-    '{{SIDE_SUB}}': escapeHtml(`${cfg.client.name} · v${cfg.document.version} · ${cfg.document.date}`),
+    '{{SIDE_SUB}}': escapeHtml(`${cfg.client.name} · v${cfg.document.version} · ${formatDate(cfg.document.date, lang)}`),
     '{{FOOTER}}': escapeHtml(`${integrator ? integrator + ' · ' : ''}${internal ? '' : cfg.client.name + ' · '}${doc === 'tad' ? cfg.document.classification : t(dict, 'doc.axesKicker')}`) + ` · <span class="gen">${escapeHtml(t(dict, 'doc.generatedBy'))}</span>`,
     '{{I18N_JSON}}': JSON.stringify({ editor: dict.editor }).replace(/</g, '\\u003c'),
     '{{BRAND_JSON}}': JSON.stringify(brand).replace(/</g, '\\u003c'),
@@ -271,7 +272,9 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
   for (const c of carried) {
     if (c.status === 'résolu') c.status = 'resolved';
     const res = review.resolutions && review.resolutions[c.id];
-    if (res) { c.status = 'resolved'; c.response = res; }
+    // already answered with this resolution, yet open again: a reader reopened it — keep it open
+    if (res && c.status === 'open' && c.response === res) problems.push({ level: 'warn', code: 'comment-reopened', message: `Comment ${c.id} was reopened by a reader after its resolution: answer it again (review.${doc}.resolutions).` });
+    else if (res) { c.status = 'resolved'; c.response = res; }
     if ((review.dropImages || []).includes(c.id)) c.image = null;
   }
   if (carried.length) {

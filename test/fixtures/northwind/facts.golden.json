@@ -1378,6 +1378,7 @@
       "experiences": 0,
       "genAi": 0,
       "networks": 0,
+      "platformEncryption": 0,
       "presenceConfigs": 0,
       "presenceStatuses": 0,
       "routingConfigs": 0,

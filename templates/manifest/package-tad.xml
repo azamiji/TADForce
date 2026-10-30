@@ -21,10 +21,6 @@
     </types>
     <types>
         <members>*</members>
-        <name>ApexTestSuite</name>
-    </types>
-    <types>
-        <members>*</members>
         <name>LightningComponentBundle</name>
     </types>
     <types>
@@ -65,10 +61,6 @@
     </types>
     <types>
         <members>*</members>
-        <name>CustomObjectTranslation</name>
-    </types>
-    <types>
-        <members>*</members>
         <name>CustomMetadata</name>
     </types>
     <types>
@@ -81,43 +73,11 @@
     </types>
     <types>
         <members>*</members>
-        <name>StandardValueSet</name>
-    </types>
-    <types>
-        <members>*</members>
-        <name>GlobalValueSetTranslation</name>
-    </types>
-    <types>
-        <members>*</members>
-        <name>StandardValueSetTranslation</name>
-    </types>
-    <types>
-        <members>*</members>
-        <name>Translations</name>
-    </types>
-    <types>
-        <members>*</members>
-        <name>CustomIndex</name>
-    </types>
-    <types>
-        <members>*</members>
-        <name>DataCategoryGroup</name>
-    </types>
-    <types>
-        <members>*</members>
         <name>Flow</name>
     </types>
     <types>
         <members>*</members>
         <name>FlowDefinition</name>
-    </types>
-    <types>
-        <members>*</members>
-        <name>FlowTest</name>
-    </types>
-    <types>
-        <members>*</members>
-        <name>ProcessFlowMigration</name>
     </types>
     <types>
         <members>*</members>
@@ -157,10 +117,6 @@
     </types>
     <types>
         <members>*</members>
-        <name>CustomApplicationComponent</name>
-    </types>
-    <types>
-        <members>*</members>
         <name>CustomTab</name>
     </types>
     <types>
@@ -174,14 +130,6 @@
     <types>
         <members>*</members>
         <name>QuickAction</name>
-    </types>
-    <types>
-        <members>*</members>
-        <name>HomePageComponent</name>
-    </types>
-    <types>
-        <members>*</members>
-        <name>HomePageLayout</name>
     </types>
     <types>
         <members>*</members>
@@ -218,14 +166,6 @@
     <types>
         <members>*</members>
         <name>CustomPermission</name>
-    </types>
-    <types>
-        <members>*</members>
-        <name>ProfilePasswordPolicy</name>
-    </types>
-    <types>
-        <members>*</members>
-        <name>ProfileSessionSetting</name>
     </types>
     <types>
         <members>*</members>
@@ -285,10 +225,6 @@
     </types>
     <types>
         <members>*</members>
-        <name>Certificate</name>
-    </types>
-    <types>
-        <members>*</members>
         <name>CustomSite</name>
     </types>
     <types>
@@ -345,10 +281,6 @@
     </types>
     <types>
         <members>*</members>
-        <name>AnalyticSnapshot</name>
-    </types>
-    <types>
-        <members>*</members>
         <name>ReportFolder</name>
     </types>
     <types>
@@ -381,10 +313,6 @@
     </types>
     <types>
         <members>*</members>
-        <name>Letterhead</name>
-    </types>
-    <types>
-        <members>*</members>
         <name>MilestoneType</name>
     </types>
     <types>
@@ -402,6 +330,10 @@
     <types>
         <members>*</members>
         <name>Settings</name>
+    </types>
+    <types>
+        <members>*</members>
+        <name>TransactionSecurityPolicy</name>
     </types>
     <types>
         <members>*</members>
@@ -497,35 +429,7 @@
     </types>
     <types>
         <members>*</members>
-        <name>TopicsForObjects</name>
-    </types>
-    <types>
-        <members>*</members>
-        <name>AppMenu</name>
-    </types>
-    <types>
-        <members>*</members>
-        <name>CleanDataService</name>
-    </types>
-    <types>
-        <members>*</members>
         <name>ExternalAuthIdentityProvider</name>
-    </types>
-    <types>
-        <members>*</members>
-        <name>IframeWhiteListUrlSettings</name>
-    </types>
-    <types>
-        <members>*</members>
-        <name>UiFormatSpecificationSet</name>
-    </types>
-    <types>
-        <members>*</members>
-        <name>ManagedContentType</name>
-    </types>
-    <types>
-        <members>*</members>
-        <name>Audience</name>
     </types>
     <types>
         <members>*</members>
@@ -534,10 +438,6 @@
     <types>
         <members>*</members>
         <name>RecommendationStrategy</name>
-    </types>
-    <types>
-        <members>*</members>
-        <name>ExperienceContainer</name>
     </types>
     <version>62.0</version>
 </Package>

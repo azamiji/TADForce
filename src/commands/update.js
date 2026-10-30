@@ -61,20 +61,33 @@ function sectionLocations(lang) {
   return out;
 }
 
-/** Sections whose spec reads a facts area that changed. */
+// Sections whose spec names no facts are matched by their chapter.
+const CHAPTER_AREAS = { data: ['data'], application: ['apex', 'automation'], ui: ['ui'], integration: ['integration'], security: ['security'], reporting: ['misc'] };
+
+/**
+ * Sections whose spec reads a facts area that changed. A component change (« changed classes:Foo ») makes a
+ * section relevant; a moved count only matters where the spec reads that count.
+ */
 export function affectedSections(areas, specs, locations) {
   const hits = [];
   for (const [id, s] of Object.entries(specs)) {
     const reasons = [];
-    for (const p of s.facts || []) {
+    const paths = s.facts && s.facts.length ? s.facts : (CHAPTER_AREAS[id.split('.')[0]] || []);
+    for (const p of paths) {
       const fp = p.replace(/^counts\./, '');
-      for (const [area, why] of Object.entries(areas)) {
-        if (p === 'counts' || fp === area || fp.startsWith(area + '.') || area.startsWith(fp + '.') || (p === 'modules' && area === 'modules')) reasons.push(...why);
+      for (const [area, whys] of Object.entries(areas)) {
+        for (const why of whys) {
+          const isCount = why.startsWith('count ');
+          if (p === 'counts' ? isCount : fp === area || fp.startsWith(area + '.') || area.startsWith(fp + '.') || (p === 'modules' && area === 'modules')) reasons.push(why);
+        }
       }
     }
-    if (reasons.length) hits.push({ id, ...(locations[id] || {}), reasons: [...new Set(reasons)].slice(0, 12) });
+    if (!reasons.length) continue;
+    const unique = [...new Set(reasons)];
+    hits.push({ id, ...(locations[id] || {}), relevance: unique.some((r) => !r.startsWith('count ')) ? 'components' : 'counts', reasons: unique.slice(0, 12) });
   }
-  return hits;
+  // what changed in the components first: count-only sections usually need no rewrite
+  return hits.sort((a, b) => (a.relevance === b.relevance ? 0 : a.relevance === 'components' ? -1 : 1));
 }
 
 const nextVersion = (v) => { const m = /^(\d+)\.(\d+)$/.exec(String(v)); return m ? `${m[1]}.${Number(m[2]) + 1}` : `${v}.1`; };
@@ -86,25 +99,21 @@ export async function run(args) {
   if (!exists(before)) throw new Error('No previous facts: run `tadforce doctor` and `tadforce build` first.');
   say(() => log.banner('update'));
 
-  // 1. Archive what the current document was written from.
+  // 1. What the current version was written from (archived below, once something changed).
   const stamp = new Date().toISOString().slice(0, 10);
-  const archive = ctx.p('facts', 'history', stamp);
-  fs.mkdirSync(archive, { recursive: true });
   const oldFacts = readJson(before);
   const oldPrints = exists(ctx.p('facts', 'fingerprints.json')) ? readJson(ctx.p('facts', 'fingerprints.json')) : fingerprints(sourceDirs(ctx));
-  writeJson(path.join(archive, 'facts.json'), oldFacts);
-  writeJson(path.join(archive, 'fingerprints.json'), oldPrints);
-  say(() => log.ok(`Previous facts archived in ${path.relative(ctx.project, archive)}`));
 
   // 2. Read the org again (a fresh snapshot: deleted components must disappear too).
   const mode = ctx.cfg.source.mode || 'org';
-  const quiet = async (fn) => { if (!args.json) return fn(); const o = console.log; console.log = () => {}; try { return await fn(); } finally { console.log = o; } };
+  // in --json mode stdout carries only the report; progress goes to stderr
+  const quiet = async (fn) => { if (!args.json) return fn(); const o = console.log; console.log = (...a) => process.stderr.write(a.join(' ') + '\n'); try { return await fn(); } finally { console.log = o; } };
   if (mode !== 'local' && !args.skipRetrieve) {
     const snap = ctx.p(ctx.cfg.source.dir);
     if (exists(snap)) fs.rmSync(snap, { recursive: true, force: true });
     for (const fn of [org.manifest, org.retrieve]) { const code = await quiet(() => fn({ ...args, cwd: ctx.project })); if (code) return code; }
   }
-  await quiet(() => docs.facts({ ...args, cwd: ctx.project, org: mode === 'local' || args.skipRetrieve ? false : ctx.cfg.org.alias }));
+  await quiet(() => docs.facts({ ...args, json: false, cwd: ctx.project, org: mode === 'local' || args.skipRetrieve ? false : ctx.cfg.org.alias }));
   const ctx2 = loadWorkspace(ctx.project);
   const newPrints = fingerprints(sourceDirs(ctx2));
   writeJson(ctx2.p('facts', 'fingerprints.json'), newPrints);
@@ -122,33 +131,55 @@ export async function run(args) {
   for (const m of modulesAfter.filter((x) => !modulesBefore.includes(x))) note('modules', `new product detected: ${m}`);
   for (const m of modulesBefore.filter((x) => !modulesAfter.includes(x))) note('modules', `product no longer detected: ${m}`);
   const specs = readYaml(path.join(TEMPLATES, 'specs', 'sections.yml'), {}).sections || {};
-  const sections = affectedSections(areas, specs, sectionLocations(templateLang(ctx2.cfg.language)));
+  // sections still to write are not « to rewrite »: their first writing reads the new facts anyway
+  const srcText = (file) => (exists(ctx2.p(file)) ? readText(ctx2.p(file)) : '');
+  const sections = affectedSections(areas, specs, sectionLocations(templateLang(ctx2.cfg.language)))
+    .filter((x) => !x.file || !new RegExp(`<!--\\s*tad:pending\\s+${x.id.replace(/\./g, '\\.')}\\s*-->`).test(srcText(x.file)));
+  const upToDate = !(diff.added.length + diff.changed.length + diff.removed.length) && !Object.keys(counts).length;
+
+  // the facts of the previous version, kept once per version: never overwritten by a later run
+  const archive = ctx2.p('facts', 'history', `v${ctx2.cfg.document.version}`);
+  if (!upToDate && !exists(archive)) {
+    writeJson(path.join(archive, 'facts.json'), oldFacts);
+    writeJson(path.join(archive, 'fingerprints.json'), oldPrints);
+    say(() => log.ok(`Facts of version ${ctx2.cfg.document.version} archived in ${path.relative(ctx2.project, archive)}`));
+  }
 
   // 4. New version in the document control.
   const cfg = ctx2.cfg;
   const total = diff.added.length + diff.changed.length + diff.removed.length;
   const from = cfg.document.version;
   if (total && args.bump !== false) {
-    const by = [cfg.document.author, cfg.integrator.name].filter(Boolean).join(' — ') || cfg.client.name;
+    const by = [cfg.document.author, cfg.integrator.name].filter(Boolean).join(' — ') || '—';
     const history = cfg.document.history && cfg.document.history.length ? cfg.document.history : [{ version: from, date: cfg.document.date, author: by, purpose: cfg.language === 'fr' ? 'Version initiale' : 'Initial version' }];
     cfg.document.version = nextVersion(from);
     cfg.document.date = stamp;
-    const purpose = cfg.language === 'fr'
-      ? `Mise à jour : ${diff.added.length} composant(s) ajouté(s), ${diff.changed.length} modifié(s), ${diff.removed.length} supprimé(s)`
-      : `Update: ${diff.added.length} component(s) added, ${diff.changed.length} changed, ${diff.removed.length} removed`;
+    const fr = cfg.language === 'fr';
+    const parts = [[diff.added.length, fr ? 'ajouté(s)' : 'added'], [diff.changed.length, fr ? 'modifié(s)' : 'changed'], [diff.removed.length, fr ? 'supprimé(s)' : 'removed']].filter(([n]) => n).map(([n, w]) => `${n} ${w}`);
+    const purpose = `${fr ? 'Mise à jour, composants' : 'Update, components'} : ${parts.join(', ')}`.replace(/^Update, components :/, 'Update, components:');
     cfg.document.history = [...history, { version: cfg.document.version, date: stamp, author: by, purpose }];
     ctx2.save(cfg);
   }
-  const report = { from, to: cfg.document.version, changes: diff, counts, sections, next: sections.length ? 'rewrite each listed section from the new facts (keep its heading and anchor), then `tadforce build`' : 'tadforce build' };
-  writeJson(ctx2.p('facts', 'update.json'), report);
+  const report = { upToDate, from, to: cfg.document.version, changes: diff, counts, sections, next: upToDate ? null : sections.length ? 'rewrite the sections whose relevance is « components » from the new facts (keep heading and anchor); check the « counts » ones for numbers written in the text; then `npx tadforce build`' : `npx tadforce build --cwd "${ctx2.project}"` };
+  // a rerun before the rewrite and the build keeps the work to do of the previous update
+  const prevFile = ctx2.p('facts', 'update.json');
+  const prev = exists(prevFile) ? readJson(prevFile) : null;
+  if (upToDate && prev && !prev.built && prev.to === cfg.document.version && (prev.sections || []).length) {
+    const carried = { ...prev, carried: true, next: prev.next };
+    if (args.json) { console.log(JSON.stringify(carried, null, 2)); return 0; }
+    log.ok(`Nothing new since the update to ${prev.to}, whose ${prev.sections.length} section(s) are still to rewrite:`);
+    for (const s of prev.sections) console.log(`  ${c.cyan(s.id.padEnd(28))} ${c.dim((s.file || '') + (s.anchor ? '#' + s.anchor : ''))}`);
+    return 0;
+  }
+  writeJson(prevFile, report);
   if (args.json) { console.log(JSON.stringify(report, null, 2)); return 0; }
 
-  if (!total && !Object.keys(counts).length) { log.ok('Nothing changed since the last version. The document is up to date.'); return 0; }
+  if (upToDate) { log.ok('Nothing changed since the last version. The document is up to date.'); return 0; }
   log.ok(`${diff.added.length} added · ${diff.changed.length} changed · ${diff.removed.length} removed · ${Object.keys(counts).length} count(s) moved`);
   for (const [kind, list] of Object.entries(diff)) if (list.length) console.log(`  ${c.bold(kind)}: ${list.slice(0, 15).map((x) => `${x.folder}/${x.name}`).join(', ')}${list.length > 15 ? c.dim(` … +${list.length - 15}`) : ''}`);
   if (total) log.ok(`Version ${from} → ${cfg.document.version} (history updated)`);
   log.step(`${sections.length} section(s) to review:`);
-  for (const s of sections) console.log(`  ${c.cyan(s.id.padEnd(28))} ${c.dim((s.file || '') + (s.anchor ? '#' + s.anchor : ''))}  ${s.reasons.slice(0, 2).join('; ')}`);
+  for (const s of sections) console.log(`  ${s.relevance === 'components' ? c.cyan(s.id.padEnd(28)) : c.dim(s.id.padEnd(28))} ${c.dim((s.file || '') + (s.anchor ? '#' + s.anchor : ''))}  ${s.reasons.slice(0, 2).join('; ')}`);
   log.human('let your agent rewrite these sections (/tadforce-update), then `tadforce build`. Numbers and generated tables update by themselves.');
   return 0;
 }

@@ -124,28 +124,92 @@ export async function retrieve(args) {
   const size = Number(args.batchSize || 12);
   const outDir = ctx.p(ctx.cfg.source.dir);
   fs.mkdirSync(outDir, { recursive: true });
+  // the CLI refuses to retrieve when a package directory of the project is missing
+  for (const d of (exists(path.join(ctx.project, 'sfdx-project.json')) ? JSON.parse(readText(path.join(ctx.project, 'sfdx-project.json'))).packageDirectories || [] : [])) fs.mkdirSync(path.join(ctx.project, d.path), { recursive: true });
   log.banner('retrieve');
   const failed = [];
-  const runBatch = async (batch, label) => {
+  const nameOf = (b) => /<name>([^<]+)<\/name>/.exec(b)[1];
+  const typeXml = (name, members) => `    <types>\n${members.map((m) => `        <members>${m}</members>`).join('\n')}\n        <name>${name}</name>\n    </types>`;
+  const runBatch = async (batch, label, minutes) => {
     const p = ctx.p('.snapshot', 'batch.xml');
     writeText(p, `<?xml version="1.0" encoding="UTF-8"?>\n<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n${batch.join('\n')}\n    <version>${version}</version>\n</Package>\n`);
-    await sfJson(['project', 'retrieve', 'start', '--manifest', p, '--target-org', alias, '--output-dir', outDir, '--wait', String(args.wait || 60), '--ignore-conflicts'], { timeoutMs: 3600000, cwd: ctx.project });
-    log.ok(label);
+    await sfJson(['project', 'retrieve', 'start', '--manifest', p, '--target-org', alias, '--output-dir', outDir, '--wait', String(minutes), '--ignore-conflicts'], { timeoutMs: (minutes + 2) * 60000, cwd: ctx.project });
+    if (label) log.ok(label);
   };
-  for (let i = 0; i < types.length; i += size) {
-    const batch = types.slice(i, i + size);
-    const names = batch.map((b) => /<name>([^<]+)<\/name>/.exec(b)[1]);
+  // the CLI stopped waiting (« The client has timed out »): the job was too big for one retrieve
+  const timedOut = (e) => /timed out|MetadataTransferError/i.test(`${e.message} ${e.sf && e.sf.name}`);
+  // an error about the project itself fails every type the same way: stop at once, do not retry type by type
+  const projectError = (e) => /MissingPackageDirectory|InvalidProjectWorkspace|specified in sfdx-project\.json, does not exist|sfdx-project\.json/i.test(`${e.message} ${e.sf && e.sf.name}`);
+  // types the local Salesforce CLI does not know fail at once and never succeed: dropped, not retried
+  const unknownType = (e) => (/registry for id '([^']+)'|Missing metadata type definition[^']*'([^']+)'/.exec(e.message) || []).slice(1).find(Boolean);
+  // The types the document is built on come first, one by one, with up to 60 minutes each (--wait can only
+  // lengthen it). Too big for one retrieve (huge org, 39 MB / 10,000 files limit): its components are listed
+  // and retrieved by chunks of 100. The other types go by batches of 12 (30 minutes), then one by one (10 minutes).
+  const CORE = ['ApexClass', 'ApexTrigger', 'CustomObject', 'Flow', 'LightningComponentBundle', 'AuraDefinitionBundle', 'Profile', 'PermissionSet', 'PermissionSetGroup', 'FlexiPage', 'CustomApplication', 'CustomMetadata', 'OmniScript', 'OmniIntegrationProcedure', 'OmniDataTransform', 'OmniUiCard'];
+  // --core-wait shortens the first try (tests, impatient runs); the chunks always get the full 60 minutes
+  if (args.coreWait !== undefined && !/^\d+$/.test(String(args.coreWait))) throw new Error('--core-wait takes a number of minutes (0 or more).');
+  const coreWait = args.coreWait !== undefined ? Number(args.coreWait) : 60;
+  const chunkWait = 60;
+  const restWait = Math.min(Number(args.wait || 30), 30);
+  const byChunks = async (b, step) => {
+    const name = nameOf(b);
+    let listed;
+    try { listed = await sfJson(['org', 'list', 'metadata', '--metadata-type', name, '--target-org', alias], { timeoutMs: 600000 }); } catch (e) {
+      // a product this org does not have (OmniStudio, …): nothing to retrieve, as `*` would say
+      if (/INVALID_TYPE|Cannot use/i.test(e.message)) { log.info(`${step} ${name}: not used in this org`); return; }
+      throw e;
+    }
+    const explicit = [...b.matchAll(/<members>([^<]+)<\/members>/g)].map((m) => m[1]).filter((m) => m !== '*');
+    // the same components as `*`: everything but what installed packages bring (standard__ apps, force__ groups stay)
+    const own = (Array.isArray(listed) ? listed : []).filter((x) => !/^(installed|deprecated)/i.test(x.manageableState || ''));
+    const members = [...new Set([...own.map((x) => x.fullName), ...explicit])].sort();
+    if (!members.length) {
+      log.info(`${step} ${name}: nothing listed — one more try with the full wait`);
+      return runBatch([b], `${step} ${name}`, chunkWait);
+    }
+    log.info(`${step} ${name}: did not finish in ${coreWait} min — ${members.length} component(s), retrieved by chunks of 100`);
+    for (let i = 0; i < members.length; i += 100) await runBatch([typeXml(name, members.slice(i, i + 100))], `${step} ${name} ${Math.min(i + 100, members.length)}/${members.length}`, chunkWait);
+  };
+  const core = types.filter((b) => CORE.includes(nameOf(b)));
+  const rest = types.filter((b) => !CORE.includes(nameOf(b)));
+  const total = core.length + Math.ceil(rest.length / size);
+  let n = 0;
+  for (const b of core) {
+    const step = `[${++n}/${total}]`;
     try {
-      await runBatch(batch, `${names.join(', ')}`);
+      try { await runBatch([b], `${step} ${nameOf(b)}`, coreWait); } catch (e) { if (!timedOut(e)) throw e; await byChunks(b, step); }
     } catch (e) {
-      log.warn(`Batch failed (${e.message.slice(0, 160)}) — retrying type by type`);
-      for (const b of batch) {
-        const n = /<name>([^<]+)<\/name>/.exec(b)[1];
-        try { await runBatch([b], n); } catch (e2) { failed.push({ type: n, error: e2.message.slice(0, 300) }); log.warn(`${n}: skipped (${e2.message.slice(0, 120)})`); }
+      if (projectError(e)) throw new Error(`The Salesforce DX project cannot be used (${e.message.slice(0, 200)}). Fix sfdx-project.json or its package directories, then retrieve again.`);
+      const why = unknownType(e) ? 'not supported by this Salesforce CLI version' : e.message.slice(0, 300);
+      failed.push({ type: nameOf(b), error: why, core: true });
+      log.warn(`${step} ${nameOf(b)}: NOT retrieved (${why.slice(0, 120)}) — the document needs it`);
+    }
+  }
+  for (let i = 0; i < rest.length; i += size) {
+    let batch = rest.slice(i, i + size);
+    const step = `[${++n}/${total}]`;
+    for (let tries = 0; batch.length && tries < 3; tries++) {
+      try { await runBatch(batch, `${step} ${batch.map(nameOf).join(', ')}`, restWait); batch = []; } catch (e) {
+        if (projectError(e)) throw new Error(`The Salesforce DX project cannot be used (${e.message.slice(0, 200)}). Fix sfdx-project.json or its package directories, then retrieve again.`);
+        const bad = unknownType(e);
+        if (bad && batch.some((b) => nameOf(b) === bad)) {
+          failed.push({ type: bad, error: 'not supported by this Salesforce CLI version' });
+          log.warn(`${bad}: skipped (not supported by this Salesforce CLI version)`);
+          batch = batch.filter((b) => nameOf(b) !== bad);
+          continue;
+        }
+        log.warn(`${step} batch failed (${e.message.slice(0, 160)}) — retrying type by type`);
+        for (const b of batch) {
+          try { await runBatch([b], `${step} ${nameOf(b)}`, Math.min(10, restWait)); } catch (e2) { failed.push({ type: nameOf(b), error: e2.message.slice(0, 300) }); log.warn(`${nameOf(b)}: skipped (${e2.message.slice(0, 120)})`); }
+        }
+        batch = [];
       }
     }
   }
   writeJson(ctx.p('.snapshot', 'retrieve-report.json'), { failed });
+  // a type the document is built on is missing: not a ready snapshot
+  const lost = failed.filter((x) => x.core).map((x) => x.type);
+  if (lost.length) { log.fail(`Not retrieved, and the document needs them: ${lost.join(', ')}. Run the retrieve again (tadforce doctor --refresh).`); return 1; }
   log.ok(`Snapshot ready in ${path.relative(ctx.project, outDir)}${failed.length ? ` — ${failed.length} type(s) could not be retrieved (see .snapshot/retrieve-report.json)` : ''}.`);
   return 0;
 }

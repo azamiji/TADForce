@@ -42,6 +42,8 @@ When the comment contradicts the metadata, do not silently obey: answer with the
    - add ids to `dropImages` when a capture is no longer useful (keeps the file small).
 4. `npx tadforce build --pdf --docx` — handled comments appear as **resolved**, with your answer, in the panel of the same HTML file. When the readers also edited text in the page, the build keeps a copy (`…_comments_<date>.html`): report those edits into the sources.
 
+A comment a reader reopened after its resolution stays open at the next build (warning `comment-reopened`): read the new remark and answer it again with a new resolution.
+
 ## 4. Report
 
 One line per comment: id, section, what changed (or why not). Then the validation score. Ask the human to reopen the new HTML and check the resolved comments.

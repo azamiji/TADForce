@@ -118,29 +118,30 @@ const SCENES = {
 
   // `tadforce doctor` in a terminal: the prompts and messages of src/commands/doctor.js, replayed.
   async doctor() {
+    // Fictional project and org (Northwind Bank); the numbers and questions are those of test/fixtures/northwind.
     const lines = [
       ['cmd', 'npx tadforce doctor'],
       ['dim', '▲ TADForce · no evidence, no sentence · doctor'],
+      ['ask', '  Salesforce project found: northwind-crm (C:\\dev\\northwind-crm).\n  Generate the TAD for this project? [Y/n] ', 'y'],
       ['ok', '✔ Workspace created: tadforce/ (skills installed for your agents)'],
-      ['ask', '  Org alias to log in [tadforce-org]: ', 'nwb-prod'],
-      ['ask', '  Is it a sandbox? [y/N] ', 'n'],
-      ['hum', '☞ Your move: a browser window opens: log in to the org, then click « Allow ».'],
-      ['step', '› A few facts only you can confirm (Enter keeps the recommendation):'],
-      ['ask', '  Document language (en/fr) [fr]: ', ''],
-      ['ask', '  Client name, as it must appear in the document [Northwind Bank]: ', ''],
-      ['ask', '  Integrator, if any (blank: the document only names the client): ', ''],
-      ['ask', '  Author of the document (blank: no author shown): ', 'Jane Architect'],
-      ['ask', '  Part of the org to document — name patterns such as NWB_*,Loan* (blank: the whole org): ', ''],
-      ['ask', '  Functional specifications or other project documents (PDF, DOCX, MD): ', 'specs/SFD-v3.pdf'],
-      ['ask', '  Metadata to document (org/local/both) [org]: ', ''],
+      ['ask', '  Default org of this project: nwb-prod (admin@northwind-bank.example, https://northwind-bank.my.salesforce.com)\n  Generate the TAD from this org? [Y/n/l = local sources only] ', 'y'],
+      ['step', '› A few facts only you can confirm:'],
+      ['dim', '  1. Document language — recommended: en\n  2. Client name — recommended: Northwind Bank\n  3. Integrator — recommended: (blank: the document only names the client)\n  4. Author — recommended: (blank: no author shown)\n  5. Functional specifications — recommended: (blank)\n  6. Part of the org to document — recommended: (blank: the whole org)'],
+      ['ask', '  Accept all the recommended answers? [Y/n] ', 'y'],
+      ['step', '› Metadata for the document:'],
+      ['dim', '    1. retrieve all the metadata of nwb-prod, read-only (several minutes)  (recommended)\n    2. you retrieve the metadata yourself first, then give the go'],
+      ['ask', '  Your choice [1]: ', '1'],
+      ['ask', '  The retrieve takes several minutes, read-only. Start now? [Y/n] ', 'y'],
       ['step', '› Retrieving the metadata from the org (read-only, into tadforce/.snapshot)…'],
-      // the numbers and questions of the Northwind fixture (test/fixtures/northwind), unanswered
+      ['ok', '✔ [1/18] ApexClass\n✔ [2/18] ApexTrigger\n✔ [5/18] CustomObject\n✔ [7/18] Flow\n  …\n✔ [18/18] RemoteSiteSetting, NamedCredential, ConnectedApp, …'],
       ['ok', '✔ facts.json: 13 classes (+5 tests), 2 triggers, 3 active flows, 5 LWC, 4 custom objects, 3 PSG'],
-      ['step', '› What the metadata cannot tell (Enter: skip / to be confirmed):'],
-      ['ask', '  Which system is api.corebanking.northwind-bank.example? ', 'Core banking'],
-      ['ask', '  4 component(s): name suggests test / demo / POC / sample. Exclude from the document? (all / none / list of names) ', 'all'],
-      ['ok', '✔ Org: nwb-prod · Metadata: retrieved from the org → facts/facts.json'],
-      ['ok', '✔ Ready. Next: `tadforce build` (or /tadforce in your agent). Evidence first.'],
+      ['ask', '  Logo: none (a badge with the initials) · colours: TADForce default colours\n  Keep it? [Y / path or URL of another logo] ', 'y'],
+      ['step', '› What the metadata cannot tell:'],
+      ['dim', '  1. Which system is api.corebanking.northwind-bank.example? (name as the client calls it)\n  2. Which system is sms.telco-partner.example? (name as the client calls it)\n  …\n  8. 4 component(s): name suggests an unused component (test, demo, POC, sample, old, legacy…). Exclude?\n     recommended: systems « to be confirmed », nothing excluded, no decommissioned feature'],
+      ['ask', '  Accept the recommended answers? [Y/n] ', 'y'],
+      ['ok', '✔ Org: nwb-prod (https://northwind-bank.my.salesforce.com)\n✔ Metadata: retrieved from the org → facts/facts.json\n✔ Ready. Evidence first.'],
+      ['ask', '  Launch the writing of the document now with Claude Code? [Y/n] ', 'y'],
+      ['step', '› Handing over to Claude Code: it writes the document, then builds and validates it…'],
     ];
     const html = `<!doctype html><html><body style="margin:0;background:#0b1020;font:15px/1.55 Consolas,Menlo,monospace;color:#e2e8f0">
       <div style="margin:28px;border-radius:12px;background:#111827;box-shadow:0 10px 40px #0008;overflow:hidden">
@@ -153,7 +154,8 @@ const SCENES = {
         await page.evaluate((t, c, k) => { const s = document.createElement('span'); s.style.color = c; s.textContent = k === 'cmd' ? '' : t; document.getElementById('t').appendChild(s); if (k === 'cmd') { const p = document.createElement('span'); p.style.color = '#7dd3fc'; p.textContent = 'PS> '; s.before(p); } }, text, color[kind], kind);
         if (kind === 'cmd') for (const ch of text) { await page.evaluate((x) => { document.getElementById('t').lastChild.textContent += x; }, ch); await sleep(45); }
         if (kind === 'ask') { await sleep(350); for (const ch of answer || '') { await page.evaluate((x) => { const s = document.createElement('span'); s.style.color = '#fbbf24'; s.textContent = x; document.getElementById('t').appendChild(s); }, ch); await sleep(40); } }
-        await page.evaluate(() => document.getElementById('t').appendChild(document.createTextNode('\n')));
+        // the terminal scrolls like a real one: the last lines stay in view
+        await page.evaluate(() => { document.getElementById('t').appendChild(document.createTextNode('\n')); window.scrollTo(0, document.body.scrollHeight); });
         await sleep(kind === 'step' ? 700 : kind === 'cmd' ? 500 : 260);
       }
       await sleep(1800);

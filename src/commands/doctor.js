@@ -1,15 +1,16 @@
 // `tadforce doctor`: everything before the writing, in one loop that runs until all is green —
 // tools, project, org connection, metadata, the framing questions and the questions only a human can answer.
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline/promises';
 import { spawnSync } from 'node:child_process';
 import YAML from 'yaml';
 import { exists, readJson, readText, writeText } from '../util/fsx.js';
 import { findWorkspace, defaultConfig, DEFAULT_BRAND, loadWorkspace, sourceDirs } from '../util/config.js';
-import { CONFIG_FILE } from '../util/paths.js';
+import { CONFIG_FILE, TEMPLATES } from '../util/paths.js';
 import { LANGUAGES, normalizeLang } from '../util/i18n.js';
-import { sfVersion, sfJson, sfInteractive, soql } from '../sf/sf.js';
+import { sfVersion, sfJson, sfInteractive, soql, isTransient } from '../sf/sf.js';
 import { findBrowser, closeBrowser } from '../build/browser.js';
 import { findLogoCandidates, orgThemeColors, imageColors, paletteFrom } from '../build/brand.js';
 import { log, c, setQuiet } from '../util/log.js';
@@ -37,28 +38,67 @@ export async function checks(cwd) {
 
   const sfdx = path.join(cwd, 'sfdx-project.json');
   const hasProject = exists(sfdx);
-  add('sfdx-project', hasProject, hasProject ? `SFDX project: ${readJson(sfdx).name || path.basename(cwd)}` : 'No sfdx-project.json in this folder', hasProject ? null : 'tadforce doctor creates a minimal SFDX project here', false, hasProject ? 'ok' : 'warn');
+  add('sfdx-project', hasProject, hasProject ? `SFDX project: ${readJson(sfdx).name || path.basename(cwd)}` : 'No sfdx-project.json in this folder', hasProject ? null : 'pick your Salesforce project (doctor lists the ones nearby), or --project create', false, hasProject ? 'ok' : 'warn');
   return out;
 }
 
-/** The org to document: --org, the workspace, then the project's target-org (sf config). */
-async function resolveAlias(project, args, cfg) {
-  if (typeof args.org === 'string') return args.org;
-  if (cfg && cfg.org && cfg.org.alias) return cfg.org.alias;
+/** The default org: the project's target-org, else the machine-wide one (`global: true`) — sf config. */
+async function defaultOrg(project) {
   try {
     const r = await sfJson(['config', 'get', 'target-org'], { cwd: project, timeoutMs: 60000 });
-    const v = Array.isArray(r) && r[0] && r[0].value;
-    return v || null;
+    const e = Array.isArray(r) && r[0];
+    return e && e.value ? { alias: e.value, global: /global/i.test(e.location || '') } : null;
   } catch { return null; }
 }
 
+// One check per org and per run: every doctor step reuses it.
+const statusCache = new Map();
 async function orgStatus(alias) {
   if (!alias) return { ok: false, reason: 'none' };
+  if (!statusCache.has(alias)) statusCache.set(alias, cachedOrgStatus(alias));
+  return statusCache.get(alias);
+}
+
+// An org seen connected stays « connected » for 10 minutes across doctor runs (each `sf org display` costs seconds);
+// failures are never kept, so a fresh login is seen at once.
+const STATUS_FILE = path.join(os.tmpdir(), 'tadforce-org-status.json');
+async function cachedOrgStatus(alias) {
+  let all = {};
+  try { all = JSON.parse(fs.readFileSync(STATUS_FILE, 'utf8')); } catch { /* none yet */ }
+  const hit = all[alias];
+  if (hit && hit.ok && Date.now() - hit.at < 600000) return hit;
+  const st = await readOrgStatus(alias);
+  if (st.ok) { all[alias] = { ...st, at: Date.now() }; try { fs.writeFileSync(STATUS_FILE, JSON.stringify(all)); } catch { /* no writable tmp */ } }
+  return st;
+}
+
+async function readOrgStatus(alias) {
   try {
     const d = await sfJson(['org', 'display', '--target-org', alias], { timeoutMs: 120000 });
-    if (d.connectedStatus && !/^connected$/i.test(d.connectedStatus) && !/^active$/i.test(d.status || '')) return { ok: false, reason: 'expired', detail: d.connectedStatus };
+    if (d.connectedStatus && !/^connected$/i.test(d.connectedStatus) && !/^active$/i.test(d.status || '')) return { ok: false, reason: /DomainNotFound|ENOTFOUND/i.test(d.connectedStatus) ? 'unreachable' : 'expired', detail: d.connectedStatus };
     return { ok: true, username: d.username, instanceUrl: d.instanceUrl, sandbox: /test\.salesforce|sandbox|\.cs\d+\./i.test(d.instanceUrl || '') };
-  } catch (e) { return { ok: false, reason: 'expired', detail: e.message.slice(0, 160) }; }
+  } catch (e) {
+    // an unknown alias, a network failure and an expired session call for different actions
+    if (/No authorization information|NamedOrgNotFound|No org configuration found|cannot be found/i.test(e.message) && !isTransient(e)) return { ok: false, reason: 'unknown', detail: e.message.slice(0, 160) };
+    if (isTransient(e)) return { ok: false, reason: 'unreachable', detail: e.message.slice(0, 160) };
+    return { ok: false, reason: 'expired', detail: e.message.slice(0, 160) };
+  }
+}
+
+/**
+ * Orgs authorized on this machine, to choose from instead of logging in again. Listed without pinging
+ * each org (that takes a minute and fails on one bad org); the chosen one is checked afterwards.
+ */
+async function connectedOrgs() {
+  try {
+    const r = await sfJson(['org', 'list', '--skip-connection-status'], { timeoutMs: 120000 });
+    const all = [...(r.nonScratchOrgs || []), ...(r.scratchOrgs || []), ...(r.sandboxes || []), ...(r.other || [])];
+    const ok = all.filter((o) => !o.isExpired && !/deleted|expired/i.test(o.status || ''));
+    return [...new Map(ok.map((o) => [o.username, { alias: o.alias || o.username, username: o.username, instanceUrl: o.instanceUrl }])).values()];
+  } catch (e) {
+    log.warn(`Could not list the orgs of this machine (${e.message.slice(0, 120)})`);
+    return [];
+  }
 }
 
 /** Org facts that give a recommended answer to the framing questions. */
@@ -73,7 +113,7 @@ async function proposals(alias) {
 
 /** Short code for file names: initials of a multi-word name (Northwind Bank → NB), else the name cut to 8. */
 export function shortCode(name) {
-  const words = name.normalize('NFD').replace(/[̀-ͯ]/g, '').split(/[^A-Za-z0-9]+/).filter(Boolean);
+  const words = name.normalize('NFD').replace(/\p{Diacritic}/gu, '').split(/[^A-Za-z0-9]+/).filter(Boolean);
   return (words.length > 1 ? words.map((w) => w[0]).join('') : words[0] || 'CLIENT').slice(0, 8).toUpperCase();
 }
 
@@ -109,7 +149,7 @@ async function applyAnswers(ctx, args) {
   }
   if (args.specs !== undefined) cfg.setup.specsAsked = true; // --no-specs: none provided
   if (args.confirm || args.yes) cfg.setup.confirmed = true;
-  if (args.factsReviewed) cfg.setup.factsReviewed = true;
+  if (args.factsReviewed) { cfg.setup.factsReviewed = true; cfg.setup.factsDirty = true; }
   if (args.branding === 'keep') cfg.setup.brandingConfirmed = true;
   if (cfg.document.reference === 'TAD-CLIENT-CRM' && cfg.client.short !== 'CLIENT') cfg.document.reference = `TAD-${cfg.client.short}-CRM`;
   ctx.save(cfg);
@@ -300,24 +340,39 @@ async function confirmOrg(project, ctx, args, rl) {
   const cfg = ctx.cfg;
   if (cfg.source.mode === 'local') return { ok: true };
   const explicit = typeof args.org === 'string' ? args.org : null;
-  let alias = explicit || (cfg.setup.orgConfirmed ? cfg.org.alias : await resolveAlias(project, {}, { org: {} }));
+  const def = explicit || cfg.setup.orgConfirmed ? null : await defaultOrg(project);
+  let alias = explicit || (cfg.setup.orgConfirmed ? cfg.org.alias : def && def.alias);
   let status = alias ? await orgStatus(alias) : { ok: false, reason: 'none' };
   const keep = () => { cfg.org.alias = alias; cfg.setup.orgConfirmed = true; ctx.save(cfg); return { ok: true }; };
   if (status.ok && (explicit || cfg.setup.orgConfirmed)) return keep();
+  // the machine-wide default may be any org (another client's): proposed, never recommended
+  const machineWide = !!(def && def.global);
+  const label = machineWide ? 'Machine-wide default org (not set for this project)' : 'Default org of this project';
   const describe = () => `${c.bold(alias)} (${status.username}, ${status.instanceUrl})`;
+  const why = (st) => ({ unknown: 'is not authorized on this machine', unreachable: 'cannot be reached (network, or the org was deleted)', expired: 'session expired' }[st.reason] || 'is not connected');
+  // the default org is unusable or refused: the orgs already connected come first (the same user once), a new login last
+  const others = (await connectedOrgs()).filter((o) => o.alias !== alias && o.username !== alias && o.username !== status.username);
   if (!rl) {
+    const login = 'another org: the human runs `sf org login web --alias <a> [--instance-url https://test.salesforce.com]` (opens the browser), then --org <a>';
     return { stop: alias && status.ok
-      ? { id: 'org', question: `Generate the TAD from the org "${alias}" (${status.username}, ${status.instanceUrl})?`, recommended: alias, options: [alias, 'another org: the human runs `sf org login web --alias <a>` (opens the browser), then --org <a>', 'local: document the local sources only (--source local)'] }
-      : { id: 'org', question: alias ? `The org "${alias}" is not connected (session expired). The human logs in again: \`sf org login web --alias ${alias}\`, then --org ${alias}.` : 'No org connected. The human logs in: `sf org login web --alias <a>` (opens the browser), then --org <a>; or --source local.', recommended: alias || null, human: true } };
+      ? { id: 'org', question: `${label}: "${alias}" (${status.username}, ${status.instanceUrl}). Generate the TAD from this org?`, recommended: machineWide ? null : alias, options: [`${alias} (${status.username}, ${status.instanceUrl})`, ...others.map((o) => `${o.alias} (${o.username}, ${o.instanceUrl})`), login, 'local: document the local sources only (--source local)'] }
+      : { id: 'org', question: `${alias ? `The default org "${alias}" ${why(status)}.` : 'No default org for this project.'} Which org is the TAD about? Answer with --org <alias>.`, recommended: null, options: [...others.map((o) => `${o.alias} (${o.username}, ${o.instanceUrl})`), login, 'local: document the local sources only (--source local)'], human: !others.length } };
   }
   for (let attempt = 0; attempt < 4; attempt++) {
     if (alias && status.ok) {
-      const a = (await rl.question(`  ${attempt ? 'Connected' : 'Default org'}: ${describe()}\n  Generate the TAD from this org? [Y/n/l = local sources only] `)).trim();
+      const a = (await rl.question(`  ${attempt ? 'Connected' : label}: ${describe()}\n  Generate the TAD from this org? [Y/n/l = local sources only] `)).trim();
       if (yes(a)) return keep();
       if (/^l/i.test(a)) { cfg.source.mode = 'local'; ctx.save(cfg); return { ok: true }; }
-    } else if (alias) console.log(`  ${c.yellow('⚠')} The org "${alias}" is not connected (session expired): log in again.`);
+    } else if (alias) console.log(`  ${c.yellow('⚠')} The default org "${alias}" ${why(status)}.`);
+    if (others.length) {
+      console.log('  Orgs already connected on this machine:');
+      others.forEach((o, i) => console.log(`    ${i + 1}. ${o.alias} ${c.dim(`(${o.username}, ${o.instanceUrl})`)}`));
+      const pick = (await rl.question('  Org for the TAD (number), n = log in to another org, l = local sources only: ')).trim();
+      if (/^l/i.test(pick)) { cfg.source.mode = 'local'; ctx.save(cfg); return { ok: true }; }
+      if (others[Number(pick) - 1]) { alias = others[Number(pick) - 1].alias; status = await orgStatus(alias); if (status.ok) return keep(); }
+    }
     // « no », or no usable org: open the Salesforce CLI login and wait for it.
-    const def = alias && !status.ok ? alias : 'tad-org';
+    const def = alias && status.reason === 'expired' ? alias : 'tad-org';
     const next = (await rl.question(`  Alias for the org to connect [${def}]: `)).trim() || def;
     const sandbox = yes((await rl.question('  Is it a sandbox? [y/N] ')).trim(), false);
     log.human('a browser window opens: log in to the org, then click « Allow ». Waiting for the login…');
@@ -396,7 +451,26 @@ async function evaluate(project, args) {
     facts = exists(ctx.p('facts', 'facts.json'));
     const lang = normalizeLang(ctx.cfg.language);
     const own = ctx.p('i18n', `${lang}.json`);
-    if (!LANGUAGES.includes(lang) && exists(own) && readJson(own)._translate) add('language', true, `Document language "${lang}": headings and labels still to translate (once)`, `the agent translates the headings of src/*/*.md (keep the {#anchors}) and the values of tadforce/i18n/${lang}.json, then removes its "_translate" line`, false, 'warn');
+    if (!LANGUAGES.includes(lang)) {
+      // still English: the labels file not translated, or chapters whose headings match the English skeleton
+      const english = [];
+      for (const doc of ['tad', 'axes']) {
+        const dir = ctx.p('src', doc);
+        if (!exists(dir)) continue;
+        for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.md'))) {
+          const tpl = path.join(TEMPLATES, doc, 'en', f);
+          const heads = (txt) => txt.split('\n').filter((l) => /^#{1,3} /.test(l)).join('\n');
+          if (exists(tpl) && heads(readText(tpl)) === heads(readText(path.join(dir, f)))) english.push(`src/${doc}/${f}`);
+        }
+      }
+      const labels = exists(own) && readJson(own)._translate;
+      const base = defaultConfig().document;
+      const fields = ['title', 'status', 'classification', 'environment'].filter((k) => ctx.cfg.document[k] === base[k]);
+      if (labels || english.length || fields.length) add('language', true, `Document language "${lang}": ${[labels && 'interface labels', english.length && `${english.length} chapter(s) with English headings`, fields.length && `document ${fields.join(', ')} (English defaults)`].filter(Boolean).join(' and ')} still to translate (once)`, `the agent translates, once: the headings and the body text of ${english.length ? english.slice(0, 3).join(', ') + (english.length > 3 ? '…' : '') : 'src/*/*.md'} (keep {#anchors}, {-}, <!-- tad:… --> lines and @@…@@ directives; the caption after « | » may be translated), the values of tadforce/i18n/${lang}.json (keys and {placeholders} kept, meta.htmlLang set, "_translate" line removed), and document.title / status / classification / environment in tadforce.config.json`, false, 'warn');
+    }
+    const rr = ctx.p('.snapshot', 'retrieve-report.json');
+    const lost = exists(rr) ? (readJson(rr).failed || []).filter((x) => x.core).map((x) => x.type) : [];
+    if (lost.length) add('retrieve', true, `Not retrieved, the document needs them: ${lost.join(', ')}`, 'rerun the retrieve when the org is less busy: tadforce doctor --refresh', false, 'warn');
     if (facts) add('metadata', true, `Metadata: ${exists(ctx.p(ctx.cfg.source.dir)) && ctx.cfg.source.mode !== 'local' ? 'retrieved from the org' : 'local sources'} → facts/facts.json`);
   }
   return { tools, ws, cfg, list, facts };
@@ -420,13 +494,14 @@ export async function run(args) {
 
     // 2. The Salesforce project the TAD is about (confirmed, never created without a yes).
     const p = await resolveProject(start, args, rl);
-    if (typeof p !== 'string') return p.stop ? finish(args, st, [p.stop], 'ask the human, then run `tadforce doctor --json --project <yes|path|create>`') : 1;
+    if (typeof p !== 'string') return p.stop ? finish(args, st, [p.stop], `ask the human, then run 'npx tadforce doctor --json --cwd "${start}" --project <yes|path|create>' (after a path, always pass --cwd <that path>)`) : 1;
     const project = p;
     if (project !== start) say(() => log.ok(`Project: ${project}`));
     if (!findWorkspace(project)) {
       await quietly(args.json, () => { ensureWorkspace(project, defaultConfig()); installSkills(project, null); });
       say(() => log.ok('Workspace created: tadforce/ (skills installed for your agents)'));
     }
+    const again = (flags) => `npx tadforce doctor --json --cwd "${project}" ${flags}`;
     let ctx = loadWorkspace(project);
     ctx.cfg.setup.projectConfirmed = true; ctx.save(ctx.cfg);
     await applyAnswers(ctx, args);
@@ -434,14 +509,14 @@ export async function run(args) {
 
     // 3. The org: the default one is proposed; « no » opens the login and asks again.
     const o = await confirmOrg(project, ctx, args, rl);
-    if (!o.ok) return o.stop ? finish(args, await evaluate(project, args), [o.stop], 'ask the human, then run `tadforce doctor --json --org <alias>` (or --source local)') : 1;
+    if (!o.ok) return o.stop ? finish(args, await evaluate(project, args), [o.stop], `ask the human, then run '${again('--org <alias>')}' (or --source local)`) : 1;
     ctx = loadWorkspace(project);
 
     // 4. Framing: 6 questions, each with a recommended answer; « accept all » in one keystroke.
-    const prop = ctx.cfg.org.alias && ctx.cfg.source.mode !== 'local' ? await proposals(ctx.cfg.org.alias) : {};
+    const prop = !ctx.cfg.setup.confirmed && ctx.cfg.org.alias && ctx.cfg.source.mode !== 'local' ? await proposals(ctx.cfg.org.alias) : {};
     const framing = framingQuestions(ctx.cfg, prop);
     if (framing.length) {
-      if (!rl) return finish(args, await evaluate(project, args), framing, 'ask the human in one message (recommended answers shown; « accept all » is fine), then run `tadforce doctor --json --confirm --lang … --client "…" --integrator …|none --author …|none [--specs …|--no-specs] [--scope …]`');
+      if (!rl) return finish(args, await evaluate(project, args), framing, `ask the human in one message (recommended answers shown; « accept all » is fine), then run '${again('--confirm --lang … --client "…" --integrator …|none --author …|none [--specs …|--no-specs] [--scope …]')}'`);
       const a = await askBatch(rl, 'A few facts only you can confirm:', framing);
       await applyAnswers(loadWorkspace(project), {
         confirm: true, lang: a.lang, client: a.client || undefined,
@@ -454,30 +529,48 @@ export async function run(args) {
     // 5. Metadata: org, local or retrieved by the user — and a go before a long retrieve.
     if (!exists(ctx.p('facts', 'facts.json')) || args.refresh) {
       const s = await chooseSource(project, ctx, args, rl);
-      if (!s.mode) return s.stop ? finish(args, await evaluate(project, args), [s.stop], 'ask the human; the answer is the go: `tadforce doctor --json --source org|local|self`') : 1;
-      const a = { ...args, cwd: project, org: s.mode === 'local' ? false : ctx.cfg.org.alias, quiet: args.json };
+      if (!s.mode) return s.stop ? finish(args, await evaluate(project, args), [s.stop], `ask the human; the answer is the go: '${again('--source <one of the options: ' + (s.stop.options || []).map((o) => o.split(':')[0]).join('|') + '>')}'`) : 1;
+      // doctor's --source (org|local|self) is not facts' --source <folder>: never pass it on
+      const { source: _source, project: _project, ...rest } = args;
+      const a = { ...rest, json: false, cwd: project, org: s.mode === 'local' ? false : ctx.cfg.org.alias };
       if (s.mode !== 'local') {
         say(() => log.step('Retrieving the metadata from the org (read-only, into tadforce/.snapshot)…'));
-        for (const fn of [org.manifest, org.retrieve]) { const code = await quietly(args.json, () => fn(a)); if (code) return finish(args, await evaluate(project, args), [], 'the retrieve failed: see the messages above'); }
+        for (const fn of [org.manifest, org.retrieve]) { const code = await quietly(args.json, () => fn(a), true); if (code) return finish(args, await evaluate(project, args), [], 'the retrieve failed: see the messages above'); }
       }
-      await quietly(args.json, () => docs.facts(a));
-      await quietly(args.json, () => docs.scaffold(a));
+      await quietly(args.json, () => docs.facts(a), true);
       ctx = loadWorkspace(project);
+      const found = (readJson(ctx.p('facts', 'facts.json')).inventory || []).length;
+      if (!found) {
+        // an empty inventory would give an empty document: never report it as green
+        fs.rmSync(ctx.p('facts', 'facts.json'), { force: true });
+        ctx.cfg.setup.sourceGo = false; ctx.save(ctx.cfg);
+        const dirs = sourceDirs(ctx).map((d) => path.relative(project, d) || '.');
+        return finish(args, await evaluate(project, args), [], `no metadata found in ${dirs.join(', ') || 'this project'}: retrieve it (source org) or put the sources in the package directories, then run doctor again`);
+      }
+      await quietly(args.json, () => docs.scaffold(a));
     }
 
     // 6. Branding (logo, colours) and what the metadata cannot tell — recommended answers again.
     const b = await confirmBranding(ctx, args, rl, say);
-    if (b) return finish(args, await evaluate(project, args), [b], 'ask the human, then run `tadforce doctor --json --branding keep` (or --logo <file|url>)');
+    if (b) return finish(args, await evaluate(project, args), [b], `ask the human, then run '${again('--branding keep')}' (or --logo <file|url>)`);
     const fq = factQuestions(loadWorkspace(project));
     if (fq.length) {
-      if (!rl) return finish(args, await evaluate(project, args), fq, 'ask the human in one message (recommended answers shown), write the answers to the knowledge files, then run `tadforce doctor --json --facts-reviewed`');
+      if (!rl) return finish(args, await evaluate(project, args), fq, `ask the human in one message (recommended answers shown), write the answers to the knowledge files, then run '${again('--facts-reviewed')}' (it recomputes the facts)`);
       const changed = await askFacts(loadWorkspace(project), rl, fq);
       const c2 = loadWorkspace(project); c2.cfg.setup.factsReviewed = true; c2.save(c2.cfg);
-      if (changed) await quietly(args.json, () => docs.facts({ cwd: project, org: c2.cfg.source.mode === 'local' ? false : c2.cfg.org.alias }));
+      if (changed) await quietly(args.json, () => docs.facts({ cwd: project, org: false }));
+    }
+    // answers written to the knowledge files (systems, exclusions) change the facts: recompute once
+    const c3 = loadWorkspace(project);
+    if (c3.cfg.setup.factsDirty) {
+      await quietly(args.json, () => docs.facts({ cwd: project, org: false }));
+      const c4 = loadWorkspace(project); delete c4.cfg.setup.factsDirty; c4.save(c4.cfg);
     }
 
     // 7. All green: say it, and offer to start the writing.
-    const code = finish(args, await evaluate(project, args), [], null);
+    const last = await evaluate(project, args);
+    const translate = last.list.some((x) => x.id === 'language') ? 'first translate once (check « language »), then ' : '';
+    const code = finish(args, last, [], null, `${translate}write the sections: 'npx tadforce next --json --cwd "${project}"' (loop), then 'npx tadforce build --cwd "${project}"'`);
     // CI, agents (--json) and agent sessions stop here; a person in a terminal is offered the writing.
     if (code || args.json || args.launch === false || !process.stdin.isTTY || insideAgent()) return code;
     return handOver(project, args, rl);
@@ -515,16 +608,19 @@ async function handOver(project, args, rl) {
   return launchAgent(agent, project);
 }
 
-async function quietly(json, fn) {
+/** In --json mode stdout carries only the answer: messages are dropped, or sent to stderr as progress. */
+async function quietly(json, fn, progress = false) {
   if (!json) return fn();
-  const orig = console.log; console.log = () => {};
-  try { return await fn(); } finally { console.log = orig; }
+  const orig = console.log;
+  console.log = progress ? (...a) => process.stderr.write(a.join(' ') + '\n') : () => {};
+  if (progress) setQuiet(false);
+  try { return await fn(); } finally { console.log = orig; if (progress) setQuiet(true); }
 }
 
-function finish(args, st, questions, next) {
+function finish(args, st, questions, next, after = 'npx tadforce build') {
   const ok = !next && st.list.every((x) => x.level !== 'error');
   if (args.json) {
-    console.log(JSON.stringify({ ok, checks: st.list, questions, next: next || 'tadforce build' }, null, 2));
+    console.log(JSON.stringify({ ok, checks: st.list, questions, next: next || after }, null, 2));
     return ok ? 0 : 1;
   }
   for (const x of st.list) {

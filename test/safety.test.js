@@ -6,8 +6,8 @@ import { isAllowed, assertSafeQuery } from '../src/sf/sf.js';
 import { TEMPLATES } from '../src/util/paths.js';
 
 test('only read-only sf commands are allowed', () => {
-  for (const ok of [['org', 'list'], ['org', 'display', '--target-org', 'x'], ['org', 'list', 'metadata', '--metadata-type', 'Report'], ['project', 'retrieve', 'start', '--manifest', 'p.xml'], ['data', 'query', '--query', 'q'], ['--version']]) assert.ok(isAllowed(ok), ok.join(' '));
-  for (const ko of [['project', 'deploy', 'start'], ['org', 'delete', 'scratch'], ['data', 'delete', 'record'], ['apex', 'run'], ['data', 'import', 'tree'], ['project', 'delete', 'source'], ['org', 'logout']]) assert.ok(!isAllowed(ko), ko.join(' '));
+  for (const ok of [['org', 'list'], ['org', 'display', '--target-org', 'x'], ['org', 'list', 'metadata', '--metadata-type', 'Report'], ['project', 'retrieve', 'start', '--manifest', 'p.xml'], ['data', 'query', '--query', 'q'], ['config', 'get', 'target-org'], ['--version']]) assert.ok(isAllowed(ok), ok.join(' '));
+  for (const ko of [['project', 'deploy', 'start'], ['org', 'delete', 'scratch'], ['data', 'delete', 'record'], ['apex', 'run'], ['data', 'import', 'tree'], ['project', 'delete', 'source'], ['org', 'logout'], ['config', 'set', 'target-org', 'x'], ['config', 'get', 'target-org;', 'rm']]) assert.ok(!isAllowed(ko), ko.join(' '));
 });
 
 test('SOQL never reads business records', () => {

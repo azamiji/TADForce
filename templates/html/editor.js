@@ -497,6 +497,31 @@
     } catch (e) { toast(T('docxFailed', { error: e.message }), 5000); }
   }
 
+  // A rebuilt document carries the comments, not their highlights: find each quoted passage again.
+  function reanchor(c) {
+    if (c.kind === 'zone' || !c.quote || marksOf(c.id).length) return;
+    var q = c.quote.replace(/…$/, '').trim(), probe = q.slice(0, 40);
+    if (probe.length < 6) return;
+    for (var zi = 0; zi < zones.length; zi++) {
+      if (!zones[zi]) continue;
+      var w = document.createTreeWalker(zones[zi], NodeFilter.SHOW_TEXT, null), n;
+      while ((n = w.nextNode())) {
+        if (n.parentElement.closest('svg, mark.tad-cmt')) continue;
+        var i = n.nodeValue.indexOf(probe);
+        if (i < 0) continue;
+        var r = document.createRange();
+        r.setStart(n, i); r.setEnd(n, Math.min(n.nodeValue.length, i + q.length));
+        wrapRange(r, c.id);
+        return;
+      }
+    }
+    // the quoted words were corrected: pin the comment on its section heading instead
+    var heads = document.querySelectorAll('article.doc h1, article.doc h2, article.doc h3');
+    for (var hi = 0; hi < heads.length; hi++) {
+      if (c.section && heads[hi].textContent.indexOf(c.section) >= 0) { insertPin(heads[hi], c.id); return; }
+    }
+  }
+  comments.forEach(reanchor);
   comments.forEach(function (c) { if (c.status === 'resolved') marksOf(c.id).forEach(function (m) { m.classList.add('resolved'); }); });
   render();
 })();

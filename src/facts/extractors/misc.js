@@ -25,6 +25,8 @@ export function extractMisc(roots) {
     genAi: count('genAiPlanners', '') + count('genAiPlannerBundles', '') + count('genAiPlugins', '') + count('genAiFunctions', '') + bundles(roots, 'aiAuthoringBundles').length,
     entitlementProcesses: count('entitlementProcesses', ''),
     dataStreams: count('dataStreamDefinitions', ''),
+    // every org has a PlatformEncryption.settings file: only switched-on options are evidence of Shield
+    platformEncryption: files(roots, 'settings', 'PlatformEncryption.settings-meta.xml').reduce((n, f) => n + (safeRead(f).match(/<enable\w*>true</g) || []).length, 0),
   };
 
   // Components documented by name only (routing, channels, sites, paths, rules, agents…)
