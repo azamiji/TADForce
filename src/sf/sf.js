@@ -53,7 +53,8 @@ export function assertSafeQuery(q) {
   const fields = s.slice(6, from.index).split(',').map((f) => f.trim());
   const grouped = /\bgroup by\b/i.test(s);
   if (AGGREGATE_ONLY.has(obj)) {
-    const ok = grouped && fields.some((f) => AGG.test(f)) && fields.every((f) => AGG.test(f) || /^[A-Za-z0-9_.]+(\s+\w+)?$/.test(f));
+    // a bare COUNT() / MAX(CreatedDate) reads no record either; grouped, the group fields must be plain names
+    const ok = fields.every((f) => AGG.test(f)) || grouped && fields.some((f) => AGG.test(f)) && fields.every((f) => AGG.test(f) || /^[A-Za-z0-9_.]+(\s+\w+)?$/.test(f));
     if (!ok) refuse(`aggregates only on ${from[1]}`);
     return true;
   }

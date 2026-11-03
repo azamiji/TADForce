@@ -37,7 +37,7 @@ const CLOUDS = [
   { id: 'dataCloud', name: 'Data Cloud', ref: 'data-cloud', test: (f) => f.misc.signals.dataStreams > 0 || f.data.objects.some((o) => /__(dlm|dll)$/.test(o.name)) || (f.misc.folders.dataStreamDefinitions || 0) + (f.misc.folders.dataSourceObjects || 0) > 0 },
   { id: 'agentforce', name: 'Agentforce / Einstein', ref: 'agentforce-ai', psg: /Agentforce|Copilot|EinsteinGPT|GenAI|Einstein_?Agent/i, test: (f) => f.misc.signals.bots + f.misc.signals.genAi > 0 || (f.misc.folders.genAiPromptTemplates || 0) + (f.misc.folders.mlPredictionDefinitions || 0) > 0 },
   { id: 'crmAnalytics', name: 'CRM Analytics', ref: 'analytics', ns: ['wave'], test: (f) => ['wave', 'waveDashboards', 'waveDataflows', 'waveRecipes', 'waveApplications', 'waveDatasets'].some((k) => f.misc.folders[k] > 0) },
-  { id: 'shield', name: 'Shield (encryption, event monitoring, audit)', ref: 'security-shield', test: (f) => ['transactionSecurityPolicies', 'eventSubscriptions'].some((k) => f.misc.folders[k] > 0) || (f.misc.signals.platformEncryption || 0) > 0 },
+  { id: 'shield', name: 'Shield (encryption, event monitoring, audit)', ref: 'security-shield', test: (f) => (f.misc.signals.transactionPolicies ?? f.misc.folders.transactionSecurityPolicies ?? 0) > 0 || (f.misc.folders.eventSubscriptions || 0) > 0 || (f.misc.signals.platformEncryption || 0) > 0 },
   { id: 'slack', name: 'Slack integration', ref: 'integration-platforms', ns: ['slackv2', 'slack'], test: (f) => (f.misc.folders.slackApps || 0) > 0 },
   { id: 'events', name: 'Platform Events / Change Data Capture', ref: 'platform-events', test: (f) => f.data.objects.some((o) => o.kind === 'platformEvent') || f.data.cdc.length > 0 },
 ];

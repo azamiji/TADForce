@@ -26,6 +26,8 @@ export function extractMisc(roots) {
     entitlementProcesses: count('entitlementProcesses', ''),
     dataStreams: count('dataStreamDefinitions', ''),
     // every org has a PlatformEncryption.settings file: only switched-on options are evidence of Shield
+    // Salesforce ships default policies (sfdc_default_*) in every org: only the project's own policies count
+    transactionPolicies: files(roots, 'transactionSecurityPolicies', '.transactionSecurityPolicy-meta.xml', { recursive: true }).filter((f) => !/^sfdc_default_/i.test(path.basename(f))).length,
     platformEncryption: files(roots, 'settings', 'PlatformEncryption.settings-meta.xml').reduce((n, f) => n + (safeRead(f).match(/<enable\w*>true</g) || []).length, 0),
   };
 

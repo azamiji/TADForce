@@ -11,7 +11,7 @@ test('only read-only sf commands are allowed', () => {
 });
 
 test('SOQL never reads business records', () => {
-  for (const ok of ['SELECT COUNT() FROM Loan__c', 'SELECT MAX(CreatedDate) d FROM Account', 'SELECT Profile.Name p, COUNT(Id) c FROM User WHERE IsActive = true GROUP BY Profile.Name', 'SELECT Name, IsSandbox FROM Organization', 'SELECT PercentCovered FROM ApexOrgWideCoverage']) assert.ok(assertSafeQuery(ok), ok);
+  for (const ok of ['SELECT COUNT() FROM Loan__c', 'SELECT COUNT() FROM User', 'SELECT MAX(CreatedDate) d FROM Account', 'SELECT Profile.Name p, COUNT(Id) c FROM User WHERE IsActive = true GROUP BY Profile.Name', 'SELECT Name, IsSandbox FROM Organization', 'SELECT PercentCovered FROM ApexOrgWideCoverage']) assert.ok(assertSafeQuery(ok), ok);
   for (const ko of ['SELECT Id, Name FROM Account', 'SELECT Name FROM User', 'SELECT Status__c, COUNT(Id) FROM Loan__c GROUP BY Status__c', 'DELETE FROM Account', 'SELECT Email FROM Contact LIMIT 1']) assert.throws(() => assertSafeQuery(ko), ko);
 });
 

@@ -92,7 +92,7 @@ export function extractFacts(dirs, knowledge = {}, opts = {}) {
 }
 
 // Components Salesforce ships in every org (standard apps, platform permission set groups…): not the project's architecture.
-const SHIPPED = /^(standard__|force__|sfdcInternalInt__|sf_devops)/;
+const SHIPPED = /^(standard__|force__|sfdcInternalInt__|sf_devops|sfdc_default_)/;
 
 /** Set aside what Salesforce ships with the org; returns how many of each kind, by facts path. */
 function removeSalesforceShipped(f) {
@@ -100,7 +100,7 @@ function removeSalesforceShipped(f) {
   // the utility bars of Salesforce's own apps go with them
   const bars = new Set(f.ui.apps.filter((x) => SHIPPED.test(String(x.name)) && x.utilityBar).map((x) => x.utilityBar));
   for (let i = f.ui.flexipages.length - 1; i >= 0; i--) if (bars.has(f.ui.flexipages[i].name)) { f.ui.flexipages.splice(i, 1); out['ui.utilityBars'] = (out['ui.utilityBars'] || 0) + 1; }
-  for (const [key, list] of [['ui.apps', f.ui.apps], ['ui.tabs', f.ui.tabs], ['ui.flexipages', f.ui.flexipages], ['security.permissionSets', f.security.permissionSets], ['security.permissionSetGroups', f.security.permissionSetGroups]]) {
+  for (const [key, list] of [['ui.apps', f.ui.apps], ['ui.tabs', f.ui.tabs], ['ui.flexipages', f.ui.flexipages], ['security.permissionSets', f.security.permissionSets], ['security.permissionSetGroups', f.security.permissionSetGroups], ['automation.flows', f.automation.flows || []]]) {
     let n = 0;
     for (let i = list.length - 1; i >= 0; i--) if (SHIPPED.test(String(list[i].name))) { list.splice(i, 1); n++; }
     if (n) out[key] = n;

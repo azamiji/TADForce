@@ -50,7 +50,9 @@ export function shapeJobs(records) {
 }
 
 /** Objects whose volume is measured: the project's custom objects and the standard objects it uses. */
-export const volumeObjects = (facts) => facts.data.objects.filter((o) => ['custom', 'standard'].includes(o.kind) && !o.namespace && (o.kind === 'custom' || o.used || o.customFields > 0));
+// polymorphic or virtual objects: they cannot be counted (Activity, Name…) — Task and Event carry the activity volumes
+const NOT_COUNTABLE = new Set(['Activity', 'Name', 'OpenActivity', 'ActivityHistory', 'AggregateResult', 'RecentlyViewed']);
+export const volumeObjects = (facts) => facts.data.objects.filter((o) => ['custom', 'standard'].includes(o.kind) && !o.namespace && !NOT_COUNTABLE.has(o.name) && (o.kind === 'custom' || o.used || o.customFields > 0));
 
 export async function collectOrgFacts(alias, facts, { onProgress = () => {} } = {}) {
   const errors = [];
@@ -83,7 +85,9 @@ export async function collectOrgFacts(alias, facts, { onProgress = () => {} } = 
     if (count == null) return null;
     let last = null;
     if (count > 0) {
-      const r = rows(await run(`last ${o.name}`, () => soql(`SELECT MAX(CreatedDate) d FROM ${o.name}`, alias)))[0];
+      // some objects (FeedItem…) refuse MAX on CreatedDate: the date is optional, never an error
+      const v = await safe(() => soql(`SELECT MAX(CreatedDate) d FROM ${o.name}`, alias));
+      const r = v && v.error === undefined ? rows(unwrap(v))[0] : null;
       last = r ? (r.d || r.expr0 || null) : null;
     }
     return { object: o.name, label: labels[o.name], kind: o.kind, records: count, lastCreated: last ? String(last).slice(0, 10) : null };

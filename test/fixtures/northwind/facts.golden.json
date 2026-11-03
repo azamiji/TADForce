@@ -2156,7 +2156,8 @@
       "presenceStatuses": 0,
       "routingConfigs": 0,
       "serviceChannels": 0,
-      "sites": 0
+      "sites": 0,
+      "transactionPolicies": 0
     },
     "staticResources": [
       "nwbBrand"
