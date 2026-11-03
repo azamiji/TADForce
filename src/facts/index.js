@@ -99,6 +99,9 @@ function removeSalesforceShipped(f) {
   const out = {};
   // the utility bars of Salesforce's own apps go with them
   const bars = new Set(f.ui.apps.filter((x) => SHIPPED.test(String(x.name)) && x.utilityBar).map((x) => x.utilityBar));
+  // so do the utility bars no app of the org uses: Salesforce ships one per industry console (CrisisCenter_UtilityBar…)
+  const used = new Set(f.ui.apps.filter((x) => !SHIPPED.test(String(x.name))).map((x) => x.utilityBar).filter(Boolean));
+  for (const p of f.ui.flexipages) if (p.type === 'UtilityBar' && !used.has(p.name)) bars.add(p.name);
   for (let i = f.ui.flexipages.length - 1; i >= 0; i--) if (bars.has(f.ui.flexipages[i].name)) { f.ui.flexipages.splice(i, 1); out['ui.utilityBars'] = (out['ui.utilityBars'] || 0) + 1; }
   for (const [key, list] of [['ui.apps', f.ui.apps], ['ui.tabs', f.ui.tabs], ['ui.flexipages', f.ui.flexipages], ['security.permissionSets', f.security.permissionSets], ['security.permissionSetGroups', f.security.permissionSetGroups], ['automation.flows', f.automation.flows || []]]) {
     let n = 0;
