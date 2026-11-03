@@ -2,6 +2,10 @@
 
 **Detected by** objects ending with `__e`, `platformEventChannels`, `platformEventChannelMembers` (CDC entities), event-triggered flows and triggers.
 
+## Understand
+
+`facts/graph.json` links publishers (`EventBus.publish`, flow record creates) and subscribers (event-triggered flows and triggers) with `publishes` / `subscribes` edges; the architect's chains cross the event with a `delivers` step. A process across an event is asynchronous: mark the step `async: true`.
+
 ## Document
 
 | Chapter | What |

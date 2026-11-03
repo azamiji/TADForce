@@ -2,24 +2,31 @@
 
 Ask in **blocks**, each in one message, with your proposed answer for every item so the human only confirms or corrects. Write the question in the human's language.
 
-## Block A — startup (before or right after authorization)
+## Block A — startup
 
-`npx tadforce doctor --json` asks, in this order and one step at a time: the **project** (is this the Salesforce project to document?), the **org** (is this the org?), then these framing questions — six, each with a `recommended` answer. Ask them all in one message and let the human accept them all at once:
+`npx tadforce doctor --json` asks one step at a time, in this order. Each question has an `id` and a `recommended` answer.
 
-1. Document language — recommended: the org default language. English and French are built in; any other language works (the headings and labels are translated once, see `workflow.md › Other languages`).
-2. Client name, as it must appear in the document — recommended: `Organization.Name`. The short code (file names) and the reference are derived from it.
-3. Integrator — **optional**. Blank: the document names the client only (no empty « Integrator » line, no badge). The Improvement Axes then carry the client's brand.
-4. Author — **optional**. Blank: no author is shown anywhere. Never put your own name or the agent's.
-5. Functional specifications — **optional**: paths to PDF / DOCX / MD files (copied into `knowledge/inputs/specs/`).
-6. Scope — **optional**: name patterns of the components the project owns (`NWB_*,Loan*`), when the org is shared with other teams. Blank: the whole org.
+1. **Project** (`project`) — is this the Salesforce project to document?
+2. **Framing** — one message, the recommended answer for each, « accept all » allowed. In the order of the cover:
+   1. `lang` — document language. Recommended: the org default language (read from the project's connected org when there is one). English and French are built in; any other language works (headings and labels translated once, see `workflow.md › Other languages`).
+   2. `integrator` — the company **writing** the document. **Optional**: blank, the document names the client only (no empty « Integrator » line, no badge); the Improvement Axes then carry the client's brand.
+   3. `integrator-logo` — its logo: a file or an `https://` URL. **Optional**: blank, the integrator's name only. Never fetch a logo from the web without the human's go-ahead.
+   4. `client` — the **final client** name, as it must appear in the document. Recommended: `Organization.Name`. The short code (file names) and the reference are derived from it.
+   5. `logo` — the client logo: a file or an `https://` URL. **Optional**: blank, TADForce searches it in the org's metadata (static resources, content assets, site assets) and asks to confirm it after the retrieve (`branding`).
+   6. `author` — **optional**. Blank: no author is shown anywhere. Never put your own name or the agent's.
+   7. `specs` — functional specifications, **optional**: paths to PDF / DOCX / MD files (copied into `knowledge/inputs/specs/`).
+   8. `scope` — **optional**: name patterns of the components the project owns (`NWB_*,Loan*`), when the org is shared with other teams. Blank: the whole org.
 
-Answer with `npx tadforce doctor --json --confirm --lang fr --client "…" --integrator none --author none [--specs … | --no-specs] [--scope "…"]`. The title stays « Salesforce CRM Platform » unless the human gives one (`--title`).
+   Answer with `npx tadforce doctor --json --confirm --lang fr --integrator "…"|none --integrator-logo <file|url>|none --client "…" [--logo <file|url>] --author none [--specs … | --no-specs] [--scope "…"]`. The title stays « Salesforce CRM Platform » unless the human gives one (`--title`). A logo that cannot be found or read is a **warning** (`client-logo`, `integrator-logo` checks) with the path it looked for and the fix — pass another `--logo` / `--integrator-logo`, or `none`.
+3. **Org** (`org`) — is an org connected? Connected: show it (alias, user, URL) and ask whether it is the right one → `--org <alias>`. None, or not the right one: the human logs in (`sf org login web --alias <a> [--instance-url https://test.salesforce.com]`, it opens the browser), then ask again. No org at all: `--source local`.
+4. **Metadata** (`source`) — retrieve through TADForce (`org`, read-only, several minutes: the answer **is the go**), use the project's sources (`local`), or the human retrieves them first (`self`, then `--source local` once done). When the retrieve missed types every org has, or the local sources lack core folders, doctor warns (`retrieve-empty`, `metadata-missing`): those counts read « not collected » in the document, never 0.
+5. **Branding** (`branding`) — the client logo and the colours found in the org → `--branding keep`, or `--logo <file|url>`.
+6. Blocks **B to D** below → write `knowledge/*.yml`, then `--facts-reviewed` (it recomputes the facts and the outline).
+7. **Launch** (`launch-build`) — when everything is green: « Launch the build of the document now? » Recommended: **yes** → `--build yes` (then write the sections: `tadforce next` loop, then `tadforce build`); `--build no` stops there. In a terminal, « yes » hands over to the AI agent found on the machine.
 
-Then come the metadata choice (`source`, which is also the go for the retrieve), the **branding** (logo and colours found in the org — never fetch a logo from the web without the human's go-ahead), and Blocks B to D.
+FR example (framing):
 
-FR example:
-
-> Pour démarrer, je propose : langue **français** (langue par défaut de l'org : fr_FR) · client **« Banque Exemple »** · intégrateur : **aucun** · auteur : **aucun** · spécifications fonctionnelles : **aucune** · périmètre : **toute l'org**. Je valide tout ? Indiquez seulement ce qui change.
+> Pour démarrer, je propose : langue **français** (langue par défaut de l'org : fr_FR) · intégrateur : **aucun** (logo : aucun) · client **« Banque Exemple »** (logo : recherché dans l'org) · auteur : **aucun** · spécifications fonctionnelles : **aucune** · périmètre : **toute l'org**. Je valide tout ? Indiquez seulement ce qui change.
 
 ## Block B — external systems (from `facts/questions.json › systems`)
 
@@ -39,11 +46,13 @@ systems:
 
 ## Block C — candidates for exclusion (from `facts/questions.json › exclusions.groups`)
 
-Present each group with its count and up to 10 names; ask for a decision per group, with exceptions:
+Present each group with its count, up to 10 names and its `recommended` answer; ask for a decision per group, with exceptions. Groups of components that are not the project's own work come first with `recommended: exclude` — libraries deployed without namespace (Nebula Logger, fflib…), LWC generated by OmniStudio, DevOps tooling objects, demo and test leftovers, standard objects the project does not use (see `exclusion-heuristics.md`). Mere suspicions (not placed, inactive, referenced by tests only) are `recommended: none`.
 
-> 14 components look unused (not placed on any page, app, tab or action): `lwcA`, `lwcB`, … Exclude them from the document? (yes / no / all except …)
+> 152 LWC are generated by OmniStudio from OmniScripts and FlexCards (`cfAccountCard`, …): I propose to exclude them. 14 components look unused (not placed on any page, app, tab or action): `lwcA`, `lwcB`, … Exclude them too? (yes / no / all except …)
 
-Write only the confirmed ones in `exclusions.yml › exclude` with the reason given by the human.
+`questions.json › packages` lists the packages installed without namespace whose components TADForce cannot recognise: ask for name patterns to exclude (blank: none).
+
+Write only the confirmed ones in `exclusions.yml › exclude` with the reason given by the human. Once excluded, they vanish from facts, counts, tables and from the outline (`--facts-reviewed`).
 
 ## Block D — knowledge only people have
 

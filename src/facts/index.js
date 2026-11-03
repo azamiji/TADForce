@@ -9,10 +9,12 @@ import { extractUi, placements } from './extractors/ui.js';
 import { extractSecurity } from './extractors/security.js';
 import { extractIntegration } from './extractors/integration.js';
 import { extractMisc, detectNamespaces } from './extractors/misc.js';
-import { applyExclusions, applyScope, exclusionCandidates } from './heuristics/exclusions.js';
+import { applyExclusions, applyScope, exclusionCandidates, usedStandardObjects } from './heuristics/exclusions.js';
 import { detectModules } from './heuristics/modules.js';
 import { detectNaming } from './heuristics/naming.js';
 import { computeSignals } from './heuristics/signals.js';
+import { computeCoverage, coverageByCount } from './coverage.js';
+import { activeSections } from './outline.js';
 
 export const FACTS_SCHEMA = 1;
 
@@ -20,7 +22,9 @@ export const FACTS_SCHEMA = 1;
  * Build facts.json from source-format metadata. Pure and deterministic: same input, same bytes.
  * @param {string[]} dirs   source directories (snapshot or package directories)
  * @param {object} knowledge { exclusions, glossary, scope }
- * @param {object} [opts]   { base: path used to relativise roots, org: org facts, codeAnalyzer }
+ * @param {object} [opts]   { base: path used to relativise roots, org: org facts, codeAnalyzer,
+ *                            retrieve: { requested, failed, dropped } types of TADForce's retrieve (coverage),
+ *                            hints: { packages, aliases } package names without namespace (library detection) }
  */
 export function extractFacts(dirs, knowledge = {}, opts = {}) {
   const roots = findMetadataRoots(dirs);
@@ -50,7 +54,11 @@ export function extractFacts(dirs, knowledge = {}, opts = {}) {
   for (const l of facts.ui.lwc) l.placedIn = placementsAfter[l.name] || [];
   for (const a of facts.ui.aura) a.placedIn = placementsAfter[a.name] || [];
 
-  facts.exclusions = { applied, candidates: exclusionCandidates(facts, refs) };
+  refs.usedStandard = usedStandardObjects(facts, refs.usageTokens);
+  for (const o of facts.data.objects) o.used = o.kind !== 'standard' || refs.usedStandard.has(o.name);
+  const hints = { packages: ((opts.org && opts.org.packages) || []).filter((p) => !p.namespace).map((p) => p.name), aliases: [], ...(opts.hints || {}) };
+  facts.exclusions = { applied, candidates: exclusionCandidates(facts, refs, hints) };
+  if (hints.packages.length) facts.exclusions.packagesWithoutNamespace = [...new Set(hints.packages)].sort();
   if ((knowledge.scope?.include || []).length) facts.scope = { include: [...knowledge.scope.include], outOfScope: outOfScope.length };
   facts.modules = detectModules(facts, opts.org || null);
   if (Object.keys(shipped).length) facts.salesforceShipped = shipped;
@@ -65,8 +73,15 @@ export function extractFacts(dirs, knowledge = {}, opts = {}) {
   facts.naming = detectNaming(facts);
   facts.systems = externalSystems(facts, knowledge.glossary || {});
   facts.counts = counts(facts);
+  // what was collected: a count whose folder did not come back is « missing », never a measured 0
+  facts.coverage = computeCoverage(roots, opts.retrieve || null);
+  facts.coverageByCount = coverageByCount(facts.counts, facts.coverage);
+  facts.data.owd = owd(facts);
+  facts.security.personas = personas(facts, opts.org || null);
+  facts.annexes = annexes(facts, opts.org || null);
   facts.inventory = inventory(facts);
   facts.signals = computeSignals(facts, opts.org || null, opts.codeAnalyzer || null);
+  facts.outline = activeSections({ ...facts, org: opts.org || null });
   facts.sources = roots.map((r) => (opts.base ? toPosix(path.relative(opts.base, r)) || '.' : toPosix(r)));
 
   // internal token sets are not serialised
@@ -99,7 +114,9 @@ function references(roots, apex, ui, automation, integration) {
   const testTokens = new Set();
   for (const c of apex.classes.filter((c) => c.test)) for (const t of c._tokens) testTokens.add(t);
   const prodTokens = new Map(); // token -> count of producing files
-  const bump = (set, self) => { for (const t of set) if (t !== self) prodTokens.set(t, (prodTokens.get(t) || 0) + 1); };
+  // usage tokens: what code, automation and UI read (object files excluded: standard objects reference each other)
+  const usageTokens = new Set();
+  const bump = (set, self, usage = true) => { for (const t of set) { if (t !== self) prodTokens.set(t, (prodTokens.get(t) || 0) + 1); if (usage) usageTokens.add(t); } };
   for (const c of nonTest) bump(c._tokens, c.name);
   for (const t of apex.triggers) bump(t._tokens, null);
   const textFolders = ['flows', 'omniScripts', 'omniIntegrationProcedures', 'omniDataTransforms', 'omniUiCard', 'aura', 'lwc', 'pages', 'components', 'authproviders', 'quickActions', 'customMetadata', 'experiences', 'digitalExperiences', 'emailservices', 'objects', 'permissionsets', 'profiles', 'flexipages'];
@@ -107,7 +124,7 @@ function references(roots, apex, ui, automation, integration) {
     for (const f of files(roots, folder, '', { recursive: true })) {
       if (!/\.(xml|js|html|cmp|app|page|component|json|design|evt)$/.test(f)) continue;
       if (folder === 'permissionsets' || folder === 'profiles') continue; // class access grants are not usages
-      bump(tokens(safeRead(f)), null);
+      bump(tokens(safeRead(f)), null, folder !== 'objects');
     }
   }
   const apexReferenced = new Set(nonTest.filter((c) => prodTokens.has(c.name)).map((c) => c.name));
@@ -119,7 +136,7 @@ function references(roots, apex, ui, automation, integration) {
     for (const f of files(roots, folder, '', { recursive: true })) if (/\.(app-meta|object-meta|tab-meta)\.xml$/.test(f)) for (const t of tokens(safeRead(f))) assignTokens.add(t);
   }
   const flexipageAssigned = new Set(ui.flexipages.filter((p) => assignTokens.has(p.name) || p.type === 'UtilityBar' && ui.apps.some((a) => a.utilityBar === p.name)).map((p) => p.name));
-  return { placements: placements(roots, ui), apexReferenced, apexReferencedByTests, flexipageAssigned };
+  return { placements: placements(roots, ui), apexReferenced, apexReferencedByTests, flexipageAssigned, usageTokens };
 }
 
 /** External systems seen from Salesforce, grouped by host, and named from the glossary when possible. */
@@ -161,6 +178,72 @@ function counts(f) {
     misc: { labels: f.misc.labels.length, staticResources: f.misc.staticResources.length, reports: f.misc.reports.names.length, dashboards: f.misc.dashboards.names.length, reportTypes: f.misc.reportTypes.length, emailTemplates: f.misc.emailTemplates.length, namespaces: f.namespaces.length },
     exclusions: { applied: f.exclusions.applied.length, candidates: f.exclusions.candidates.length },
   };
+}
+
+/** Sharing defaults of the objects the project owns or uses (custom objects, standard objects it uses): not the 300 of the org. */
+function owd(f) {
+  return f.data.objects.filter((o) => !o.namespace && o.sharingModel && (o.kind === 'custom' || (o.kind === 'standard' && o.used)))
+    .map((o) => ({ object: o.name, label: o.label || null, kind: o.kind, internal: o.sharingModel, external: o.externalSharingModel || null }));
+}
+
+/** Personas: permission set groups, the applications their permission sets open, and (org facts) users per role. */
+function personas(f, org) {
+  const ps = Object.fromEntries(f.security.permissionSets.map((p) => [p.name, p]));
+  return f.security.permissionSetGroups.map((g) => {
+    const apps = [...new Set(g.permissionSets.flatMap((n) => (ps[n] && ps[n].apps) || []))].sort();
+    const out = { name: g.name, label: g.label || null, apps };
+    if (org && org.psgAssignments) out.users = (org.psgAssignments.find((a) => a.group === g.name) || {}).users || 0;
+    if (org && org.psgByRole) out.roles = org.psgByRole.filter((r) => r.group === g.name).map((r) => ({ role: r.role, users: r.users }));
+    return out;
+  });
+}
+
+// Appendix families: an appendix lists a family the project owns when it is small; a large or org-wide one
+// goes to the inventory workbook only (tadforce/out/<DOC>_inventory.xlsx).
+export const ANNEX_LIMIT = 60;
+const ORG_WIDE_LIMIT = 30;
+function annexes(f, org) {
+  const local = f.data.objects.filter((o) => !o.namespace);
+  const sizes = {
+    objects: [local.filter((o) => o.kind === 'custom').length],
+    standardObjects: [local.filter((o) => o.kind === 'standard' && (o.customFields > 0 || o.recordTypes.length)).length],
+    validationRules: [local.reduce((n, o) => n + o.validationRules.length, 0)],
+    cmdt: [f.data.cmdtTypes.length],
+    triggers: [f.apex.triggers.length],
+    flows: [f.automation.flows.length],
+    async: [f.apex.classes.filter((c) => !c.test && c.kinds.some((k) => ['batch', 'queueable', 'schedulable', 'future'].includes(k))).length],
+    rest: [f.apex.classes.filter((c) => c.restUrl || c.kinds.includes('soap')).length],
+    omniScripts: [f.automation.omnistudio.omniScripts.filter((x) => x.active).length],
+    integrationProcedures: [f.automation.omnistudio.integrationProcedures.filter((x) => x.active).length],
+    dataMappers: [f.automation.omnistudio.dataMappers.length],
+    apps: [f.ui.apps.length],
+    flexipages: [f.ui.flexipages.length],
+    lwc: [f.ui.lwc.length],
+    aura: [f.ui.aura.length],
+    visualforce: [f.ui.vfPages.length],
+    psg: [f.security.permissionSetGroups.length],
+    permissionSets: [f.security.permissionSets.length],
+    profiles: [f.security.profiles.length, ORG_WIDE_LIMIT],
+    roles: [f.security.roles.length, ORG_WIDE_LIMIT],
+    queues: [f.security.queues.length, ORG_WIDE_LIMIT],
+    sharingRules: [f.security.sharingRules.reduce((n, s) => n + s.rules.length, 0), ORG_WIDE_LIMIT],
+    owd: [f.data.owd.length],
+    namedCredentials: [f.integration.namedCredentials.length],
+    externalCredentials: [f.integration.externalCredentials.length],
+    connectedApps: [f.integration.connectedApps.length],
+    authProviders: [f.integration.authProviders.length],
+    allowedDomains: [f.integration.remoteSites.length + f.integration.cspTrustedSites.length + f.integration.corsOrigins.length],
+    callCenters: [f.integration.callCenters.length],
+    reports: [f.misc.reports.names.length, ORG_WIDE_LIMIT],
+    dashboards: [f.misc.dashboards.names.length, ORG_WIDE_LIMIT],
+    labels: [f.misc.labels.length, 0],
+    staticResources: [f.misc.staticResources.length, 0],
+    emailTemplates: [f.misc.emailTemplates.length, 0],
+    scheduledJobs: [((org && org.scheduledJobs) || []).length],
+    volumes: [((org && org.volumes) || []).filter((v) => v.records > 0).length],
+  };
+  const directive = (k) => k.replace(/[A-Z]/g, (ch) => '-' + ch.toLowerCase());
+  return Object.fromEntries(Object.entries(sizes).map(([k, [count, limit = ANNEX_LIMIT]]) => [k, { count, annex: count > 0 && count <= limit, mode: !count ? 'none' : count <= limit ? 'annex' : 'workbook', directive: directive(k) }]));
 }
 
 /** Every documented component name, used by `tadforce validate` to check identifiers in the text. */

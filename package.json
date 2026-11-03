@@ -1,6 +1,6 @@
 {
   "name": "tadforce",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "AI-Powered Salesforce Technical Documentation — the Technical Architecture Document of any Salesforce org, written from the org's own metadata: evidence-based, reproducible, reviewable in the browser, kept up to date.",
   "type": "module",
   "bin": {
@@ -26,7 +26,7 @@
     "test": "node --test \"test/*.test.js\" && node tools/check-generic.js",
     "test:unit": "node --test \"test/*.test.js\"",
     "check:generic": "node tools/check-generic.js",
-    "example": "node bin/tadforce.js build --doc all --pdf --docx --cwd examples/northwind-bank",
+    "example": "node bin/tadforce.js build --doc all --render-only --pdf --docx --cwd examples/northwind-bank",
     "example:validate": "node bin/tadforce.js validate --doc all --cwd examples/northwind-bank",
     "set-owner": "node tools/set-owner.js"
   },

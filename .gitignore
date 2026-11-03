@@ -10,3 +10,5 @@ Thumbs.db
 *_comments_*.html
 .sf/
 .sfdx/
+# agent worktrees (Claude Code)
+.claude/worktrees/

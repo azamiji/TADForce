@@ -60,22 +60,7 @@ On `Lead`, the trigger runs before save (score initialisation); the flow `Lead_A
 
 **Loan status propagation.** A single place detects status changes and publishes them; every consequence is a subscriber.
 
-```mermaid
-sequenceDiagram
-  participant U as Advisor
-  participant T as LoanApplicationTriggerHandler
-  participant B as Event bus
-  participant F as Loan_Status_Notification
-  participant Q as DocumentArchiveQueueable
-  participant D as Document store
-  U->>T: update Status__c
-  T->>B: publish LoanStatusChange__e
-  B->>F: event
-  F->>F: create follow-up task
-  T->>Q: enqueue (Approved or Rejected only)
-  Q->>D: POST /archive
-```
-Figure: Propagation of a loan status change
+@@SEQ:loan-status@@
 
 ## Asynchronous and scheduled processing {#app-async}
 
@@ -125,16 +110,4 @@ Figure: OmniStudio components of the loan intake
 
 **Nightly customer synchronisation.**
 
-```mermaid
-sequenceDiagram
-  participant S as Scheduler
-  participant B as CustomerSyncBatch
-  participant C as CoreBankingClient
-  participant K as Core banking
-  S->>B: execute (batches of 50)
-  B->>C: positions(customer number)
-  C->>K: GET /customers/{n}/positions
-  K-->>C: positions
-  B->>B: update Segment__c (partial success allowed)
-```
-Figure: Nightly synchronisation of the customer segment
+@@SEQ:customer-sync@@

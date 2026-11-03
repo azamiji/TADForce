@@ -37,7 +37,7 @@ Two technical permission sets complete the model: `NWB_Integration_API` (API acc
 
 ## Role hierarchy {#sec-roles}
 
-@@FIGURE:roles|Role hierarchy@@
+@@ROLES@@
 
 The hierarchy mirrors the network: chief executive, network director, regional directors, branch managers and advisors per region, and a separate branch for the contact center.
 

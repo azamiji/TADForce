@@ -32,6 +32,7 @@ export function extractSecurity(roots) {
       classAccesses: arr(x.classAccesses).length,
       customPermissions: arr(x.customPermissions).filter((c) => bool(c.enabled)).length,
       powerful: enabledPowerful(x),
+      apps: arr(x.applicationVisibilities).filter((a) => bool(a.visible)).map((a) => str(a.application)).filter(Boolean).sort(),
     };
   }).sort(byName);
 

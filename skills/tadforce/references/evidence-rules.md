@@ -7,7 +7,7 @@
 | **P1** | Metadata or code of the org | `LeadTrigger` calls `LeadTriggerHandler.run()` | State it as a fact |
 | **P2** | Technical document provided by the project | Release procedure in `knowledge/inputs/` | State it as a fact; cite the reference (DR-nn) when it matters |
 | **P3** | Functional document, ticket, interview | « Advisors handle 30 leads a day » | Attribute it: « according to the specifications (DR-01) » |
-| **To confirm** | Deduction, missing or contradictory information | Retention policy not configured in the org | Write « to be confirmed » / « à confirmer » and list it in your hand-over |
+| **Not proven** | Deduction, missing or contradictory information | Retention policy not configured in the org | **Not written in the TAD.** It becomes a finding of the model (kind `question`), reported at the end and in the Improvement Axes; the section states only what is proven |
 
 ## Kinds of statements
 
@@ -15,8 +15,8 @@ Keep them apart in your head and in the text:
 
 - **Documented requirement** — written in a specification.
 - **Technical observation** — visible in the metadata or the code.
-- **Deduction** — logical but not proven: say so, or leave it out.
-- **Unavailable information** — absent from the snapshot: say it is not visible, never fill the gap.
+- **Deduction** — logical but not proven: leave it out of the TAD; record it as a finding.
+- **Unavailable information** — absent from the snapshot: never fill the gap; a finding says what is missing.
 - **Recommendation** — goes to the Improvement Axes, not to the TAD.
 
 ## Non-equivalences
@@ -37,4 +37,10 @@ Keep them apart in your head and in the text:
 
 ## When to ask
 
-Ask when a sentence would otherwise rely on a guess about: the name of a system, the use of a component that looks dead, a decommissioned feature, an environment or a release step, a number not in facts. Batch the questions (`questions.md`).
+Human questions are asked **before** the build, by `doctor`, in batches (`questions.md`): the name of a system, the use of a component that looks dead, a decommissioned feature, an environment or a release step. During the build loop nobody is asked: a sentence that would rely on a guess is not written, and the doubt becomes a finding (`understand.md`) that reaches the final report and the Improvement Axes.
+
+## Evidence in the understanding model
+
+- Every step of a process, every transition of a lifecycle carries `evidence`: the component(s) whose code or metadata shows it. No evidence, no step.
+- A component card describes what the code does; when the parser's edges and the code disagree, the code wins (say it in `notes`).
+- The model validator rejects any component, object, app, actor or system id that does not exist: a rejected name is a hallucination, not a typo to force through.

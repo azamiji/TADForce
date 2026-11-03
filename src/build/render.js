@@ -7,7 +7,8 @@ import { loadI18n, t, formatDate } from '../util/i18n.js';
 import { loadFacts } from '../facts/index.js';
 import { sourceFlags } from '../util/config.js';
 import { CLASSDEFS, renderMermaid, escapeHtml } from './mermaid.js';
-import { resolveConditionals, resolveIncludes, resolveDirectives, resolveValues } from './directives.js';
+import { resolveConditionals, resolveIncludes, resolveDirectives, resolveValues, present } from './directives.js';
+import { qualityGate } from '../validate/index.js';
 
 export const DOCS = ['tad', 'axes'];
 const VERSION = readJson(path.join(PKG_ROOT, 'package.json')).version;
@@ -27,7 +28,8 @@ export function preprocess(md) {
   md = md.replace(/```mermaid\r?\n([\s\S]*?)```[ \t]*\r?\n(?:Figure:[ \t]*([^\n]*)\n)?/g, (m, code, caption) => {
     code = code.replace(/\s+$/, '');
     const first = code.trimStart().split('\n', 1)[0];
-    if (/^(flowchart|graph)\b/.test(first)) code += '\n' + CLASSDEFS;
+    // the colour legend classes, in every diagram that supports classDef (unless the author redefined them)
+    if (/^(flowchart|graph|stateDiagram)/.test(first)) code += '\n' + CLASSDEFS.split('\n').filter((l) => l.trim() && !new RegExp('classDef\\s+' + l.split(/\s+/)[1] + '\\b').test(code)).join('\n');
     figures.push({ code, caption: (caption || '').trim() });
     return `\n\n@@FIG${figures.length - 1}@@\n\n`;
   });
@@ -99,6 +101,38 @@ export function outputName(cfg, doc, { versioned = false } = {}) {
 
 const md = new MarkdownIt({ html: true, linkify: false, typographer: false });
 
+/** The understanding model (tadforce/understanding/model.json), or null when the step has not run. */
+export function loadModel(wsCtx) {
+  const p = wsCtx.p('understanding', 'model.json');
+  if (!exists(p)) return null;
+  try { return JSON.parse(readText(p)); } catch (e) { return { _error: e.message }; }
+}
+
+// last build report of each HTML file: qualityGate() reads it when the caller does not pass it
+const REPORTS = new Map();
+export const reportFor = (htmlPath) => REPORTS.get(path.resolve(htmlPath)) || null;
+
+/**
+ * Mark a built document as a draft: watermark on every page (HTML, PDF; the Word export repeats it
+ * on every chapter), status forced to the draft status. Idempotent. Returns the new HTML.
+ */
+export function markDraftHtml(html, dict, { errors = 0 } = {}) {
+  const label = escapeHtml(t(dict, 'doc.draft'));
+  const status = escapeHtml(t(dict, 'doc.draftStatus'));
+  let out = html.replace(/<span class="doc-status">[\s\S]*?<\/span>/g, `<span class="doc-status"> — ${status}</span>`);
+  if (!/<body[^>]*class="[^"]*\bdraft\b/.test(out)) {
+    out = out.replace(/<body([^>]*)>/, (m, a) => (/class="/.test(a) ? `<body${a.replace(/class="/, 'class="draft ')}>` : `<body class="draft"${a}>`) + `\n<div class="watermark" aria-hidden="true" data-label="${label}">${label}</div>`);
+  }
+  const note = `<p class="draft-note">${escapeHtml(t(dict, 'doc.draftNote', { n: errors }))}</p>`;
+  out = /<p class="draft-note">[^<]*<\/p>/.test(out) ? out.replace(/<p class="draft-note">[^<]*<\/p>/, note) : out.replace('<p class="conf">', note + '<p class="conf">');
+  return out;
+}
+
+/** markDraftHtml() on a file. */
+export function markDraft(htmlPath, dict, opts) {
+  writeText(htmlPath, markDraftHtml(readText(htmlPath), dict, opts));
+}
+
 /**
  * Build one document (tad | axes) of a workspace. Returns a report (paths, figures, problems).
  * opts.render = false skips Mermaid rendering (tests, dry runs).
@@ -106,6 +140,7 @@ const md = new MarkdownIt({ html: true, linkify: false, typographer: false });
 export async function buildDocument(wsCtx, doc, opts = {}) {
   const { cfg } = wsCtx;
   const problems = [];
+  const report = {};
   const facts = loadFacts(wsCtx.ws);
   if (!facts) throw new Error('facts/facts.json not found: run `tadforce facts` first.');
   const { lang, dict } = loadI18n(cfg.language, wsCtx.ws);
@@ -118,7 +153,9 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
   let text = files.map((f) => readText(path.join(srcDir, f))).join('\n\n');
   const scope = { modules: facts.modules, counts: facts.counts, org: facts.org, cfg, facts, glossary, source: sourceFlags(cfg) };
   const docName = doc === 'tad' ? t(dict, 'meta.docName') : t(dict, 'meta.axesName');
-  const ctx = { facts, cfg, dict, lang, glossary, doc, docName, chapterTitle: (k) => `{{title:ch-${k}}}` };
+  const model = loadModel(wsCtx);
+  if (model && model._error) problems.push({ level: 'error', code: 'model-invalid', message: `understanding/model.json is not valid JSON: ${model._error}` });
+  const ctx = { facts, cfg, dict, lang, glossary, doc, docName, model: model && !model._error ? model : null, chapterTitle: (k) => `{{title:ch-${k}}}` };
   text = resolveConditionals(text, scope);
   text = resolveIncludes(text, wsCtx.ws);
   text = resolveDirectives(text, ctx, problems);
@@ -151,13 +188,17 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
   let nfig = 0;
   const figlist = [];
   const label = t(dict, 'doc.figure');
-  html = html.replace(/<p>@@FIG(\d+)@@<\/p>|<p class="figcap">Figure — ([\s\S]*?)<\/p>/g, (m, idx, cap) => {
+  html = html.replace(/<figure class="diagram hand"([^>]*)>([\s\S]*?)<figcaption class="figcap">Figure — ([\s\S]*?)<\/figcaption><\/figure>|<p>@@FIG(\d+)@@<\/p>|<p class="figcap">Figure — ([\s\S]*?)<\/p>/g, (m, attrs, inner, hcap, idx, cap) => {
     nfig++;
+    if (hcap !== undefined) {
+      figlist.push([nfig, hcap.replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&')]);
+      return `<figure class="diagram hand" id="fig-${nfig}"${attrs}>${inner}<figcaption>${label} ${nfig} — ${hcap}</figcaption></figure>`;
+    }
     if (idx !== undefined) {
       const f = figures[Number(idx)];
       figlist.push([nfig, f.caption]);
       const c = f.caption ? `${label} ${nfig} — ${escapeHtml(f.caption)}` : `${label} ${nfig}`;
-      return `<figure class="diagram" id="fig-${nfig}"><div class="fig-body">${f.svg}</div><figcaption>${c}</figcaption></figure>`;
+      return `<figure class="diagram mmd" id="fig-${nfig}" data-kind="${escapeHtml((f.code.trim().split(/\s/, 1)[0] || '').toLowerCase())}"><div class="fig-body">${f.svg}</div><figcaption>${c}</figcaption></figure>`;
     }
     figlist.push([nfig, cap.replace(/<[^>]+>/g, '')]);
     return `<p class="figcap" id="fig-${nfig}">${label} ${nfig} — ${cap}</p>`;
@@ -182,6 +223,7 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
   }
   if (open) toc.push('</ul></li>');
   const figs = figlist.map(([n, c]) => `<li><a href="#fig-${n}">${label} ${n} — ${escapeHtml(c)}</a></li>`).join('');
+  report.figlist = figlist;
 
   // Page assembly
   const brand = cfg.brand;
@@ -190,21 +232,28 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
     .replace('{{PRINT_FOOTER}}', cssStr(doc === 'axes' && cfg.integrator.name ? `${docName} — ${cfg.document.title} · ${cfg.integrator.name} · ${t(dict, 'doc.axesKicker')}` : `${docName} — ${cfg.document.title} · ${cfg.client.name} · ${cfg.document.classification}`))
     .replace('{{PRINT_PAGE}}', cssStr(t(dict, 'doc.page')));
   const brandCss = `:root{--brand:${brand.primary};--accent:${brand.accent};--accent2:${brand.accent2};--grad:linear-gradient(90deg,${brand.gradient[0]},${brand.gradient[1]});--th:${brand.tableHeader};--kpiMore:"${cssStr(t(dict, 'ui.kpiMore'))}"}@media print{:root{--brand:${brand.primary};--th:${brand.tableHeader}}}`;
-  const logo = (who) => {
-    const p = cfg[who].logo && wsCtx.p(cfg[who].logo);
-    return p && exists(p) ? dataUri(p) : badgeLogo(cfg[who].short || cfg[who].name, who === 'client' ? brand.primary : brand.accent2);
+  const logoFile = (who) => {
+    const p = cfg[who] && present(cfg[who].logo) && wsCtx.p(cfg[who].logo);
+    if (p && !exists(p)) problems.push({ level: 'warn', code: 'logo-missing', message: `${who}.logo: no such file ${cfg[who].logo} (tadforce.config.json).` });
+    return p && exists(p) ? p : null;
   };
-  // Integrator and author are optional: without them the document only names the client.
-  const integrator = cfg.integrator.name || null;
-  const author = cfg.document.author || null;
+  const logo = (who) => {
+    const p = logoFile(who);
+    return p ? dataUri(p) : badgeLogo(cfg[who].short || cfg[who].name, who === 'client' ? brand.primary : brand.accent2);
+  };
+  // Integrator and author are optional: without them the document only names the client (never « — »).
+  const integrator = present(cfg.integrator.name) || null;
+  const author = present(cfg.document.author) || null;
   const preparedBy = [author, integrator].filter(Boolean).join(' — ');
+  const intLogo = integrator && logoFile('integrator');
   const sideLogo = integrator ? logo('integrator') : logo('client');
   // The Improvement Axes are the integrator's internal document: its brand only (the client's when there is none).
   const internal = doc === 'axes' && integrator;
+  // The TAD: the client logo, and next to it the integrator's (its logo file when configured, else its initials).
   const coverLogos = internal
     ? `<img src="${logo('integrator')}" alt="${escapeHtml(integrator)}">`
     : integrator
-      ? `<img src="${logo('integrator')}" alt="${escapeHtml(integrator)}"><img src="${logo('client')}" alt="${escapeHtml(cfg.client.name)}">`
+      ? `<img src="${logo('client')}" alt="${escapeHtml(cfg.client.name)}"><span class="logo-sep" aria-hidden="true"></span><img src="${intLogo ? dataUri(intLogo) : logo('integrator')}" alt="${escapeHtml(integrator)}" class="logo-int-cover">`
       : `<img src="${logo('client')}" alt="${escapeHtml(cfg.client.name)}">`;
   const vendor = (f) => readText(path.join(TEMPLATES, 'vendor', f));
   const coverTpl = readText(path.join(TEMPLATES, 'html', 'cover.html'));
@@ -221,7 +270,7 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
     '{{DOC_TITLE}}': escapeHtml(cfg.document.title),
     '{{DOC_SUBTITLE}}': escapeHtml(cfg.document.subtitle || [cfg.client.name, ...facts.modules.clouds.filter((x) => !['events', 'shield', 'slack'].includes(x.id)).slice(0, 3).map((x) => x.name)].join(' · ')),
     '{{DOC_REFERENCE}}': escapeHtml(doc === 'tad' ? cfg.document.reference : cfg.document.reference + '-AX'),
-    '{{DOC_VERSION}}': escapeHtml(`${cfg.document.version}${cfg.document.status ? ' — ' + cfg.document.status : ''}`),
+    '{{DOC_VERSION}}': `${escapeHtml(cfg.document.version)}<span class="doc-status">${present(cfg.document.status) ? ' — ' + escapeHtml(cfg.document.status) : ''}</span>`,
     '{{DOC_DATE}}': escapeHtml(formatDate(cfg.document.date, lang)),
     '{{DOC_CLASSIFICATION}}': escapeHtml(doc === 'tad' ? cfg.document.classification : t(dict, 'doc.axesKicker')),
     '{{INTEGRATOR_NAME}}': escapeHtml(integrator || cfg.client.name),
@@ -290,7 +339,14 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
     problems.push({ level: 'warn', code: 'backup', message: `Existing file held in-browser text edits: copy kept as ${path.basename(backup)}. Report the edits into src/${doc}/*.md (comments are carried over automatically).` });
   }
   writeText(htmlPath, out);
-  return { doc, html: htmlPath, backup, sizeKB: Math.round(out.length / 1024), figures: nfig, mermaid: figures.length, problems, pending, headings: pre.headings };
+  Object.assign(report, { doc, html: htmlPath, backup, sizeKB: Math.round(out.length / 1024), figures: nfig, mermaid: figures.length, problems, pending, headings: pre.headings, rendered: opts.render !== false, draft: false });
+  REPORTS.set(path.resolve(htmlPath), report);
+  // Quality gate: a document with errors is a draft (watermark, draft status), never « For review ».
+  if (opts.gate !== false) {
+    const gate = await qualityGate(wsCtx, doc, { html: htmlPath, report });
+    report.gate = gate;
+  }
+  return report;
 }
 
 export function readComments(html) {

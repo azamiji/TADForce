@@ -1,0 +1,640 @@
+{
+  "edges": [
+    {
+      "from": "apex:CoreBankingClient",
+      "kind": "calls",
+      "to": "namedCredential:NWB_CoreBanking",
+      "via": "callout"
+    },
+    {
+      "from": "apex:Customer360Controller",
+      "kind": "calls",
+      "methods": [
+        "positions"
+      ],
+      "to": "apex:CoreBankingClient"
+    },
+    {
+      "from": "apex:Customer360Controller",
+      "kind": "reads",
+      "to": "object:Account",
+      "via": "soql"
+    },
+    {
+      "from": "apex:CustomerSyncBatch",
+      "kind": "calls",
+      "methods": [
+        "positions"
+      ],
+      "to": "apex:CoreBankingClient"
+    },
+    {
+      "from": "apex:CustomerSyncBatch",
+      "kind": "reads",
+      "to": "object:Account",
+      "via": "soql"
+    },
+    {
+      "from": "apex:CustomerSyncBatch",
+      "kind": "writes",
+      "ops": [
+        "update"
+      ],
+      "to": "object:Account"
+    },
+    {
+      "from": "apex:DocumentArchiveQueueable",
+      "kind": "calls",
+      "to": "namedCredential:NWB_DocumentStore",
+      "via": "callout"
+    },
+    {
+      "from": "apex:LeadApiResource",
+      "kind": "writes",
+      "ops": [
+        "insert"
+      ],
+      "to": "object:Lead"
+    },
+    {
+      "from": "apex:LoanApplicationSelector",
+      "kind": "reads",
+      "to": "object:Account",
+      "via": "soql"
+    },
+    {
+      "async": "queueable",
+      "from": "apex:LoanApplicationTriggerHandler",
+      "kind": "calls",
+      "to": "apex:DocumentArchiveQueueable"
+    },
+    {
+      "from": "apex:LoanApplicationTriggerHandler",
+      "kind": "calls",
+      "methods": [
+        "score"
+      ],
+      "to": "apex:LoanScoringService"
+    },
+    {
+      "from": "apex:LoanApplicationTriggerHandler",
+      "kind": "publishes",
+      "to": "platformEvent:LoanStatusChange__e",
+      "via": "EventBus.publish"
+    },
+    {
+      "from": "apex:LoanScoringService",
+      "kind": "calls",
+      "methods": [
+        "customersOf"
+      ],
+      "to": "apex:LoanApplicationSelector"
+    },
+    {
+      "from": "apex:LoanScoringService",
+      "kind": "reads",
+      "to": "cmdt:ScoringRule__mdt",
+      "via": "getAll"
+    },
+    {
+      "from": "apex:SmsNotificationService",
+      "kind": "calls",
+      "to": "namedCredential:NWB_SmsGateway",
+      "via": "callout"
+    },
+    {
+      "from": "flexipage:Account_Record_Page",
+      "kind": "places",
+      "to": "lwc:customer360"
+    },
+    {
+      "from": "flexipage:Loan_Application_Record_Page",
+      "kind": "places",
+      "to": "lwc:loanTimeline"
+    },
+    {
+      "events": [
+        "RecordAfterSave Create"
+      ],
+      "from": "flow:Lead_Assign_Branch",
+      "kind": "triggers-on",
+      "to": "object:Lead"
+    },
+    {
+      "from": "flow:Lead_Assign_Branch",
+      "kind": "writes",
+      "ops": [
+        "update"
+      ],
+      "to": "object:Lead"
+    },
+    {
+      "from": "flow:Loan_Document_Reminder",
+      "kind": "calls",
+      "to": "apex:SmsNotificationService",
+      "via": "invocable"
+    },
+    {
+      "from": "flow:Loan_Document_Reminder",
+      "kind": "reads",
+      "to": "object:LoanApplication__c",
+      "via": "scheduled-start"
+    },
+    {
+      "from": "flow:Loan_Status_Notification",
+      "kind": "subscribes",
+      "to": "platformEvent:LoanStatusChange__e"
+    },
+    {
+      "from": "flow:Loan_Status_Notification",
+      "kind": "writes",
+      "ops": [
+        "create"
+      ],
+      "to": "object:Task"
+    },
+    {
+      "from": "lwc:customer360",
+      "kind": "calls",
+      "methods": [
+        "getPositions"
+      ],
+      "modes": [
+        "wire"
+      ],
+      "to": "apex:Customer360Controller"
+    },
+    {
+      "from": "lwc:customer360",
+      "kind": "calls",
+      "to": "lwc:positionTile",
+      "via": "child"
+    },
+    {
+      "from": "omniscript:NWB_LoanIntake_English_1",
+      "kind": "calls",
+      "to": "lwc:positionTile",
+      "via": "custom-lwc"
+    },
+    {
+      "from": "queue:Contact_Center_Leads",
+      "kind": "serves",
+      "to": "object:Lead"
+    },
+    {
+      "from": "queue:Loan_Review",
+      "kind": "serves",
+      "to": "object:LoanApplication__c"
+    },
+    {
+      "from": "tab:Loan_Wizard",
+      "kind": "places",
+      "to": "lwc:loanWizard"
+    },
+    {
+      "from": "trigger:LeadTrigger",
+      "kind": "delegates",
+      "to": "apex:LeadTriggerHandler",
+      "via": "new"
+    },
+    {
+      "events": [
+        "before insert"
+      ],
+      "from": "trigger:LeadTrigger",
+      "kind": "triggers-on",
+      "to": "object:Lead"
+    },
+    {
+      "from": "trigger:LoanApplicationTrigger",
+      "kind": "delegates",
+      "to": "apex:LoanApplicationTriggerHandler",
+      "via": "new"
+    },
+    {
+      "events": [
+        "before insert",
+        "before update",
+        "after update"
+      ],
+      "from": "trigger:LoanApplicationTrigger",
+      "kind": "triggers-on",
+      "to": "object:LoanApplication__c"
+    }
+  ],
+  "factsFingerprint": "3b5aa61612a8",
+  "nodes": [
+    {
+      "file": "../../test/fixtures/northwind/force-app/main/default/classes/CoreBankingClient.cls",
+      "hash": "81d824d0b8f6",
+      "id": "apex:CoreBankingClient",
+      "kind": "apex",
+      "kinds": [
+        "auraEnabled",
+        "callout"
+      ],
+      "lines": 12,
+      "name": "CoreBankingClient",
+      "sharing": "with"
+    },
+    {
+      "file": "../../test/fixtures/northwind/force-app/main/default/classes/Customer360Controller.cls",
+      "hash": "f7b2d2f5bff5",
+      "id": "apex:Customer360Controller",
+      "kind": "apex",
+      "kinds": [
+        "auraEnabled"
+      ],
+      "lines": 8,
+      "name": "Customer360Controller",
+      "sharing": "with"
+    },
+    {
+      "file": "../../test/fixtures/northwind/force-app/main/default/classes/CustomerSyncBatch.cls",
+      "hash": "04f07c44b274",
+      "id": "apex:CustomerSyncBatch",
+      "kind": "apex",
+      "kinds": [
+        "batch",
+        "schedulable"
+      ],
+      "lines": 12,
+      "name": "CustomerSyncBatch",
+      "sharing": "without"
+    },
+    {
+      "file": "../../test/fixtures/northwind/force-app/main/default/classes/DocumentArchiveQueueable.cls",
+      "hash": "1bd2a932d92f",
+      "id": "apex:DocumentArchiveQueueable",
+      "kind": "apex",
+      "kinds": [
+        "callout",
+        "queueable"
+      ],
+      "lines": 12,
+      "name": "DocumentArchiveQueueable",
+      "sharing": "with"
+    },
+    {
+      "file": "../../test/fixtures/northwind/force-app/main/default/classes/LeadApiResource.cls",
+      "hash": "ebba3da6be01",
+      "id": "apex:LeadApiResource",
+      "kind": "apex",
+      "kinds": [
+        "global",
+        "rest"
+      ],
+      "lines": 10,
+      "name": "LeadApiResource",
+      "restUrl": "/leads/v1/*",
+      "sharing": "with"
+    },
+    {
+      "file": "../../test/fixtures/northwind/force-app/main/default/classes/LeadTriggerHandler.cls",
+      "hash": "bc349d0a85ec",
+      "id": "apex:LeadTriggerHandler",
+      "kind": "apex",
+      "lines": 8,
+      "name": "LeadTriggerHandler",
+      "sharing": "with"
+    },
+    {
+      "file": "../../test/fixtures/northwind/force-app/main/default/classes/LegacyRateHelper.cls",
+      "hash": "61f075a760b4",
+      "id": "apex:LegacyRateHelper",
+      "kind": "apex",
+      "lines": 5,
+      "name": "LegacyRateHelper",
+      "sharing": "none"
+    },
+    {
+      "file": "../../test/fixtures/northwind/force-app/main/default/classes/LoanApplicationSelector.cls",
+      "hash": "7f6ba4b5911b",
+      "id": "apex:LoanApplicationSelector",
+      "kind": "apex",
+      "lines": 8,
+      "name": "LoanApplicationSelector",
+      "sharing": "inherited"
+    },
+    {
+      "file": "../../test/fixtures/northwind/force-app/main/default/classes/LoanApplicationTriggerHandler.cls",
+      "hash": "350f298df2ac",
+      "id": "apex:LoanApplicationTriggerHandler",
+      "kind": "apex",
+      "lines": 20,
+      "name": "LoanApplicationTriggerHandler",
+      "sharing": "with"
+    },
+    {
+      "file": "../../test/fixtures/northwind/force-app/main/default/classes/LoanScoringService.cls",
+      "hash": "28720a591da4",
+      "id": "apex:LoanScoringService",
+      "kind": "apex",
+      "lines": 13,
+      "name": "LoanScoringService",
+      "sharing": "with"
+    },
+    {
+      "file": "../../test/fixtures/northwind/force-app/main/default/classes/SmsNotificationService.cls",
+      "hash": "176363eea589",
+      "id": "apex:SmsNotificationService",
+      "kind": "apex",
+      "kinds": [
+        "callout",
+        "future",
+        "invocable"
+      ],
+      "lines": 13,
+      "name": "SmsNotificationService",
+      "sharing": "with"
+    },
+    {
+      "file": "../../test/fixtures/northwind/force-app/main/default/classes/SsoRegistrationHandler.cls",
+      "hash": "a3c68246bda7",
+      "id": "apex:SsoRegistrationHandler",
+      "kind": "apex",
+      "kinds": [
+        "global",
+        "registrationHandler"
+      ],
+      "lines": 7,
+      "name": "SsoRegistrationHandler",
+      "sharing": "none"
+    },
+    {
+      "id": "cmdt:IntegrationSetting__mdt",
+      "kind": "cmdt",
+      "label": "Integration setting",
+      "name": "IntegrationSetting__mdt"
+    },
+    {
+      "id": "cmdt:ScoringRule__mdt",
+      "kind": "cmdt",
+      "label": "Scoring rule",
+      "name": "ScoringRule__mdt"
+    },
+    {
+      "active": true,
+      "file": "../../test/fixtures/northwind/force-app/main/default/omniDataTransforms/NWB_ExtractLoan_1.rpt-meta.xml",
+      "hash": "4aea6389e155",
+      "id": "datamapper:NWB_ExtractLoan_1",
+      "kind": "datamapper",
+      "name": "NWB_ExtractLoan_1",
+      "type": "Extract"
+    },
+    {
+      "id": "flexipage:Account_Record_Page",
+      "kind": "flexipage",
+      "name": "Account_Record_Page",
+      "object": "Account",
+      "type": "RecordPage"
+    },
+    {
+      "id": "flexipage:Loan_Application_Record_Page",
+      "kind": "flexipage",
+      "name": "Loan_Application_Record_Page",
+      "object": "LoanApplication__c",
+      "type": "RecordPage"
+    },
+    {
+      "active": true,
+      "file": "../../test/fixtures/northwind/force-app/main/default/flows/Lead_Assign_Branch.flow-meta.xml",
+      "hash": "ae7e156ab7a4",
+      "id": "flow:Lead_Assign_Branch",
+      "kind": "flow",
+      "label": "Lead — assign branch",
+      "name": "Lead_Assign_Branch",
+      "processType": "AutoLaunchedFlow",
+      "triggerType": "RecordAfterSave"
+    },
+    {
+      "active": true,
+      "file": "../../test/fixtures/northwind/force-app/main/default/flows/Loan_Document_Reminder.flow-meta.xml",
+      "hash": "9d255e860c11",
+      "id": "flow:Loan_Document_Reminder",
+      "kind": "flow",
+      "label": "Loan — document reminder",
+      "name": "Loan_Document_Reminder",
+      "processType": "AutoLaunchedFlow",
+      "schedule": "Daily",
+      "triggerType": "Scheduled"
+    },
+    {
+      "active": true,
+      "file": "../../test/fixtures/northwind/force-app/main/default/flows/Loan_Status_Notification.flow-meta.xml",
+      "hash": "7623650f1744",
+      "id": "flow:Loan_Status_Notification",
+      "kind": "flow",
+      "label": "Loan — status notification",
+      "name": "Loan_Status_Notification",
+      "processType": "AutoLaunchedFlow",
+      "triggerType": "PlatformEvent"
+    },
+    {
+      "active": true,
+      "file": "../../test/fixtures/northwind/force-app/main/default/omniIntegrationProcedures/NWB_GetPositions_English_1.oip-meta.xml",
+      "hash": "e24221f773a1",
+      "id": "ip:NWB_GetPositions_English_1",
+      "kind": "ip",
+      "name": "NWB_GetPositions_English_1",
+      "subType": "GetPositions",
+      "type": "NWB"
+    },
+    {
+      "exposed": true,
+      "file": "../../test/fixtures/northwind/force-app/main/default/lwc/customer360",
+      "hash": "52c884439ffa",
+      "id": "lwc:customer360",
+      "kind": "lwc",
+      "name": "customer360",
+      "targets": [
+        "lightning__RecordPage"
+      ]
+    },
+    {
+      "exposed": true,
+      "file": "../../test/fixtures/northwind/force-app/main/default/lwc/loanTimeline",
+      "hash": "13680ad451a8",
+      "id": "lwc:loanTimeline",
+      "kind": "lwc",
+      "name": "loanTimeline",
+      "targets": [
+        "lightning__RecordPage"
+      ]
+    },
+    {
+      "exposed": true,
+      "file": "../../test/fixtures/northwind/force-app/main/default/lwc/loanWizard",
+      "hash": "c1428c3de89e",
+      "id": "lwc:loanWizard",
+      "kind": "lwc",
+      "name": "loanWizard",
+      "targets": [
+        "lightning__Tab"
+      ]
+    },
+    {
+      "exposed": false,
+      "file": "../../test/fixtures/northwind/force-app/main/default/lwc/positionTile",
+      "hash": "b70856a7e429",
+      "id": "lwc:positionTile",
+      "kind": "lwc",
+      "name": "positionTile"
+    },
+    {
+      "externalCredential": "NWB_CoreBanking_OAuth",
+      "host": "api.corebanking.northwind-bank.example",
+      "id": "namedCredential:NWB_CoreBanking",
+      "kind": "namedCredential",
+      "name": "NWB_CoreBanking"
+    },
+    {
+      "host": "docs.northwind-bank.example",
+      "id": "namedCredential:NWB_DocumentStore",
+      "kind": "namedCredential",
+      "name": "NWB_DocumentStore"
+    },
+    {
+      "externalCredential": "NWB_SmsGateway_Key",
+      "host": "sms.telco-partner.example",
+      "id": "namedCredential:NWB_SmsGateway",
+      "kind": "namedCredential",
+      "name": "NWB_SmsGateway"
+    },
+    {
+      "id": "object:Account",
+      "kind": "object",
+      "name": "Account"
+    },
+    {
+      "id": "object:Branch__c",
+      "kind": "object",
+      "label": "Branch",
+      "name": "Branch__c"
+    },
+    {
+      "id": "object:ContactAttempt__c",
+      "kind": "object",
+      "label": "Contact attempt",
+      "name": "ContactAttempt__c"
+    },
+    {
+      "id": "object:Lead",
+      "kind": "object",
+      "name": "Lead"
+    },
+    {
+      "id": "object:LoanApplication__c",
+      "kind": "object",
+      "label": "Loan application",
+      "name": "LoanApplication__c"
+    },
+    {
+      "id": "object:LoanDocument__c",
+      "kind": "object",
+      "label": "Loan document",
+      "name": "LoanDocument__c"
+    },
+    {
+      "id": "object:Opportunity",
+      "kind": "object",
+      "name": "Opportunity"
+    },
+    {
+      "id": "object:Task",
+      "kind": "object",
+      "name": "Task",
+      "retrieved": false
+    },
+    {
+      "active": true,
+      "file": "../../test/fixtures/northwind/force-app/main/default/omniScripts/NWB_LoanIntake_English_1.os-meta.xml",
+      "hash": "698e41cc8444",
+      "id": "omniscript:NWB_LoanIntake_English_1",
+      "kind": "omniscript",
+      "name": "NWB_LoanIntake_English_1",
+      "subType": "LoanIntake",
+      "type": "NWB"
+    },
+    {
+      "id": "platformEvent:LoanStatusChange__e",
+      "kind": "platformEvent",
+      "label": "Loan status change",
+      "name": "LoanStatusChange__e"
+    },
+    {
+      "id": "queue:Contact_Center_Leads",
+      "kind": "queue",
+      "label": "Contact center leads",
+      "name": "Contact_Center_Leads"
+    },
+    {
+      "id": "queue:Loan_Review",
+      "kind": "queue",
+      "label": "Loan review",
+      "name": "Loan_Review"
+    },
+    {
+      "id": "tab:Loan_Wizard",
+      "kind": "tab",
+      "label": "New loan",
+      "name": "Loan_Wizard"
+    },
+    {
+      "active": true,
+      "events": [
+        "before insert"
+      ],
+      "file": "../../test/fixtures/northwind/force-app/main/default/triggers/LeadTrigger.trigger",
+      "hash": "9232e2c2c4fb",
+      "id": "trigger:LeadTrigger",
+      "kind": "trigger",
+      "name": "LeadTrigger"
+    },
+    {
+      "active": true,
+      "events": [
+        "before insert",
+        "before update",
+        "after update"
+      ],
+      "file": "../../test/fixtures/northwind/force-app/main/default/triggers/LoanApplicationTrigger.trigger",
+      "hash": "0c4bed8e5f51",
+      "id": "trigger:LoanApplicationTrigger",
+      "kind": "trigger",
+      "name": "LoanApplicationTrigger"
+    }
+  ],
+  "stats": {
+    "edgeKinds": {
+      "calls": 12,
+      "delegates": 2,
+      "places": 3,
+      "publishes": 1,
+      "reads": 5,
+      "serves": 2,
+      "subscribes": 1,
+      "triggers-on": 3,
+      "writes": 4
+    },
+    "edges": 33,
+    "nodeKinds": {
+      "apex": 12,
+      "cmdt": 2,
+      "datamapper": 1,
+      "flexipage": 2,
+      "flow": 3,
+      "ip": 1,
+      "lwc": 4,
+      "namedCredential": 3,
+      "object": 8,
+      "omniscript": 1,
+      "platformEvent": 1,
+      "queue": 2,
+      "tab": 1,
+      "trigger": 2
+    },
+    "nodes": 43
+  },
+  "version": 1
+}

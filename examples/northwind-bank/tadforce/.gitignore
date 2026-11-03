@@ -1,3 +1,6 @@
 .cache/
 .snapshot/
 out/*_comments_*.html
+out/figures/
+understanding/tasks/
+understanding/tasks.json

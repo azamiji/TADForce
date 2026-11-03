@@ -10,10 +10,16 @@
 #   never    what must not appear (debt goes to the Improvement Axes document, not to the client TAD)
 #   figure   expected figure, if any (see skills/tadforce/references/figure-rules.md)
 #   length   indicative size
+#   when     optional condition on facts (src/facts/when.js): false → the section is not scaffolded nor asked
+#            by `tadforce next` (e.g. "omni.scripts > 0 || modules.experienceCloud"; paths as in {{n:...}})
 version: 1
 
 requiredAnchors:
-  tad: [doc-control, ch-summary, ch-purpose, method, ch-context, ch-general, general-context, ch-functional, ch-data, data-overview, ch-application, ch-ui, ch-integration, ch-security, sec-sharing, ch-reporting, ch-operations, ch-nfr, ch-decisions, ch-outlook, appendices, annex-apex, annex-automation, annex-objects, annex-apps, annex-lwc, annex-security, annex-integration, annex-glossary]
+  # an entry is an anchor id, or { id, when } for an appendix that exists only when its family does
+  tad: [doc-control, ch-summary, ch-purpose, method, ch-context, ch-general, general-context, ch-functional, ch-data, data-overview, ch-application, ch-ui, ch-integration, ch-security, sec-sharing, ch-reporting, ch-operations, ch-nfr, ch-decisions, ch-outlook, appendices,
+    { id: annex-apex, when: "annexes.async.count > 0 || annexes.rest.count > 0" }, { id: annex-automation, when: "apex.triggers > 0 || flows.total > 0" }, annex-objects,
+    { id: annex-apps, when: "ui.apps > 0" }, { id: annex-lwc, when: "ui.lwc > 0" }, annex-security,
+    { id: annex-integration, when: "annexes.namedCredentials.count > 0 || annexes.externalCredentials.count > 0 || annexes.connectedApps.count > 0 || annexes.authProviders.count > 0 || annexes.allowedDomains.count > 0" }, annex-glossary]
   axes: [doc-control, ax-summary, ax-method, ax-findings, ax-register, ax-roadmap]
 
 sections:
@@ -35,7 +41,7 @@ sections:
     intent: "The business capabilities covered, grouped by domain."
     facts: [ui.apps, data.objects, automation.flows, systems]
     must:
-      - "Table 'Domain | Main capabilities' with 5 to 9 rows, each row grounded on components that exist."
+      - "Table 'Domain | Main capabilities' with one row per domain of the understanding model (model.domains, 5 to 9 rows), each row grounded on components that exist."
     never:
       - "Capabilities that no component supports."
       - "Decommissioned features (knowledge/exclusions.yml > features)."
@@ -45,7 +51,7 @@ sections:
     facts: [apex.classes, data.cmdtTypes, automation, security.permissionSetGroups, integration]
     must:
       - "Raw HTML block <div class=\"cards\"> with one <div class=\"card\"><h4>Title</h4><p>2 to 4 sentences</p></div> per achievement."
-      - "Each card names the mechanism and its key component in code font, and says why it matters (configurable without code, scales, secure by design...)."
+      - "Each card names the mechanism and its key component in code font, and says why it matters (configurable without code, scales, secure by design...). Pick them from the processes and component cards of the model."
     never:
       - "Marketing superlatives."
       - "Anything not visible in the metadata or in the inputs."
@@ -94,13 +100,13 @@ sections:
     intent: "Who uses the platform and through which application."
     facts: [ui.apps, security.permissionSetGroups, security.profiles, org.usersByProfile, org.usersByLicense]
     must:
-      - "Table 'Population | Application | Main activities'. Users per population only when org facts exist."
+      - "Table 'Population | Application | Main activities', one row per actor of the model (model.actors). Users per population only when org facts exist, as placeholders or from the generated tables."
       - "External populations (customers, partners, citizens) when Experience Cloud or a mobile app exists."
   context.scope:
     doc: tad
     intent: "Functional perimeter in one table."
     must:
-      - "Table 'Domain | Covered by' linking to the chapter 5 sections with {{ref:...}} placeholders."
+      - "Table 'Domain | Covered by' with the domains of the model, linking to the chapter 5 sections with {{ref:...}} placeholders."
 
   # ------------------------------------------------------------------ 4 General architecture
   general.context:
@@ -143,22 +149,24 @@ sections:
     doc: tad
     intent: "Map of the functional domains and where each one is described."
     must:
-      - "A Mermaid flowchart of domains (classes actor, sf, ext, data) followed by a Figure caption, or a table 'Domain | Objects | Main components | Section'."
-    figure: "flowchart LR of the domains."
+      - "Lead paragraph, then one Mermaid flowchart of the domains of the model (model.domains) with their actors and connected glossary systems (classes actor, sf, ext, data) followed by a Figure caption, then a table 'Domain | Objects | Main components | Section'."
+    figure: "One flowchart LR: the functional domain map (domains, actors, systems)."
   functional.processes:
     doc: tad
-    intent: "One '##' section per business domain, describing the business process as implemented."
+    intent: "One subsection per key process of the understanding model (model.processes): the end-to-end chain of components, as implemented, so that a reader understands what the org does."
     facts: [data.objects, automation.flows, apex.classes, ui.lwc, automation.omnistudio]
     modules: [all detected]
     must:
-      - "Write one '## <Domain> {#fn-<slug>}' section per domain (typically 5 to 10)."
-      - "For each domain: what the user does, what the platform does (components in code font), statuses and transitions, notifications."
+      - "One '## <Domain> {#fn-<domainId>}' section per domain of the model that has processes, then one '### <Process name> {#fn-<processId>}' subsection per process of model.processes (every process of the model appears, none is invented)."
+      - "Each process subsection, in this order: one paragraph chaining the components end to end (who starts it, each component in code font with what it does, objects written, systems called, asynchronous steps); the figure; a table 'Step | Mechanism' numbered like the figure."
       - "Cloud-specific processes follow the module reference (case management for Service Cloud, quote-to-cash for CPQ/Revenue, appointment lifecycle for Field Service, checkout for Commerce...)."
-      - "A sequence or state diagram when the process has branches or asynchronous steps (only observed calls)."
+      - "A figure for every process: '@@SEQ:<processId>@@' for a flow across several components, '@@STATE:<lifecycleId>@@' (model.lifecycles) for the life of a record; never a hand-drawn diagram of a process the model holds."
       - "Optional '> [!INTEGRATOR]' callout for a notable design choice of the integrator."
     never:
       - "Decommissioned features."
       - "Screens or steps not evidenced by metadata or inputs."
+      - "Processes, participants or systems that are not in the model; « to be confirmed » or empty subsections (doubts are findings of the model)."
+    figure: "One figure per process: @@SEQ:<processId>@@ (sequence, numbered steps) or @@STATE:<lifecycleId>@@ (state diagram)."
 
   # ------------------------------------------------------------------ 6 Data
   data.principles:
@@ -180,10 +188,11 @@ sections:
     intent: "One '###' per data domain with its ERD and an object table."
     facts: [data.objects]
     must:
-      - "'### <Domain>' then '@@ERD:Obj1,Obj2,Obj3|<caption>@@' (4 to 9 objects) then a table 'Object | Role | Key fields'."
+      - "One '### <Domain>' per domain of the model with objects, then '@@ERD-DOMAIN:<domainId>@@' then a table 'Object | Role | Key fields'."
       - "Only objects of the inventory."
   data.industry:
     doc: tad
+    when: "modules.industryCloud"
     intent: "Industry cloud objects actually used, and for what."
     facts: [namespaces, data.objects, modules.clouds]
     modules: [industries]
@@ -191,14 +200,17 @@ sections:
       - "Table 'Object | Use'. Only objects referenced by the local metadata."
   data.externalIds:
     doc: tad
+    when: "fields.externalIds > 0"
     intent: "Role of each external ID: which system feeds it, matching key for upserts."
     must:
       - "One sentence per key family."
   data.recordTypes:
     doc: tad
+    when: "recordTypes > 0"
     intent: "Why record types exist and what differs between them."
   data.cmdt:
     doc: tad
+    when: "cmdt.types > 0"
     intent: "Which business rules are configured in Custom Metadata (changed without deploying code)."
     facts: [data.cmdtTypes, counts.cmdt]
     must:
@@ -206,10 +218,12 @@ sections:
       - "Optional '> [!INTEGRATOR]' callout."
   data.events:
     doc: tad
+    when: "modules.events"
     intent: "Platform events and change data capture: publishers and subscribers."
     modules: [platform-events]
   data.dataCloud:
     doc: tad
+    when: "modules.dataCloud"
     intent: "Data Cloud: data streams, data model objects, identity resolution, segments and activations used by the CRM."
     modules: [data-cloud]
   data.files:
@@ -217,59 +231,68 @@ sections:
     intent: "How documents and files are stored (Salesforce Files, external document store, attachments)."
   data.volumes:
     doc: tad
-    intent: "Comment the volumes table (largest objects, growth drivers, large data volume measures)."
+    when: "org.volumes"
+    intent: "Comment the volumetry table (largest objects, growth drivers, large data volume measures), from the org aggregates only."
     never:
       - "Record-level data."
   data.lifecycle:
     doc: tad
     intent: "Creation, update, archiving and deletion of data; history tracking; retention."
     must:
-      - "When nothing is configured, state it as a fact to confirm, not as a defect."
+      - "State what is configured (history tracking, archiving jobs, deletion automation); when nothing is configured, say only what is visible — the open question is a finding of the model, not a sentence here."
 
   # ------------------------------------------------------------------ 7 Application
   application.principles:
     doc: tad
+    when: "apex.classes > 0"
     intent: "Apex design principles observed (one trigger per object, handler pattern, selector and service separation, bulkification, user mode)."
     facts: [counts.apex, naming.apex]
   application.layers:
     doc: tad
+    when: "apex.classes > 0 || ui.lwc > 0"
     intent: "Code layers and naming conventions."
     must:
       - "Mermaid flowchart TB of the layers (LWC or Flow, controllers, services, selectors, integration) with a Figure caption."
-      - "Table 'Layer | Convention | Examples'."
+      - "Table 'Layer | Convention | Examples | Count': real class names per layer (from the component cards and naming facts) and counts as placeholders or measured from the facts."
     figure: "flowchart TB"
   application.domains:
     doc: tad
+    when: "apex.classes > 0"
     intent: "Main classes grouped by functional domain."
     must:
       - "Table 'Domain | Main classes | Role'; at most 6 classes per row, the rest in the appendix ({{ref:annex-apex}})."
   application.triggers:
     doc: tad
+    when: "apex.triggers > 0"
     intent: "Trigger framework and order of execution."
     facts: [apex.triggers, signals]
     must:
-      - "Table 'Object | Trigger | Handler | Events'."
-      - "A '### Order of execution' subsection when several automations act on the same object."
+      - "Table 'Object | Trigger | Handler | Events' (handlers from the graph: trigger delegates to class)."
+      - "A '### Order of execution' subsection with a table 'Order | Mechanism | Component | Effect' for every object on which several automations act (before-save flows, before triggers, validation rules, after triggers, after-save flows, asynchronous jobs)."
   application.mechanisms:
     doc: tad
     intent: "The 1 to 3 cross-cutting mechanisms that drive the solution (ownership propagation, rules engine, provisioning...), each with a sequence diagram."
     must:
-      - "Name the thresholds and switches visible in code (example: synchronous up to N records, then batch) with the class that implements them."
+      - "Name the thresholds and switches visible in code (example: synchronous up to N records, then batch) with the class that implements them (component cards › notes)."
+      - "One '> [!INTEGRATOR]' callout per mechanism."
   application.async:
     doc: tad
+    when: "apex.batch > 0 || apex.queueable > 0 || apex.schedulable > 0 || apex.future > 0 || org.scheduledJobs"
     intent: "Batch, queueable, schedulable and @future processing."
     facts: [apex.classes, org.scheduledJobs]
     must:
-      - "Table 'Job | Type | Trigger or schedule | Purpose'."
+      - "Table 'Job | Type | Started by | Schedule | Purpose' (started by: the caller in the graph — trigger, class, flow — or the scheduled job)."
       - "Mermaid flowchart of chaining when jobs chain."
   application.flows:
     doc: tad
+    when: "flows.total > 0"
     intent: "Role of flows next to Apex, and the main active flows."
     facts: [automation.flows]
     must:
       - "Table 'Flow | Type | Object | Purpose' for the active flows; the full list stays in the appendix ({{ref:annex-automation}})."
   application.omnistudio:
     doc: tad
+    when: "omni.scripts > 0 || omni.ips > 0 || omni.dataMappers > 0 || omni.cards > 0"
     intent: "How OmniStudio is used: OmniScripts for guided journeys, Integration Procedures for orchestration, Data Mappers for data access, FlexCards for display."
     facts: [automation.omnistudio]
     modules: [omnistudio]
@@ -277,6 +300,7 @@ sections:
       - "Mermaid flowchart OmniScript > Integration Procedure > Data Mapper / Apex / HTTP, then one '###' per family with a table."
   application.ai:
     doc: tad
+    when: "modules.agentforce"
     intent: "Agentforce agents, Einstein features and prompt templates: topics, actions, grounding, guardrails, channels."
     modules: [agentforce-ai]
     must:
@@ -285,7 +309,7 @@ sections:
     doc: tad
     intent: "2 to 4 key end-to-end sequences (sequenceDiagram), each with a short introduction."
     must:
-      - "Only calls observed in code or metadata; participants named by component."
+      - "Only calls observed in code or metadata; participants named by component. Prefer '@@SEQ:<processId>@@' for the processes of the model not already drawn in chapter 5."
     never:
       - "Participants that are not in the inventory or the glossary."
 
@@ -296,6 +320,7 @@ sections:
     facts: [ui.apps]
   ui.pages:
     doc: tad
+    when: "ui.flexipages > 0"
     intent: "Key Lightning pages and their composition."
     facts: [ui.flexipages]
     must:
@@ -303,23 +328,28 @@ sections:
       - "Optional composition diagram for the main record page."
   ui.lwc:
     doc: tad
+    when: "ui.lwc > 0"
     intent: "LWC organised by domain, with the 2 or 3 key components described."
     facts: [ui.lwc]
     must:
       - "'### By domain' table 'Domain | Components | Role'; the full list is in the appendix ({{ref:annex-lwc}})."
   ui.communication:
     doc: tad
+    when: "ui.lwc > 0 || ui.aura > 0"
     intent: "How components talk: events, Lightning Message Service, navigation, wire adapters, Apex."
     facts: [ui.lwc, ui.messageChannels]
   ui.aura:
     doc: tad
+    when: "ui.aura > 0"
     intent: "Remaining Aura components and their role (stated neutrally)."
   ui.sites:
     doc: tad
+    when: "modules.visualforce || modules.experienceCloud"
     intent: "Experience Cloud sites, public sites and Visualforce pages: audience, templates, authentication, purpose."
     modules: [experience-cloud]
   ui.omnichannel:
     doc: tad
+    when: "modules.omniChannel || modules.cti"
     intent: "Telephony (call centers, CTI adapter or Service Cloud Voice) and Omni-Channel routing (channels, queues, skills, capacity), messaging channels."
     facts: [integration.callCenters, misc.signals]
     modules: [service-cloud]
@@ -330,19 +360,22 @@ sections:
     intent: "Integration principles (credentials externalised, the system of record stays master, idempotent upserts with external IDs, asynchronous for volume)."
   integration.patterns:
     doc: tad
+    when: "integration.namedCredentials > 0 || integration.externalCredentials > 0 || integration.remoteSites > 0 || integration.externalServices > 0 || integration.restResources > 0 || apex.soap > 0 || apex.callout > 0 || integration.connectedApps > 0 || integration.callCenters > 0"
     intent: "Classify each flow with the Salesforce Integration Patterns."
     must:
-      - "Table 'Pattern | Flows' using: Remote Process Invocation (Request and Reply, Fire and Forget), Batch Data Synchronization, Remote Call-In, UI Update Based on Data Changes, Data Virtualization."
+      - "Table 'Pattern | Flows' using: Request-Reply, Fire-and-Forget, Batch Data Synchronization, Remote Call-In, UI Update Based on Data Changes, Data Virtualization; flows cited by their FLX-nn id."
   integration.flows:
     doc: tad
+    when: "integration.namedCredentials > 0 || integration.externalCredentials > 0 || integration.remoteSites > 0 || integration.externalServices > 0 || integration.restResources > 0 || apex.soap > 0 || apex.callout > 0 || integration.connectedApps > 0 || integration.callCenters > 0"
     intent: "Catalogue of the integration flows."
     must:
-      - "Table 'ID | Flow | Direction | System | Salesforce component | Pattern' with FLX-01, FLX-02..."
+      - "Table 'ID | Flow | Direction | System | Salesforce component | Pattern' with FLX-01, FLX-02..., one row per exchange seen in the graph (callouts through named credentials, inbound REST/SOAP, events, Integration Procedures)."
     never:
       - "Systems not in glossary.systems."
       - "Flows that no component implements."
   integration.systems:
     doc: tad
+    when: "integration.namedCredentials > 0 || integration.externalCredentials > 0 || integration.remoteSites > 0 || integration.externalServices > 0 || integration.restResources > 0 || apex.soap > 0 || apex.callout > 0 || integration.connectedApps > 0 || integration.callCenters > 0 || systems.named || systems.unnamed"
     intent: "One '###' per connected system, with a sequence diagram for the main exchange."
     facts: [systems, integration.namedCredentials, apex.classes]
     modules: [integration-platforms]
@@ -350,21 +383,26 @@ sections:
       - "For each system: purpose, Salesforce endpoints (named credential, authentication), main calls with their Apex class, flow or Integration Procedure."
   integration.inbound:
     doc: tad
+    when: "integration.restResources > 0 || apex.soap > 0"
     intent: "Exposed APIs (Apex REST or SOAP): callers, payload in one line, security (integration user, permission set, connected app)."
   integration.marketing:
     doc: tad
+    when: "modules.marketingCloud || modules.accountEngagement"
     intent: "Marketing integration: Marketing Cloud Connect or Account Engagement (synchronised objects, sends, tracking, consent)."
     modules: [marketing]
   integration.commerce:
     doc: tad
+    when: "modules.commerce || modules.orderManagement"
     intent: "Commerce: stores, catalogs, buyer groups, checkout integrations (payment, tax, shipping, inventory) and order management."
     modules: [commerce]
   integration.sso:
     doc: tad
+    when: "integration.authProviders > 0 || integration.connectedApps > 0 || modules.experienceCloud"
     intent: "Authentication providers, SSO, registration handlers, connected apps."
     facts: [integration.authProviders, integration.connectedApps]
   integration.domains:
     doc: tad
+    when: "integration.remoteSites > 0 || integration.cspTrustedSites > 0 || integration.corsOrigins > 0"
     intent: "Why each allowed domain exists (CSP, CORS, remote sites)."
 
   # ------------------------------------------------------------------ 10 Security
@@ -378,21 +416,25 @@ sections:
       - "A sequence diagram when provisioning is automated."
   security.personas:
     doc: tad
+    when: "security.permissionSetGroups > 0 || security.permissionSets > 0"
     intent: "Personas and the permission set groups that implement them."
     facts: [security.permissionSetGroups, org.psgAssignments]
     must:
-      - "Table 'Persona | Permission set group | Main rights'."
+      - "Table 'Persona | Permission set group | Users | Main rights', personas from model.actors, users from the org aggregates (org.psgAssignments) only when org facts exist."
   security.roles:
     doc: tad
+    when: "security.roles > 0"
     intent: "Comment the role hierarchy: structure and technical roots."
   security.owd:
     doc: tad
     intent: "Default sharing choices and their rationale."
   security.rules:
     doc: tad
+    when: "security.sharingRules > 0 || security.queues > 0"
     intent: "Sharing rules and queues: what they open and to whom."
   security.app:
     doc: tad
+    when: "apex.classes > 0"
     intent: "Application security in code: sharing keywords, user mode, FLS and CRUD checks, input validation."
     facts: [counts.apex.withSharing, counts.apex.withoutSharing, apex.classes]
     must:
@@ -401,6 +443,7 @@ sections:
       - "Findings phrased as defects: they go to the Improvement Axes."
   security.shield:
     doc: tad
+    when: "modules.shield"
     intent: "Shield and compliance capabilities in use: platform encryption, event monitoring, transaction security, field audit trail, data masking."
     modules: [security-shield]
   security.session:
@@ -409,9 +452,11 @@ sections:
     facts: [security.session, security.passwordPolicies]
   security.integrationUsers:
     doc: tad
+    when: "integration.connectedApps > 0 || integration.namedCredentials > 0 || integration.restResources > 0 || apex.soap > 0"
     intent: "Technical users used by integrations and their permissions."
   security.public:
     doc: tad
+    when: "modules.experienceCloud"
     intent: "Guest access and public exposure of sites and APIs."
 
   # ------------------------------------------------------------------ 11-15
@@ -420,6 +465,7 @@ sections:
     intent: "Reporting and dashboards: folders, audiences, KPI components."
   reporting.analytics:
     doc: tad
+    when: "modules.crmAnalytics"
     intent: "CRM Analytics or Tableau: apps, dataflows or recipes, datasets, embedding in Lightning pages, security predicates."
     modules: [analytics]
   operations.environments:
@@ -434,12 +480,14 @@ sections:
       - "A sequence or flowchart when the release has phases."
   operations.scheduled:
     doc: tad
+    when: "org.scheduledJobs || apex.schedulable > 0 || flows.scheduled > 0"
     intent: "Scheduled processing to monitor in run."
   operations.logging:
     doc: tad
     intent: "Logging, error handling and monitoring."
   operations.tests:
     doc: tad
+    when: "apex.classes > 0 || apex.triggers > 0"
     intent: "Test strategy: test classes, data factories, mocks, coverage."
     facts: [counts.apex.tests, org.coverage]
   nfr.measures:
@@ -451,14 +499,14 @@ sections:
     doc: tad
     intent: "Reading of the solution through Salesforce Well-Architected (Trusted, Easy, Adaptable)."
     must:
-      - "Table 'Pillar | Strengths observed'. Optionally run the platform-architecture-analyze skill first."
+      - "Table 'Pillar | Practice | Evidence in the org' (Trusted, Easy, Adaptable). Optionally run the platform-architecture-analyze skill first."
     never:
       - "Scores or defects: keep them for the Improvement Axes."
   decisions.adr:
     doc: tad
     intent: "Architecture decisions taken."
     must:
-      - "Table 'ID | Decision | Rationale | Consequence' with ADR-01...; only decisions visible in the metadata or provided by the client."
+      - "Table 'ID | Domain | Decision | Justification | Consequences' with DA-01, DA-02...; only decisions visible in the metadata or provided by the client."
   outlook.roadmap:
     doc: tad
     intent: "Evolution perspectives, stated positively."
@@ -468,7 +516,7 @@ sections:
   # ------------------------------------------------------------------ Improvement Axes
   axes.summary:
     doc: axes
-    intent: "The 5 most important axes, and the overall health in one paragraph per pillar."
+    intent: "The 5 most important axes, and the overall health in one paragraph per pillar, from facts.signals and the findings of the understanding model (model.findings)."
     facts: [signals, counts]
   axes.method:
     doc: axes
@@ -477,7 +525,8 @@ sections:
     doc: axes
     intent: "Qualify each Trusted signal: real risk, scope, remediation."
     must:
-      - "One paragraph per signal kept, with its AX-nn reference."
+      - "One paragraph per signal or model finding (kind debt or risk) kept, with its AX-nn reference."
+      - "The questions of the model (kind question) that the TAD could not settle, listed as points to confirm with the client."
   axes.easy:
     doc: axes
     intent: "Qualify each Easy signal."
@@ -488,7 +537,7 @@ sections:
     doc: axes
     intent: "The register of improvement axes."
     must:
-      - "Table 'ID | Axis | Finding | Impact | Recommendation | Priority | Effort' with AX-01..., priority written <span class=\"b p1\">P1</span>."
+      - "Table 'ID | Axis | Finding | Impact | Recommendation | Priority | Effort' with AX-01..., priority written <span class=\"b p1\">P1</span>; every retained signal and model finding has a row."
   axes.roadmap:
     doc: axes
     intent: "Sequencing of the axes over releases or quarters."

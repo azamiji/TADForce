@@ -40,9 +40,11 @@ When the comment contradicts the metadata, do not silently obey: answer with the
    - comments of `out/TAD_<CODE>.html` itself are carried over automatically; only a copy saved elsewhere goes to `commentsFrom` (path relative to `tadforce/`);
    - add one entry per handled comment to `resolutions`: `"<comment id>": "<what you changed, one or two sentences, with section numbers>"`;
    - add ids to `dropImages` when a capture is no longer useful (keeps the file small).
-4. `npx tadforce build --pdf --docx` — handled comments appear as **resolved**, with your answer, in the panel of the same HTML file. When the readers also edited text in the page, the build keeps a copy (`…_comments_<date>.html`): report those edits into the sources.
+4. `npx tadforce build --render-only --pdf --docx` — handled comments appear as **resolved**, with your answer, in the panel of the same HTML file. When the readers also edited text in the page, the build keeps a copy (`…_comments_<date>.html`): report those edits into the sources.
 
 A comment a reader reopened after its resolution stays open at the next build (warning `comment-reopened`): read the new remark and answer it again with a new resolution.
+
+A comment that changes what the org *does* (a process, a system, an exclusion) also changes the understanding: correct the card or the process in `tadforce/understanding/parts/` (or the knowledge files, then `npx tadforce facts`), and run the loop (`npx tadforce build --json`) so that the model, the figures drawn from it and the review follow.
 
 ## 4. Report
 

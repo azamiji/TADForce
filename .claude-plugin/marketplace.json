@@ -11,7 +11,7 @@
       "name": "tadforce",
       "source": "./",
       "description": "AI-Powered Salesforce Technical Documentation: generate, review, validate and update the Technical Architecture Document of any Salesforce org (/tadforce, /tadforce-review, /tadforce-update).",
-      "version": "0.4.1",
+      "version": "0.5.0",
       "author": { "name": "Jihad AZAMI HASSANI" },
       "license": "Apache-2.0",
       "category": "documentation"

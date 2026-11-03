@@ -5,13 +5,16 @@ Purpose: give the integrator an honest, prioritised view of the debt and the opp
 ## Inputs
 
 - `facts.signals` — measured signals (pillar, priority, value, evidence); tables are generated per pillar.
+- `understanding/model.json › findings` — what the developers, the analyst and the architect saw while understanding the org: `debt` and `risk` findings become axes candidates; `question` findings (what the metadata could not settle) are listed in a « Points to confirm with the client » subsection of the findings chapter. The write group of the Axes carries them in its model slice.
+- `understanding/review.json › remaining` — what the reviewer could not prove or fix.
 - `knowledge/inputs/code-analyzer-results.json` — Code Analyzer violations (via the `dx-code-analyzer-run` skill).
 - The `platform-architecture-analyze` skill output (Well-Architected reading).
-- What you saw while writing the TAD (keep a scratch list of observations as you go).
+- What the writers noted while writing the TAD (`understanding/questions.md`).
 
 ## Rules
 
-- A signal is not a finding. For each signal, decide: real issue, acceptable by design (say why), or false positive (drop it).
+- A signal is not a finding. For each signal and each model finding, decide: real issue, acceptable by design (say why), or false positive (drop it).
+- The Axes are the only place where the doubts of the TAD are written: every open question has a home here, none is left in the TAD.
 - Each retained finding becomes an axis `AX-nn` with: finding (fact), impact (for the business or the run), recommendation (concrete, Salesforce-native), priority, effort (S / M / L).
 - Priorities: **P1** security, data integrity or continuity at risk; **P2** plan in the next releases (maintainability, limits, retired features such as Workflow Rules and Process Builder); **P3** improve when touching the area.
 - Pillars follow Salesforce Well-Architected: Trusted, Easy, Adaptable.

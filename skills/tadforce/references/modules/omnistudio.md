@@ -15,6 +15,10 @@
 
 The `type`, `subType`, `language`, `isActive` of each asset; inside the JSON: elements of type `Integration Procedure Action`, `DataRaptor …`, `Remote Action` (Apex class and method), `HTTP Action` (named credential), custom LWC elements (`lwcName`).
 
+## Understand
+
+`facts/graph.json` already chains OmniScript → Integration Procedure → Data Mapper / Remote Action / named credential from the element JSON. The developer card of an OmniScript describes the journey (steps, what the user enters, what is saved); the architect makes each main journey a process of the model.
+
 ## Draw
 
 Flowchart OmniScript → Integration Procedure → Data Mapper / Apex / HTTP for each main journey.

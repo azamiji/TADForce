@@ -19,7 +19,7 @@ Never install all of them for every agent: dozens of folders, hundreds of copies
 | `platform-docs-get` | Official Salesforce documentation | References chapter, product behaviour |
 | `platform-data-and-tooling-api-context-get` | Standard object and field reference | Understanding standard / industry objects |
 | `external-diagram-mermaid-generate` | Mermaid diagrams for Salesforce | Complex sequences |
-| `omnistudio-dependencies-analyze` | OmniScript / IP / Data Mapper dependencies | OmniStudio detected |
+| `omnistudio-dependencies-analyze` | OmniScript / IP / Data Mapper dependencies (cross-check of `facts/graph.json`) | OmniStudio detected, understanding phase |
 | `agentforce-architecture-analyze` | Agent topics, actions, prompts | Agentforce detected |
 | `data360-schema-get` | Data Cloud schema | Data Cloud detected |
 | `crm-analytics-wave-generate` (read-only use) | CRM Analytics assets | CRM Analytics detected |

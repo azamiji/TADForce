@@ -85,8 +85,8 @@ npx tadforce validate --json
 
 | Command | What it does | Your part |
 |---|---|---|
-| `npx tadforce doctor` | Everything before the writing, in one loop until all is green: tools, SFDX project, org connection (reuses the project's `target-org`, opens the browser only when needed), metadata (retrieved from the org with a `*` manifest, or your local sources), client logo and colours, then the questions only a human can answer | Log in once; confirm the answers it recommends; name the external systems; confirm what is unused or decommissioned |
-| `npx tadforce build` | Your agent writes each section from its specification and the facts, then the document is built: **HTML** always, **PDF** and **Word** on demand, and validated | — |
+| `npx tadforce doctor` | Everything before the writing, in one loop until all is green: tools, SFDX project, language, integrator and client (names and logos), org connection (reuses the project's `target-org`, opens the browser only when needed), metadata (retrieved from the org with a `*` manifest, or your local sources), then the questions only a human can answer, and last « Launch the build now? » | Log in once; confirm the answers it recommends; name the external systems; confirm what is unused or decommissioned; say yes to the build |
+| `npx tadforce build` | Runs to the end without asking: **understand** the org (call graph, domains, end-to-end processes, lifecycles — agents in parallel), **write** the sections in parallel, **review** by an independent architect agent, **render** HTML, PDF, Word and the inventory workbook, with every figure checked. Sections about features the org does not have are not written; a document with gaps is marked DRAFT | — |
 | `npx tadforce review` | Opens the document to comment it. **Save writes into the same file** — one file per document, no copies, no lost comments. Then `/tadforce-review` turns every comment into a fix | Comment a passage or capture an area, Save |
 | `npx tadforce update` | Months later: reads the org again, archives the previous facts, lists the sections touched by what changed (a new Apex class, a modified flow, new counts…), bumps the version. `/tadforce-update` rewrites only those sections | — |
 
@@ -97,7 +97,8 @@ npx tadforce validate --json
 
 ```mermaid
 flowchart LR
-  A["doctor<br>tools · org · metadata · questions"]:::h --> B["write<br>15 chapters"]:::a
+  A["doctor<br>tools · org · metadata · questions"]:::h --> U["understand<br>graph · domains · processes"]:::a
+  U --> B["write<br>in parallel · review"]:::a
   B --> C["build<br>HTML · PDF · DOCX"]:::s
   C --> D["review<br>comments in the HTML"]:::h
   D --> B

@@ -61,16 +61,17 @@ tbody tr:nth-child(even) td{background:var(--zebra)}
 td[style*="right"],th[style*="right"]{font-variant-numeric:tabular-nums;white-space:nowrap}
 
 /* Figures */
-figure.diagram{margin:20px 0 24px;break-inside:avoid}
+figure.diagram{margin:20px 0 24px;break-inside:avoid;page-break-inside:avoid}
 .fig-body{background:var(--fig);border:1px solid var(--line);border-radius:12px;padding:18px;overflow-x:auto;text-align:center}
 .fig-body svg{max-width:100%;height:auto}
-figcaption{font-size:13px;color:var(--muted);text-align:center;margin-top:8px;font-style:italic}
+figcaption{font-size:13px;color:var(--muted);text-align:center;margin-top:8px;font-style:italic;break-before:avoid;page-break-before:avoid}
 .mmd-error{color:#b00020;white-space:pre-wrap;text-align:left}
 
 /* Cover */
 .cover{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:38px 44px;margin-bottom:24px;box-shadow:var(--shadow);position:relative;overflow:hidden}
 .cover::before{content:"";position:absolute;inset:0 0 auto 0;height:6px;background:var(--grad)}
-.cover-logos{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:26px}
+.cover-logos{display:flex;justify-content:flex-start;align-items:center;gap:22px;margin-bottom:26px}
+.logo-sep{width:1px;align-self:stretch;min-height:40px;background:var(--line)}
 .cover-logos img{height:64px;width:auto;background:#fff;border-radius:10px;padding:4px}
 .cover .kicker{text-transform:uppercase;letter-spacing:.12em;font-size:12.5px;color:var(--accent2);font-weight:700}
 .cover h1.ctitle{font-size:34px;line-height:1.15;margin:8px 0 6px;color:var(--brand);border:0;padding:0}
@@ -145,11 +146,11 @@ figcaption{font-size:13px;color:var(--muted);text-align:center;margin-top:8px;fo
 /* Layered architecture block */
 .layers{display:flex;flex-direction:column;gap:8px;margin:18px 0 6px}
 .layer{display:grid;grid-template-columns:150px 1fr;border:1px solid #c9d8f2;border-radius:10px;overflow:hidden;background:#E8F1FF;break-inside:avoid}
-.layer .ln{background:#2F6FE4;color:#fff;font-weight:700;padding:10px 12px;display:flex;align-items:center;font-size:14px}
+.layer .ln{background:#2459C2;color:#fff;font-weight:700;padding:10px 12px;display:flex;align-items:center;font-size:14px}
 .layer .li{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px}
 .layer .li span{background:#fff;border:1px solid #b9cdf0;border-radius:8px;padding:5px 10px;font-size:13px;color:#0B2545}
-.layer.data{background:#E7F6EC;border-color:#bfe3cc}.layer.data .ln{background:#2E9E5B}.layer.data .li span{border-color:#bfe3cc;color:#0E3B22}
-.layer.int{background:#FFF2E2;border-color:#f1d2a8}.layer.int .ln{background:#E0861F}.layer.int .li span{border-color:#f1d2a8;color:#4A2A05}
+.layer.data{background:#E7F6EC;border-color:#bfe3cc}.layer.data .ln{background:#1F7A45}.layer.data .li span{border-color:#bfe3cc;color:#0E3B22}
+.layer.int{background:#FFF2E2;border-color:#f1d2a8}.layer.int .ln{background:#B5530B}.layer.int .li span{border-color:#f1d2a8;color:#4A2A05}
 .figcap{font-size:13px;color:var(--muted);text-align:center;font-style:italic;margin:6px 0 20px}
 @media (max-width:640px){.layer{grid-template-columns:1fr}}
 @media print{.cover-logos img{height:24mm}.cover .kicker{font-size:11pt}.cover h1.ctitle{font-size:30pt}.cover .csub{font-size:14pt}}
@@ -253,3 +254,34 @@ a.kpi:hover::after{opacity:1}
 
 /* Generated text logo (no logo file provided) */
 .logo-txt{display:inline-flex;align-items:center;justify-content:center}
+
+/* Generated figures (context view, ERD, role tree, layers): the caption stays with the figure */
+figure.diagram.hand .fig-body{padding:14px}
+figure.diagram[data-kind="layers"] .fig-body{text-align:left;border:0;padding:0;background:none}
+figure.diagram[data-kind="layers"] .layers{margin:0}
+.fig-body + .figcap{break-before:avoid;page-break-before:avoid}
+.fig-body{break-after:avoid}
+.layers{break-inside:avoid}
+
+.layer.orch{background:#EEF4FF}.layer.svc{background:#F3F7FF}
+
+/* Counts not collected from the org: said so, never 0 */
+.nc{color:var(--muted);font-style:italic;font-size:.92em;background:#f1f3f7;border-radius:4px;padding:0 .3em;white-space:nowrap}
+.kpi .nc{font-size:.6em}
+
+/* Tables: one dark header everywhere, numbers aligned */
+thead th{border-bottom:2px solid var(--th)}
+table + p,.tw + p{margin-top:6px}
+
+/* Draft: the document did not pass the quality gate */
+.watermark{display:none}
+body.draft .watermark{display:block;position:fixed;top:50%;left:calc(50% + 150px);transform:translate(-50%,-50%) rotate(-30deg);font:800 120px/1 "Segoe UI",Arial,sans-serif;color:rgba(214,51,108,.10);letter-spacing:.08em;pointer-events:none;z-index:25;white-space:nowrap;user-select:none}
+.draft-note{margin:16px 0 0;border:1.5px solid #D6336C;background:#FDECEF;color:#5A0A23;border-radius:8px;padding:8px 12px;font-weight:600;font-size:13px}
+@media (max-width:980px){body.draft .watermark{left:50%;font-size:64px}}
+@media print{
+  body.draft .watermark{left:50%;font-size:110pt;color:rgba(214,51,108,.13)}
+  .draft-note{break-inside:avoid}
+  figure.diagram{margin:10px 0 14px}
+  figcaption{font-size:8.6pt;margin-top:4px}
+  .nc{background:none}
+}

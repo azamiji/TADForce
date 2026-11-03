@@ -20,6 +20,10 @@ export function extractUi(roots) {
       usesNavigation: /lightning\/navigation/.test(js),
       usesWire: /@wire\s*\(/.test(js),
       service: !html.trim(),
+      // objects read through @salesforce/schema imports (a standard object the project uses)
+      objects: [...new Set([...js.matchAll(/@salesforce\/schema\/([A-Za-z0-9_]+)/g)].map((m) => m[1]))].sort(),
+      // OmniStudio compiles OmniScripts and FlexCards into LWC that carry their runtime namespace
+      runtimeNamespace: str(meta.runtimeNamespace),
     };
   });
 

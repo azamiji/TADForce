@@ -14,7 +14,7 @@ import * as updateCmd from './commands/update.js';
 // The four commands of the run. Everything else stays available for experts and CI.
 const MAIN = {
   doctor: [doctorCmd.run, 'Everything before the writing, in one loop: tools, project, org login, metadata, questions'],
-  build: [docs.build, 'Build the document: HTML always, --pdf --docx on demand, then validate (--open to review it)'],
+  build: [docs.build, 'Understand the org, write, review, render: the next phase as work for the agent (--json); --render-only renders what is written (HTML, --pdf --docx), then validates'],
   review: [reviewCmd.run, 'Open the document to comment it (Save writes to the same file) and list the open comments'],
   update: [updateCmd.run, 'Months later: read the org again, archive the old facts, list the sections to rewrite, bump the version'],
 };
@@ -46,6 +46,7 @@ function help(all) {
     for (const [k, [, d]] of Object.entries(ADVANCED)) console.log(`  ${c.cyan(k.padEnd(15))} ${d}`);
   } else console.log(c.dim(`\n  ${Object.keys(ADVANCED).length} advanced commands: tadforce help --all`));
   console.log('\nCommon options: --cwd <dir>  --org <alias>  --doc tad|axes|all  --json  --quiet');
+  console.log('Build options:  --render-only  --merge-understanding  --no-review  --pdf --docx  --open  --agent <id>  --no-launch');
   console.log(`Start here:     ${c.bold('npx tadforce doctor')}   then type ${c.bold('/tadforce')} in your AI agent.\n`);
 }
 

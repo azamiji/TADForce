@@ -26,25 +26,33 @@ It retrieves a fresh snapshot (`source.mode`), recomputes the facts, compares co
 
 New external endpoints and new unused-looking components appear in `facts/questions.json`. Ask about them in one message (Blocks B and C of the `tadforce` skill's `references/questions.md`), write the knowledge files, rerun `npx tadforce facts`.
 
-## 3. Rewrite only what changed
+## 3. Understand again what changed
+
+```bash
+npx tadforce build --json
+```
+
+The call graph is rebuilt from the new facts; only the developer slices whose files or edges changed come back as `understand` tasks (their parts are `stale`), then the architect, then the merge. Run them as in the `tadforce` skill (`references/agents.md`, `references/understand.md`): a stale part is rewritten from the new code, never patched. Stop at the first payload whose phase is not `understand` (sections still pending: write them as in the `tadforce` skill; a `render` at that point only rebuilds the previous text — the rewrite comes next).
+
+## 4. Rewrite only what changed
 
 For each section of `sections[]`:
 
 1. Open `file` at `anchor`, read the current text.
-2. Read the spec (`npx tadforce spec <id> --json`) and the changed metadata (`tadforce/.snapshot/source/...`). For a changed Apex class or flow, read the code: what the reader must learn is the new *behaviour*, not that a file changed.
+2. Read the spec (`npx tadforce spec <id> --json`), the changed cards and processes of `tadforce/understanding/model.json`, and the changed metadata (`tadforce/.snapshot/source/...`). What the reader must learn is the new *behaviour*, not that a file changed.
 3. Edit the section: add the new components, update the behaviour that changed, remove what was deleted. Keep the heading and its anchor; keep everything that is still true word for word — readers have already validated it.
 4. Placeholders (`{{n:…}}`), generated tables, ERDs and appendices update by themselves: never edit them by hand.
 
 A section listed only for moved counts usually needs no change: check that the text holds no number or statement that the new counts contradict.
 
-Then, in chapter 15 (Outlook) or the Improvement Axes, record what the update revealed that the client should know (new debt goes to the Axes, never to the TAD).
+New findings of the model (debt, risks, questions) go to the Improvement Axes, never to the TAD; chapter 15 (Outlook) may point to them.
 
 Comments answered before the update (`review.tad.resolutions`) may no longer be true: re-read each one against the new behaviour and correct its answer.
 
-## 4. Build and report
+## 5. Review, build and report
 
 ```bash
-npx tadforce build --pdf --docx
+npx tadforce build --json
 ```
 
-0 errors. The HTML keeps its name: the comments readers left on the previous version are still in it. Report in a few lines: version `from → to`, the sections rewritten (with one line each on what changed), the questions still open. Ask the human to review the new version with `npx tadforce review`.
+The sources changed: the loop returns the `review` phase (an independent reviewer, focused on the rewritten sections), then `render`. 0 errors. The HTML keeps its name: the comments readers left on the previous version are still in it. Report in a few lines: version `from → to`, the sections rewritten (with one line each on what changed), the questions still open. Ask the human to review the new version with `npx tadforce review`.

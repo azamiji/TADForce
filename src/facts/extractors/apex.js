@@ -44,8 +44,7 @@ export function extractApex(roots) {
     const declKind = (/\b(class|interface|enum)\s+\w+/i.exec(decl) || [])[1]?.toLowerCase() || 'class';
     const isTest = /@istest\b/i.test(code.slice(0, Math.max(0, declIdx))) || (/@istest\b/i.test(code) && /Test$/i.test(name) && declKind === 'class');
     const sharing = (/\b(with|without|inherited)\s+sharing\b/i.exec(decl) || [])[1]?.toLowerCase() || (declKind === 'class' ? 'none' : 'n/a');
-    const noComments = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, '');
-    const rest = /@RestResource\s*\(\s*urlMapping\s*=\s*'([^']+)'/i.exec(noComments);
+    const rest = restMapping(code, strings);
     const kinds = KIND_RULES.filter(([, re]) => re.test(code)).map(([k]) => k);
     if (rest) kinds.push('rest');
     if (/\babstract\s+class\b/i.test(decl)) kinds.push('abstract');
@@ -59,7 +58,7 @@ export function extractApex(roots) {
       test: !!isTest,
       sharing: isTest ? 'n/a' : sharing,
       kinds: [...new Set(kinds)].sort(),
-      restUrl: rest ? rest[1] : null,
+      restUrl: rest,
       namedCredentials,
       userMode: (code.match(/\bWITH\s+USER_MODE\b|AccessLevel\.USER_MODE/gi) || []).length,
       securityEnforced: (code.match(/\bWITH\s+SECURITY_ENFORCED\b/gi) || []).length,
@@ -88,6 +87,18 @@ export function extractApex(roots) {
     });
   }
   return { classes, triggers };
+}
+
+/**
+ * urlMapping of @RestResource, read from the scanned code: comments are already gone and string literals
+ * are taken whole, so a mapping such as '/api/*' is never mistaken for the start of a comment.
+ */
+export function restMapping(code, strings) {
+  const m = /@RestResource\s*\(\s*urlMapping\s*=\s*''/i.exec(code);
+  if (!m) return null;
+  const idx = (code.slice(0, m.index + m[0].length - 2).match(/''/g) || []).length;
+  const url = String(strings[idx] ?? '').trim();
+  return /^\/\S{0,254}$/.test(url) ? url : null;
 }
 
 export function tokens(code) {

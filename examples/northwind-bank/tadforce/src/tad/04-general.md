@@ -2,7 +2,7 @@
 
 ## Context view {#general-context}
 
-@@FIGURE:context@@
+@@CONTEXT@@
 
 **Users.** Employees reach the platform through two Lightning console applications and log in with the corporate identity provider. Customers never log in to Salesforce: the mobile banking app calls an Apex REST service on their behalf.
 
@@ -25,7 +25,7 @@ Everything else — branches, loan applications, documents, scoring, Customer 36
 
 ## Logical architecture in layers {#general-layers}
 
-@@FIGURE:layers@@
+@@LAYERS@@
 
 | Layer | Components | Responsibility |
 |---|---|---|

@@ -1,6 +1,6 @@
 # Workflow — from an empty folder to a validated document
 
-Four commands: **doctor → build → review → update**. Run them from the root of the Salesforce DX project (the folder that holds, or will hold, `sfdx-project.json`). As an agent, always use `--json` and decide from the output.
+Four commands: **doctor → build → review → update**. `doctor` asks every human question; `build` then runs to the end without asking. Run them from the root of the Salesforce DX project (the folder that holds, or will hold, `sfdx-project.json`). As an agent, always use `--json` and decide from the output.
 
 ## 1. `doctor` — everything before the writing
 
@@ -14,14 +14,14 @@ npx tadforce doctor --json
 |---|---|
 | install the missing tools | `sf-cli` missing: you may run `npm install --global @salesforce/cli` after asking. Node or a browser missing: human action (or `npx @puppeteer/browsers install chrome-headless-shell@stable` + `TADFORCE_CHROME`) |
 | question `project` | Confirm with the human that this Salesforce project is the one to document → `--project yes`. Not in a project: `doctor` creates nothing; it proposes the projects found nearby → `--project <path>` (then always pass `--cwd <path>`), or `--project create` only if the human asks for a new project here |
+| framing questions | Block A of `questions.md`, in this order: language, integrator (the company writing the document) and its logo, final client and its logo, author, specifications, scope. One message, the recommended answer for each, « accept all » allowed → `--confirm --lang … --integrator …|none --integrator-logo <file|url>|none --client "…" --logo <file|url> --author …|none [--specs …|--no-specs] [--scope …]` |
 | question `org` | Show the org (alias, user, URL) and ask whether the TAD is about it → `--org <alias>`. Another org, or none connected: the human logs in (`sf org login web --alias <a> [--instance-url https://test.salesforce.com]`, it opens the browser), then ask again and pass `--org <a>`. No org at all: `--source local` |
-| framing questions | Block A of `questions.md`: one message, the recommended answer for each, « accept all » allowed → `--confirm --lang … --client "…" --integrator …|none --author …|none [--specs …|--no-specs] [--scope …]` |
 | question `source` | org (retrieve everything, read-only, several minutes), local, or self (the human retrieves first). The answer **is the go**: ask before passing `--source org` — the retrieve starts right away. `self`: wait until the human says the retrieve is done, then `--source local` |
 | question `branding` | Show the logo and colours found → `--branding keep`, or `--logo <file|url>` |
 | systems / exclusions / features | Blocks B, C and D of `questions.md`, recommended answers shown → write `knowledge/*.yml`, then `--facts-reviewed` (it recomputes the facts with your answers) |
-| `tadforce build` | Ready: write and build |
+| question `launch-build` | Everything is green: ask « Launch the build now? » → `--build yes` (then run the build loop, section 2) or `--build no` (stop; the human runs `npx tadforce build` later) |
 
-Run by a person in a terminal, a green `doctor` starts the AI agent found on the machine on `/tadforce` (`--agent claude|codex|gemini|cursor`, `--no-launch` to stop there). Run by you (`--json`, or inside an agent session), it never starts another agent: carry on with the writing.
+Run by a person in a terminal, a green `doctor` starts the AI agent found on the machine on `/tadforce` (`--agent claude|codex|gemini|cursor`, `--no-launch` to stop there). Run by you (`--json`, or inside an agent session), it never starts another agent: carry on with the build loop.
 
 What `doctor` does by itself, read-only:
 
@@ -43,33 +43,34 @@ Batch it: one script or one file write per kind (headings map, labels file), not
 
 ### Optional inputs
 
-- **Functional specifications** (`--specs`): copied into `knowledge/inputs/specs/`. Read them before chapters 3 and 5; they are evidence level P2/P3 (`evidence-rules.md`). They explain the *why*; the metadata still decides the *what*.
+- **Functional specifications** (`--specs`): copied into `knowledge/inputs/specs/`. The functional analyst reads them during the understanding, the writers before chapters 3 and 5; they are evidence level P2/P3 (`evidence-rules.md`). They explain the *why*; the metadata still decides the *what*.
 - **Scope** (`--scope`): name patterns of the components the project owns. Out-of-scope components disappear from facts, counts and tables; standard objects and org-wide components (profiles, roles, queues, reports) stay. Package directories: `--package-dirs force-app,core`.
 - **Quality inputs** (recommended): `platform-architecture-analyze` (Salesforce skill) for chapter 13 and the Improvement Axes; `dx-code-analyzer-run` → `tadforce/knowledge/inputs/code-analyzer-results.json`. See `salesforce-skills.md`.
 
-## 2. `build` — write, then build
-
-Write first:
+## 2. `build` — understand, write, review, render
 
 ```bash
-npx tadforce next --json
+npx tadforce build --json
 ```
 
-Loop until `remaining` is 0. For each section: spec → facts → code → content. Write the TAD first (chapters 1 to 15), then the Improvement Axes (`--doc axes`). Do not edit the generated tables: change the facts or the knowledge files instead.
+One command, called in a loop: it looks at the workspace and returns the **next phase** with self-contained work packages. Do them (in parallel subagents when you can, see `agents.md`), then call it again, until `phase: "render"`. Nothing is asked to the human during the loop.
 
-Efficient order: 6 Data → 7 Application → 8 UI → 9 Integrations → 10 Security → 11-13 → 5 Functional → 4 General → 1-3 (the summary is written last, from what you learned). Run `npx tadforce validate` every few sections.
+| `phase` | What happens | Reference |
+|---|---|---|
+| `understand` | The CLI builds the call graph (`facts/graph.json`). `stage: cards`: developer tasks (one card per component, by slices of connected components) and the functional-analyst task (actors, domains, lifecycles). `stage: processes`: the architect assembles the end-to-end processes. The parts in `understanding/parts/` are merged into `understanding/model.json` and validated; `stage: fix` lists what to correct (an unknown name is an error) | `understand.md` |
+| `write` | Groups of sections to write in parallel, stage by stage: chapters 6–13 · 5 · 4, 14, 15 · 2, 3 · 1 · the Improvement Axes. Each group: its files, the spec of each section, the slice of the model it is written from, the figure directives available | `style-guide.md`, `writing-rules.md` |
+| `review` | An independent reviewer reads the dry-built HTML and the sources against the model and the facts, fixes what it can prove, writes `understanding/review.json` | `agents.md` |
+| `render` | HTML always, PDF and Word as configured (`outputs.pdf`, `outputs.docx`, or `--pdf --docx`), validation, and `report`: open questions and review points left | — |
 
-Then build:
+The model is up to date as long as the code it was read from is: after `tadforce update`, only the slices whose files changed are read again. A change of the written sources asks for a new review.
 
-```bash
-npx tadforce build --pdf --docx      # HTML always; PDF and Word on demand
-```
-
-Fix every error reported by the validation (pending sections, unknown placeholders, excluded components, forbidden terms, broken anchors, Mermaid errors, possible secrets). Review warnings: an unknown identifier is either a typo, a package component (fine, say so) or a hallucination (remove it).
+Do not edit the generated tables: change the facts or the knowledge files instead. Fix every validation error (unknown placeholders, excluded components, forbidden terms, broken anchors, Mermaid errors, possible secrets), then `npx tadforce build --render-only --json`. Review warnings: an unknown identifier is either a typo, a package component (fine, say so) or a hallucination (remove it).
 
 The HTML keeps **one name across versions** (`out/TAD_<CODE>.html`): comments saved in it are carried into every rebuild. PDF and DOCX carry the version (`TAD_<CODE>_v1.0.pdf`) — they are archives.
 
-Hand over, briefly: where the files are, the score, what is *to be confirmed*, and how to review.
+Hand over, briefly: where the files are, the scores, the questions the metadata could not settle (`report.questions`), the review points left, and how to review.
+
+Run by a person in a terminal, `npx tadforce build` hands over to the installed agent while understanding, writing or review remain (`--agent <id>`, `--no-launch` to only print the phase and a preview). `--render-only` renders what is written, as in 0.4 (experts, CI). `--no-review` skips the review phase.
 
 ## 3. `review` — comments become fixes
 
@@ -83,7 +84,7 @@ Then `/tadforce-review` (skill `tadforce-review`): `npx tadforce review --json` 
 npx tadforce update --json
 ```
 
-Archives the previous facts in `facts/history/<date>/`, reads the org again (fresh snapshot), compares content fingerprints, bumps the version (`1.0 → 1.1`) with a line in the history, and returns the sections to review with the reasons (`changes`, `counts`, `sections[]` with file and anchor). Rewrite only those sections (skill `tadforce-update`), then `npx tadforce build`. Counts, tables, ERDs and appendices update by themselves.
+Archives the previous facts in `facts/history/<date>/`, reads the org again (fresh snapshot), compares content fingerprints, bumps the version (`1.0 → 1.1`) with a line in the history, and returns the sections to review with the reasons (`changes`, `counts`, `sections[]` with file and anchor). Rewrite only those sections (skill `tadforce-update`), then run the build loop (`npx tadforce build --json`): it reads again only the code that changed. Counts, tables, ERDs and appendices update by themselves.
 
 ## Advanced commands (CI, experts)
 

@@ -32,20 +32,7 @@ Leads come from three channels: the mobile banking app, the branches and the con
 - Leads waiting for the contact center are owned by the queue `Contact_Center_Leads`.
 - A converted lead can no longer change status: the validation rule `Lead_Locked_When_Converted` enforces it.
 
-```mermaid
-sequenceDiagram
-  participant M as Mobile banking app
-  participant A as LeadApiResource
-  participant T as LeadTriggerHandler
-  participant F as Lead_Assign_Branch
-  M->>A: POST /leads/v1 (name, channel)
-  A->>T: insert Lead (user mode)
-  T->>T: initialise Score__c
-  A-->>M: lead Id
-  T->>F: after save
-  F->>F: set Branch__c
-```
-Figure: Creation of a lead from the mobile banking app
+@@SEQ:lead-intake@@
 
 ## Loan applications {#fn-loans}
 
@@ -56,16 +43,7 @@ A loan application (`LoanApplication__c`) is created from the customer record (q
 - **Decision.** Each status change publishes a `LoanStatusChange__e` event. When the status becomes « Approved » or « Rejected », the documents are archived by `DocumentArchiveQueueable`.
 - **Documents.** Each document is a `LoanDocument__c` record, child of its application (master-detail), with its archive identifier (`ArchiveId__c`).
 
-```mermaid
-stateDiagram-v2
-  [*] --> Draft
-  Draft --> Submitted
-  Submitted --> Approved
-  Submitted --> Rejected
-  Approved --> [*]
-  Rejected --> [*]
-```
-Figure: Statuses of a loan application (values to be confirmed with the business team)
+@@STATE:loan-status|Statuses of a loan application (values to be confirmed with the business team)@@
 
 > [!INTEGRATOR]
 > Scoring rules are data, not code: the business team adjusts weights and criteria in `ScoringRule__mdt` without a release.

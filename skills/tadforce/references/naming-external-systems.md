@@ -28,5 +28,5 @@ allow: [customerId, offerCode]   # identifiers quoted on purpose that are not me
 2. Propose a name only when the host is unambiguous about a vendor (`*.twilio.com` → Twilio).
 3. Data teams, middleware and gateways are systems too: name them as the client does (« DATA », « API Gateway »).
 4. Inbound callers (connected apps, Apex REST) are systems as well: who calls `/leads/v1/*`?
-5. Once named, use the name everywhere — text, tables, sequence participants, flowchart nodes.
+5. Once named, use the name everywhere — text, tables, sequence participants, flowchart nodes, and the `external` participants of the understanding model (`understand.md`): the model validator rejects an external participant whose name is not in `glossary.yml › systems`. An endpoint still unnamed is shown by its component (the named credential), never by a guessed system name.
 6. Terms with `avoid` are checked by `tadforce validate` (whole words, case-insensitive).

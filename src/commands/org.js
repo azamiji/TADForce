@@ -6,6 +6,7 @@ import { loadWorkspace } from '../util/config.js';
 import { TEMPLATES } from '../util/paths.js';
 import { sfJson, sfInteractive, soql } from '../sf/sf.js';
 import { log } from '../util/log.js';
+import { retrieveCompleteness, EXPECTED_NON_EMPTY } from '../facts/coverage.js';
 
 function requireAlias(ctx, args) {
   const alias = args.org || ctx.cfg.org.alias;
@@ -206,7 +207,11 @@ export async function retrieve(args) {
       }
     }
   }
-  writeJson(ctx.p('.snapshot', 'retrieve-report.json'), { failed });
+  // completeness: per type asked, the files that came back; a type every org has that came back empty was missed
+  const check = retrieveCompleteness(types.map(nameOf), outDir, failed.map((x) => x.type));
+  const suspicious = check.empty.filter((t) => EXPECTED_NON_EMPTY.includes(t));
+  writeJson(ctx.p('.snapshot', 'retrieve-report.json'), { failed, types: check.byType, empty: check.empty, suspicious });
+  if (suspicious.length) log.warn(`Requested but nothing came back: ${suspicious.join(', ')} — every org has some. Their counts are « not collected » until the retrieve gets them (tadforce doctor --refresh).`);
   // a type the document is built on is missing: not a ready snapshot
   const lost = failed.filter((x) => x.core).map((x) => x.type);
   if (lost.length) { log.fail(`Not retrieved, and the document needs them: ${lost.join(', ')}. Run the retrieve again (tadforce doctor --refresh).`); return 1; }

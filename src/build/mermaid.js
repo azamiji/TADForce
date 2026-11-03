@@ -3,16 +3,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { TEMPLATES } from '../util/paths.js';
 import { getBrowser } from './browser.js';
+import { LEGEND } from './figures.js';
 
-// Shared colour classes for flowcharts: actors, Salesforce, external systems, data, warnings.
-export const CLASSDEFS = `
-classDef actor fill:#F1E8FF,stroke:#7B3FE4,color:#2A1458,stroke-width:1.2px
-classDef sf fill:#E8F1FF,stroke:#2F6FE4,color:#0B2545,stroke-width:1.2px
-classDef ext fill:#FFF2E2,stroke:#E0861F,color:#4A2A05,stroke-width:1.2px
-classDef data fill:#E7F6EC,stroke:#2E9E5B,color:#0E3B22,stroke-width:1.2px
-classDef warn fill:#FDECEF,stroke:#D6336C,color:#5A0A23,stroke-width:1.2px
-`;
+// The colour legend as Mermaid classes (actors, Salesforce, external systems, data, warnings): added to
+// every flowchart and state diagram, so `A["Advisor"]:::actor` needs no classDef in the source.
+export const CLASSDEFS = '\n' + Object.entries(LEGEND).map(([k, [fill, stroke, ink]]) => `classDef ${k} fill:${fill},stroke:${stroke},color:${ink},stroke-width:1.2px`).join('\n') + '\n';
 
+// One theme for every diagram: the legend colours (not the brand), one font, sizes that stay
+// readable once the figure is scaled to the A4 content width (≈ 690 px) in the PDF and in Word.
 export const MERMAID_CFG = {
   startOnLoad: false,
   theme: 'base',
@@ -22,31 +20,40 @@ export const MERMAID_CFG = {
   themeVariables: {
     fontFamily: 'Segoe UI, Arial, sans-serif',
     fontSize: '14px',
-    primaryColor: '#E8F1FF',
-    primaryBorderColor: '#2F6FE4',
-    primaryTextColor: '#0B2545',
+    primaryColor: LEGEND.sf[0],
+    primaryBorderColor: LEGEND.sf[1],
+    primaryTextColor: LEGEND.sf[2],
     lineColor: '#5B6B7D',
-    secondaryColor: '#F1E8FF',
+    secondaryColor: LEGEND.actor[0],
     tertiaryColor: '#F6F8FB',
     clusterBkg: '#F7F9FC',
     clusterBorder: '#C9D4E3',
-    actorBkg: '#E8F1FF',
-    actorBorder: '#2F6FE4',
-    actorTextColor: '#0B2545',
+    actorBkg: LEGEND.sf[0],
+    actorBorder: LEGEND.sf[1],
+    actorTextColor: LEGEND.sf[2],
+    actorLineColor: '#8A99AB',
     signalColor: '#33475B',
     signalTextColor: '#1B2632',
-    labelBoxBkgColor: '#F1E8FF',
-    labelBoxBorderColor: '#7B3FE4',
+    labelBoxBkgColor: '#FFFFFF',
+    labelBoxBorderColor: '#5B6B7D',
+    labelTextColor: '#1B2632',
+    loopTextColor: '#1B2632',
     noteBkgColor: '#FFF8E1',
     noteBorderColor: '#E0B000',
+    noteTextColor: '#3D2E00',
     activationBkgColor: '#DCE8FF',
     sequenceNumberColor: '#FFFFFF',
     edgeLabelBackground: '#FFFFFF',
+    labelBackgroundColor: '#FFFFFF',
+    stateBkg: LEGEND.data[0],
+    stateBorder: LEGEND.data[1],
+    transitionColor: '#5B6B7D',
+    transitionLabelColor: '#1B2632',
   },
-  flowchart: { htmlLabels: false, curve: 'basis', padding: 12, nodeSpacing: 40, rankSpacing: 50 },
-  sequence: { showSequenceNumbers: true, actorMargin: 40, messageFontSize: 13, wrap: true, width: 160 },
-  er: { fontSize: 13, layoutDirection: 'LR' },
-  state: { fontSize: 13 },
+  flowchart: { htmlLabels: false, curve: 'basis', padding: 12, nodeSpacing: 40, rankSpacing: 50, wrappingWidth: 180, useMaxWidth: true },
+  sequence: { showSequenceNumbers: true, mirrorActors: false, actorMargin: 36, width: 150, boxMargin: 8, messageFontSize: 14, actorFontSize: 14, noteFontSize: 13, wrap: true, useMaxWidth: true },
+  er: { fontSize: 13, layoutDirection: 'TB', useMaxWidth: true },
+  state: { fontSize: 14, useMaxWidth: true },
 };
 
 const MERMAID_JS = path.join(TEMPLATES, 'vendor', 'mermaid.min.js');

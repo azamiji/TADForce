@@ -48,4 +48,4 @@ The following components exist in the organization but are outside the documente
 - Salesforce terms in common use (Lead, Queue, Record Type, Permission Set, Named Credential…) are kept as is.
 - Diagrams share one colour code:
 
-@@ANNEX:legend@@
+@@LEGEND@@

@@ -38,7 +38,8 @@
     "cancel": "Annuler",
     "add": "Ajouter (Ctrl+Entrée)",
     "kpiMore": "Voir le détail →",
-    "pending": "Section à rédiger"
+    "pending": "Section à rédiger",
+    "notCollected": "non collecté"
   },
   "editor": {
     "cover": "Couverture",
@@ -108,7 +109,10 @@
     "axesConfidential": "Document interne de {integrator}. Ne pas diffuser au client sans relecture.",
     "generatedBy": "Généré avec TADForce",
     "confidentialSolo": "Document établi pour {client}. Diffusion restreinte.",
-    "axesConfidentialSolo": "Document interne de l'équipe projet. Ne pas diffuser au client sans relecture."
+    "axesConfidentialSolo": "Document interne de l'équipe projet. Ne pas diffuser au client sans relecture.",
+    "draft": "BROUILLON",
+    "draftStatus": "Brouillon",
+    "draftNote": "Brouillon — {n} contrôle(s) qualité encore en échec : ne pas diffuser."
   },
   "control": {
     "element": "Élément",
@@ -133,7 +137,13 @@
     "actor": "Acteurs : utilisateurs, populations, canaux",
     "sf": "Composants Salesforce",
     "ext": "Systèmes externes au CRM",
-    "data": "Données : objets, métadonnées, référentiels"
+    "data": "Données : objets, métadonnées, référentiels",
+    "short": {
+      "actor": "Acteurs",
+      "sf": "Salesforce",
+      "ext": "Systèmes externes",
+      "data": "Données"
+    }
   },
   "kpi": {
     "apps": "Applications Lightning",
@@ -173,7 +183,7 @@
     "rest": "{n} services Apex REST",
     "apps2": "{n} applications connectées",
     "caption": "Architecture logique en couches",
-    "servicesTitle": "Services"
+    "servicesTitle": "Services Apex"
   },
   "context": {
     "salesforce": "Organisation Salesforce",
@@ -186,7 +196,27 @@
     "callers": "Appelants externes",
     "rest": "REST",
     "objects": "{n} objets spécifiques",
-    "cmdt": "{n} types de Custom Metadata"
+    "cmdt": "{n} types de Custom Metadata",
+    "apps": "Applications",
+    "ui": "Interface utilisateur",
+    "logic": "Logique et automatisation",
+    "integration": "Intégration",
+    "lwc": "{n} LWC",
+    "aura": "{n} composants Aura",
+    "os": "{n} OmniScripts",
+    "vf": "{n} pages Visualforce",
+    "sites": "{n} sites Experience",
+    "flows": "{n} flows actifs",
+    "apex": "{n} classes Apex",
+    "triggers": "{n} triggers",
+    "ips": "{n} Integration Procedures",
+    "dms": "{n} Data Mappers",
+    "standard": "{n} objets standard",
+    "events": "{n} événements de plateforme",
+    "nc": "{n} Named Credentials",
+    "restApis": "{n} API entrantes (Apex REST)",
+    "connectedApps": "{n} Connected Apps",
+    "auth": "SSO : {name}"
   },
   "annex": {
     "type": "Type",
@@ -367,6 +397,14 @@
   },
   "figures": {
     "roles": "Hiérarchie des rôles",
-    "integrations": "Carte des intégrations"
+    "integrations": "Carte des intégrations",
+    "erd": "Modèle entités-relations",
+    "erdDomain": "Modèle de données — {domain}",
+    "seq": "Séquence — {process}",
+    "state": "Cycle de vie de {object} ({field})"
+  },
+  "erd": {
+    "md": "M-D",
+    "externalId": "ID externe"
   }
 }

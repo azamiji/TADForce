@@ -2,18 +2,23 @@
 
 The reader is an architect, an application owner, an operations or security engineer of the client, or a developer joining the project. They read it on screen, print it, and come back to it months later.
 
+Write from the understanding model (`tadforce/understanding/model.json`: domains, processes, lifecycles, component cards) and the facts; the patterns of each chapter are in `style-guide.md`.
+
 ## Voice
 
 - Present tense, as implemented: « The platform assigns… », not « will assign » or « should ».
 - Factual and positive. Describe what exists and why it was designed this way. No blame, no defect list, no « unfortunately ».
 - Precise and short: one idea per sentence; paragraphs of 2 to 5 sentences.
-- The integrator's design choices are highlighted in `> [!INTEGRATOR]` callouts, sparingly (one per chapter at most).
+- The integrator's design choices are highlighted in `> [!INTEGRATOR]` callouts: one per major mechanism, never more than one per section.
+- Only what is proven. No « to be confirmed », no « to be completed », no empty section: a doubt is a finding of the model (final report, Improvement Axes), not a sentence of the TAD.
 - No marketing words (« revolutionary », « seamless », « best-in-class »).
 
 ## Structure
 
 - Keep the skeleton: chapters, sections and anchors are the same for every org; that is what makes TADForce documents comparable.
-- Start each section with the sentence a reader needs if they read nothing else.
+- Start each chapter with a lead paragraph, and each section with the sentence a reader needs if they read nothing else.
+- Describe processes end to end: who starts them, the chain of components, what comes out — one paragraph, one figure (`@@SEQ:<processId>@@` or `@@STATE:<lifecycleId>@@`), one « Step | Mechanism » table.
+- Never write about a module, product or component the org does not have.
 - Prefer a table when you compare three or more items on the same attributes.
 - Lists: parallel grammar, no full stop for fragments, full stop for sentences.
 - Cross-reference with `{{ref:id}}` instead of repeating content (« see {{ref:annex-automation}} »).
@@ -44,4 +49,4 @@ Summary 1 page · chapters 2 to 4: 1 to 2 pages each · chapter 5: 1 page per do
 
 ## What never goes into the TAD
 
-Debt, risks, code smells, scores, recommendations, team or vendor names other than the client and the integrator, personal data, credentials, record IDs, org IDs, URLs with tokens, decommissioned features, excluded components.
+Debt, risks, code smells, scores, recommendations, the findings of the model, team or vendor names other than the client and the integrator, personal data, credentials, record IDs, org IDs, URLs with tokens, decommissioned features, excluded components, « to be confirmed » placeholders.

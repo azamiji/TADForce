@@ -6,6 +6,7 @@ import { exists, readText, readYaml, walk, toPosix } from '../util/fsx.js';
 import { loadWorkspace, sourceFlags } from '../util/config.js';
 import { TEMPLATES } from '../util/paths.js';
 import { loadFacts } from '../facts/index.js';
+import { sectionFilter } from '../facts/outline.js';
 import { resolveConditionals, get } from '../build/directives.js';
 import { DOCS } from '../build/render.js';
 import { log } from '../util/log.js';
@@ -77,6 +78,8 @@ export async function next(args) {
   if (!facts) { log.fail('Run `tadforce facts` first.'); return 1; }
   const scope = { modules: facts.modules, counts: facts.counts, org: facts.org, cfg: ctx.cfg, facts, glossary: ctx.glossary(), source: sourceFlags(ctx.cfg) };
   const docs = !args.doc || args.doc === 'all' ? DOCS : [args.doc];
+  // sections whose `when` is false describe something this org does not have: skipped
+  const isActive = sectionFilter(facts);
   let remaining = 0, first = null;
   for (const doc of docs) {
     const dir = ctx.p('src', doc);
@@ -85,6 +88,7 @@ export async function next(args) {
       const raw = readText(path.join(dir, f));
       const active = resolveConditionals(raw, scope);
       for (const m of active.matchAll(/<!--\s*tad:pending\s+([\w.-]+)\s*-->/g)) {
+        if (!isActive(m[1])) continue;
         remaining++;
         if (!first) {
           const line = raw.split('\n').findIndex((l) => l.includes(m[0])) + 1;

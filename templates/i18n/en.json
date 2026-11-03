@@ -38,7 +38,8 @@
     "cancel": "Cancel",
     "add": "Add (Ctrl+Enter)",
     "kpiMore": "See details →",
-    "pending": "Section to be written"
+    "pending": "Section to be written",
+    "notCollected": "not collected"
   },
   "editor": {
     "cover": "Cover",
@@ -108,7 +109,10 @@
     "axesConfidential": "Internal document of {integrator}. Not for distribution to the client without review.",
     "generatedBy": "Generated with TADForce",
     "confidentialSolo": "Document prepared for {client}. Restricted distribution.",
-    "axesConfidentialSolo": "Internal document of the project team. Not for distribution to the client without review."
+    "axesConfidentialSolo": "Internal document of the project team. Not for distribution to the client without review.",
+    "draft": "DRAFT",
+    "draftStatus": "Draft",
+    "draftNote": "Draft — {n} quality check(s) still fail: not for distribution."
   },
   "control": {
     "element": "Item",
@@ -133,7 +137,13 @@
     "actor": "Actors: users, populations, channels",
     "sf": "Salesforce components",
     "ext": "Systems outside the CRM",
-    "data": "Data: objects, metadata, reference data"
+    "data": "Data: objects, metadata, reference data",
+    "short": {
+      "actor": "Actors",
+      "sf": "Salesforce",
+      "ext": "External systems",
+      "data": "Data"
+    }
   },
   "kpi": {
     "apps": "Lightning applications",
@@ -173,7 +183,7 @@
     "rest": "{n} Apex REST services",
     "apps2": "{n} connected apps",
     "caption": "Logical architecture in layers",
-    "servicesTitle": "Services"
+    "servicesTitle": "Apex services"
   },
   "context": {
     "salesforce": "Salesforce organization",
@@ -186,7 +196,27 @@
     "callers": "External callers",
     "rest": "REST",
     "objects": "{n} custom objects",
-    "cmdt": "{n} Custom Metadata types"
+    "cmdt": "{n} Custom Metadata types",
+    "apps": "Applications",
+    "ui": "User interface",
+    "logic": "Logic and automation",
+    "integration": "Integration",
+    "lwc": "{n} LWC",
+    "aura": "{n} Aura components",
+    "os": "{n} OmniScripts",
+    "vf": "{n} Visualforce pages",
+    "sites": "{n} Experience sites",
+    "flows": "{n} active flows",
+    "apex": "{n} Apex classes",
+    "triggers": "{n} triggers",
+    "ips": "{n} Integration Procedures",
+    "dms": "{n} Data Mappers",
+    "standard": "{n} standard objects",
+    "events": "{n} platform events",
+    "nc": "{n} Named Credentials",
+    "restApis": "{n} inbound APIs (Apex REST)",
+    "connectedApps": "{n} Connected Apps",
+    "auth": "SSO: {name}"
   },
   "annex": {
     "type": "Type",
@@ -367,6 +397,14 @@
   },
   "figures": {
     "roles": "Role hierarchy",
-    "integrations": "Integration map"
+    "integrations": "Integration map",
+    "erd": "Entity-relationship model",
+    "erdDomain": "Data model — {domain}",
+    "seq": "Sequence — {process}",
+    "state": "Lifecycle of {object} ({field})"
+  },
+  "erd": {
+    "md": "M-D",
+    "externalId": "External ID"
   }
 }

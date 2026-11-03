@@ -473,10 +473,22 @@
     src.querySelectorAll('.cover .meta').forEach(function (k) {
       k.replaceWith(tableOf(Array.prototype.map.call(k.querySelectorAll('div'), function (d) { return ['<b>' + d.querySelector('b').textContent + '</b>', d.querySelector('span').innerHTML]; }), 'metat'));
     });
-    src.querySelectorAll('.cover-logos').forEach(function (k) { k.replaceWith(tableOf([[k.children[0] ? k.children[0].outerHTML : '', k.children[1] ? '<p style="text-align:right">' + k.children[1].outerHTML + '</p>' : '']], 'logot')); });
+    src.querySelectorAll('.cover-logos').forEach(function (k) { var li = k.querySelectorAll('img'); k.replaceWith(tableOf([[li[0] ? li[0].outerHTML : '', li[1] ? li[1].outerHTML : '']], 'logot')); });
     src.querySelectorAll('figure.diagram').forEach(function (f) {
-      var d = el('div'); d.innerHTML = '<p class="fig">' + (f.querySelector('img') ? f.querySelector('img').outerHTML : '') + '</p><p class="figcap">' + f.querySelector('figcaption').innerHTML + '</p>'; f.replaceWith(d);
+      // an image (diagram) or an HTML block turned into a table (layers): the caption stays under it
+      var cap = f.querySelector('figcaption'), im = f.querySelector('img'), d = el('div');
+      if (cap) cap.remove();
+      var bodyHtml = im ? '<p class="fig">' + im.outerHTML + '</p>' : (f.querySelector('.fig-body') || f).innerHTML;
+      d.innerHTML = bodyHtml + (cap ? '<p class="figcap">' + cap.innerHTML + '</p>' : ''); f.replaceWith(d);
     });
+    // a draft says so on every chapter (Word has no page watermark in this export)
+    if (document.body.classList.contains('draft')) {
+      var wm = document.querySelector('.watermark'), wl = wm ? wm.getAttribute('data-label') || wm.textContent : 'DRAFT';
+      var mk = function () { var p = el('p', wl); p.className = 'draftb'; return p; };
+      src.querySelectorAll('article.doc h1').forEach(function (h) { h.parentNode.insertBefore(mk(), h.nextSibling); });
+      var cv = src.querySelector('.cover'); if (cv) cv.insertBefore(mk(), cv.firstChild);
+    }
+    src.querySelectorAll('.nc').forEach(function (n) { n.outerHTML = '<i class="nc">' + n.innerHTML + '</i>'; });
     src.querySelectorAll('.fig-body').forEach(function (f) { var d = el('p'); d.className = 'fig'; d.innerHTML = f.innerHTML; f.replaceWith(d); });
     var ink = BRAND.primary || '#0B2545', th = BRAND.tableHeader || '#0f2a4d', acc = BRAND.accent2 || '#7B3FE4';
     var css = 'body{font-family:Calibri,"Segoe UI",Arial,sans-serif;font-size:10pt;color:#18212d}' +
@@ -486,6 +498,7 @@
       'code{font-family:Consolas,monospace;font-size:8pt;color:#3b2a8f}th code{color:#ffffff}.fig{text-align:center;margin:6pt 0 2pt}.figcap{text-align:center;font-style:italic;color:#5a6878;font-size:8.5pt;margin-bottom:10pt}' +
       'table.kpit td,table.cardt td{border:1px solid #d6dde8;background:#f7f9fc;padding:6pt}.kb{font-size:16pt;font-weight:bold;color:' + ink + ';margin:0}.ks{font-size:8.5pt;color:#5a6878;margin:0}' +
       'table.layert td{background:#E8F1FF;border:1px solid #c9d8f2}table.calloutt td{background:#f3efff;border:0;border-left:4px solid #8b5cf6;padding:6pt 8pt}.ct{font-weight:bold;color:#6d3fe0;font-size:8.5pt;text-transform:uppercase}' +
+      '.draftb{color:#C2185B;font-weight:bold;font-size:14pt;letter-spacing:3pt;text-align:center;border:2px solid #C2185B;padding:3pt;margin:4pt 0 8pt}.draft-note{color:#5A0A23;font-weight:bold}.nc{color:#6b7a8c}' +
       'table.metat td{border:1px solid #d6dde8}table.logot td{border:0}.kicker{color:' + acc + ';font-weight:bold;font-size:10pt;text-transform:uppercase;letter-spacing:1pt}.ctitle{font-size:26pt;color:' + ink + ';page-break-before:auto}.csub{font-size:13pt;color:#5a6878}.conf{font-size:8.5pt;color:#5a6878}.b{font-weight:bold}';
     var cover = src.querySelector('.cover'), doc = src.querySelector('article.doc');
     var body = (cover ? cover.innerHTML : '') + (doc ? doc.innerHTML : '');

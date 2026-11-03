@@ -1,10 +1,20 @@
 // `tadforce validate`: the gate between a draft and a deliverable.
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { exists, readText, readYaml } from '../util/fsx.js';
-import { TEMPLATES } from '../util/paths.js';
+import { TEMPLATES, PKG_ROOT } from '../util/paths.js';
+import { loadI18n, templateLang } from '../util/i18n.js';
 import { loadFacts } from '../facts/index.js';
-import { readComments } from '../build/render.js';
+import { readComments, reportFor, markDraft } from '../build/render.js';
+
+// Optional modules of the facts layer (absent in older trees): loaded once, skipped when missing.
+const optional = async (rel) => {
+  const file = path.join(PKG_ROOT, 'src', 'facts', rel);
+  if (!exists(file)) return null;
+  try { return await import(pathToFileURL(file).href); } catch { return null; }
+};
+const outlineMod = await optional('outline.js');
 
 // Identifiers that look like metadata names but are Salesforce vocabulary, not components.
 const COMMON = new Set(('Account Contact Lead Opportunity Case Task Event User Group Campaign CampaignMember Asset Contract Order Product2 Pricebook2 Individual Profile PermissionSet ' +
@@ -36,6 +46,30 @@ const SECRET_PATTERNS = [
 
 const COUNT_WORDS = /\b(\d{1,3}(?:[ ,.  ]\d{3})*|\d+)\s+(?:active\s+|actives?\s+)?(apex classes|classes apex|classes|triggers?|flows?|lwc|lightning web components|objects?|objets?|custom objects|permission sets?|permission set groups?|profiles?|profils?|roles?|rôles?|queues?|named credentials?|integration procedures?|omniscripts?|data mappers?|record types?|custom fields?|champs)\b/gi;
 
+// Filler that says « something will be written here », in the languages users write in.
+const FILLER = new RegExp([
+  'to be (?:completed|written|defined|determined|done|added|filled(?: in)?|documented|detailed)', 'coming soon', 'placeholder text', 'insert (?:text|content) here', 'xxx+',
+  'à (?:compléter|rédiger|définir|détailler|remplir)', 'en cours de rédaction', 'texte à venir',
+  'por (?:completar|definir|redactar|rellenar)', 'a (?:completar|definir|preencher)', 'pendiente de redactar',
+  'da (?:completare|definire|scrivere)', 'zu (?:ergänzen|definieren|vervollständigen)', 'folgt in Kürze', 'nog (?:in te vullen|aan te vullen)',
+].map((x) => `(?<![\\p{L}\\p{N}_])${x}(?![\\p{L}\\p{N}_])`).join('|'), 'iu');
+
+// count words of COUNT_WORDS → the facts.counts paths their number may equal
+const COUNT_PATHS = [
+  [/permission set groups?/i, ['security.permissionSetGroups']], [/permission sets?/i, ['security.permissionSets']],
+  [/apex classes|classes apex|classes/i, ['apex.classes']], [/triggers?/i, ['apex.triggers']], [/flows?/i, ['flows.active', 'flows.total']],
+  [/lwc|lightning web components/i, ['ui.lwc']], [/custom objects|objects?|objets?/i, ['objects.custom']], [/profiles?|profils?/i, ['security.profiles']],
+  [/roles?|rôles?/i, ['security.roles']], [/queues?/i, ['security.queues']], [/named credentials?/i, ['integration.namedCredentials']],
+  [/integration procedures?/i, ['omni.ipsActive', 'omni.ips']], [/omniscripts?/i, ['omni.scriptsActive', 'omni.scripts']], [/data mappers?/i, ['omni.dataMappers']],
+  [/record types?/i, ['recordTypes']], [/custom fields?|champs/i, ['fields.custom']],
+];
+const countPathsFor = (phrase) => {
+  const w = phrase.replace(/^[\d\s,.  ]+(?:active\s+|actives?\s+)?/i, '');
+  const e = COUNT_PATHS.find(([re]) => re.test(w));
+  return e ? e[1] : [];
+};
+const countValue = (facts, p) => p.split('.').reduce((o, k) => (o == null ? undefined : o[k]), facts.counts);
+
 /**
  * Validate the Markdown sources of a document (and its last build output when present).
  * Returns { errors, warnings, score }.
@@ -60,7 +94,11 @@ export function validateDocument(wsCtx, doc, { buildReport = null } = {}) {
   const specs = readYaml(path.join(TEMPLATES, 'specs', 'sections.yml'), {});
   const all = files.map((f) => ({ f, text: readText(path.join(srcDir, f)) }));
   const joined = all.map((x) => x.text).join('\n');
-  for (const anchor of (specs.requiredAnchors && specs.requiredAnchors[doc]) || []) {
+  // entries may be { id, when }: src/facts/outline.js resolves them when present, else ids are kept as is
+  const required = outlineMod && typeof outlineMod.requiredAnchors === 'function'
+    ? outlineMod.requiredAnchors(doc, facts)
+    : ((specs.requiredAnchors && specs.requiredAnchors[doc]) || []).map((a) => (a && typeof a === 'object' ? a.id : a)).filter(Boolean);
+  for (const anchor of required) {
     if (!new RegExp(`\\{[^}]*#${anchor}[\\s}]`).test(joined)) add('error', 'missing-section', `Required section #${anchor} was removed from the skeleton.`);
   }
 
@@ -75,6 +113,10 @@ export function validateDocument(wsCtx, doc, { buildReport = null } = {}) {
       if (pend && (!buildReport || buildReport.pending.includes(pend[1]))) add('error', 'pending', `Section "${pend[1]}" is not written yet.`, where);
       // upper-case markers as whole words only: « Método », « todo » (Spanish « all ») are text, not placeholders
       if (/(?<![\p{L}\p{N}_])(TODO|TBD|FIXME)(?![\p{L}\p{N}_])/u.test(line) || /lorem ipsum/i.test(line)) add('error', 'todo', 'Placeholder text left in the document.', where);
+      else if (!inCode) {
+        const fm = FILLER.exec(line.replace(/<!--[\s\S]*?-->/g, ''));
+        if (fm) add('error', 'filler', `"${fm[0].trim()}": filler text — write the content, or remove the sentence.`, where);
+      }
       for (const [id, re] of SECRET_PATTERNS) if (re.test(line)) add('error', 'secret', `Possible secret or org identifier (${id}).`, where);
       for (const a of avoid) if (new RegExp(`\\b${escapeRe(a.avoid)}\\b`, 'i').test(line)) add('error', 'terminology', `"${a.avoid}" must be written "${a.use}" (glossary).`, where);
       for (const fk of forbiddenFeatures) if (new RegExp(`\\b${escapeRe(fk.k)}\\b`, 'i').test(line)) add('error', 'decommissioned', `Mentions "${fk.k}" (decommissioned feature: ${fk.feature}).`, where);
@@ -82,7 +124,12 @@ export function validateDocument(wsCtx, doc, { buildReport = null } = {}) {
       // hard-coded counts next to component words (use {{n:...}} placeholders instead)
       if (!/^\s*```/.test(line)) {
         for (const m of line.replace(/\{\{[^}]+\}\}/g, '').replace(/`[^`]*`/g, '').matchAll(COUNT_WORDS)) {
-          if (Number(m[1].replace(/\D/g, '')) >= 2) add('warn', 'hardcoded-count', `"${m[0]}": use a {{n:…}} placeholder so the figure follows the facts.`, where);
+          const value = Number(m[1].replace(/\D/g, ''));
+          if (value < 2) continue;
+          // the number IS the count of the facts: it will be wrong after the next retrieve — an error
+          const hit = countPathsFor(m[0]).find((cp) => countValue(facts, cp) === value);
+          if (hit) add('error', 'hardcoded-count', `"${m[0]}" equals a known count: write {{n:${hit}}} so the figure follows the facts.`, where);
+          else add('warn', 'hardcoded-count', `"${m[0]}": use a {{n:…}} placeholder so the figure follows the facts.`, where);
         }
       }
       // identifiers in code font must exist in the inventory, and must not be excluded
@@ -124,4 +171,143 @@ function summarize(issues) {
   const warnings = issues.filter((i) => i.level !== 'error');
   const score = Math.max(0, 100 - errors.length * 5 - warnings.length);
   return { ok: errors.length === 0, errors, warnings, score };
+}
+
+// ---------------------------------------------------------------- quality gate (0.5)
+
+const KEY_CHAPTERS = { 'ch-functional': 'functional', 'ch-data': 'data', 'ch-application': 'application', 'ch-integration': 'integrations', 'ch-security': 'security' };
+const UNREADABLE = new Set(['overlap', 'too-small', 'render-error']);
+const strip = (h) => h.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;|&#160;/g, ' ').replace(/\s+/g, ' ').trim();
+const isRawCode = (s) => !!s && !/\s/.test(String(s).trim()) && (/_/.test(s) || /^[A-Z0-9.-]{2,}$/.test(String(s).trim()));
+
+/** The headings of the document body, with what stands between each one and the next. */
+export function sectionsOf(html) {
+  const body = (/<article class="doc">([\s\S]*)<\/article>/.exec(html) || [null, html])[1];
+  const hs = [...body.matchAll(/<h([1-3]) id="([^"]+)"[^>]*>([\s\S]*?)<\/h\1>/g)];
+  return hs.map((m, i) => {
+    const end = i + 1 < hs.length ? hs[i + 1].index : body.length;
+    const content = body.slice(m.index + m[0].length, end);
+    return { lvl: Number(m[1]), id: m[2], title: strip(m[3]).replace(/\s*#$/, ''), content, next: hs[i + 1] ? Number(hs[i + 1][1]) : 0 };
+  });
+}
+
+// heading anchor of each pending section of the skeletons: specs are matched to the built document through it
+const anchorCache = new Map();
+function skeletonAnchors(doc, lang) {
+  const key = doc + '/' + lang;
+  if (anchorCache.has(key)) return anchorCache.get(key);
+  const out = {};
+  const dir = path.join(TEMPLATES, doc, lang);
+  if (exists(dir)) {
+    for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.md')).sort()) {
+      let anchor = null;
+      for (const line of readText(path.join(dir, f)).split('\n')) {
+        const h = /^#{1,3} .*\{[^}]*#([\w-]+)[^}]*\}\s*$/.exec(line);
+        if (h) anchor = h[1];
+        const p = /<!--\s*tad:pending\s+([\w.-]+)\s*-->/.exec(line);
+        if (p && anchor) out[p[1]] = anchor;
+      }
+    }
+  }
+  anchorCache.set(key, out);
+  return out;
+}
+
+async function loadEvaluateWhen() {
+  const file = path.join(PKG_ROOT, 'src', 'facts', 'when.js');
+  if (!exists(file)) return null;
+  try { const m = await import(pathToFileURL(file).href); return typeof m.evaluateWhen === 'function' ? m.evaluateWhen : null; } catch { return null; }
+}
+
+/**
+ * The quality gate of a built document: validateDocument() plus the checks that make a document
+ * worth sending — no empty section, no filler, no section about a module the org does not have,
+ * a figure in each key chapter, readable figures (figureQA()), a cover that names the client, the
+ * author and the document. When an error remains and `mark` is true (default), the HTML file gets
+ * the DRAFT watermark and the draft status.
+ *
+ * @param ctx           workspace context (loadWorkspace)
+ * @param doc           'tad' | 'axes'
+ * @param opts.html     path of the built HTML (or its content: then nothing is marked)
+ * @param opts.figures  result of figureQA() ({ figures: [...] }) or its array; absent: figures not checked
+ * @param opts.report   build report of buildDocument() (found by HTML path when absent)
+ * @returns {Promise<{ ok, errors, warnings, score, draft, figures }>}
+ */
+export async function qualityGate(ctx, doc, { html = null, figures = null, report = null, mark = true } = {}) {
+  const isPath = typeof html === 'string' && !/[<\n]/.test(html) && exists(html);
+  const htmlText = isPath ? readText(html) : typeof html === 'string' ? html : '';
+  report = report || (isPath ? reportFor(html) : null);
+  if (!report && isPath) report = { html, problems: [], pending: [...htmlText.matchAll(/class="pending" data-section="([\w.-]+)"/g)].map((m) => m[1]) };
+  const base = validateDocument(ctx, doc, { buildReport: report && report.html ? report : null });
+  const issues = [...base.errors, ...base.warnings];
+  const add = (level, code, message, where) => issues.push({ level, code, message, where });
+  const facts = loadFacts(ctx.ws);
+  const { cfg } = ctx;
+  const { dict } = loadI18n(cfg.language, ctx.ws);
+
+  // code-font identifiers that are not in the metadata are errors in a deliverable
+  for (const i of issues) if (i.code === 'unknown-component') i.level = 'error';
+
+  if (htmlText && facts) {
+    const sections = sectionsOf(htmlText);
+    // empty sections: a heading followed by nothing but a heading of the same or a higher level
+    for (const s of sections) {
+      const hasContent = strip(s.content) || /<(figure|table|img|svg)\b|class="(kpis|cards|layers|legend|pending)"/.test(s.content);
+      if (!hasContent && (s.next === 0 || s.next <= s.lvl)) add('error', 'empty-section', `Section "${s.title}" is empty: write it, or remove the heading.`, `#${s.id}`);
+    }
+    // key chapters carry at least one figure
+    if (doc === 'tad') {
+      for (const [id, name] of Object.entries(KEY_CHAPTERS)) {
+        const i = sections.findIndex((s) => s.id === id);
+        if (i < 0) continue;
+        let j = i + 1;
+        let content = sections[i].content;
+        while (j < sections.length && sections[j].lvl > 1) content += sections[j++].content;
+        if (!/<figure\b|class="figcap"/.test(content)) add('error', 'chapter-without-figure', `The ${name} chapter has no figure: add the diagram that explains it (see figure-rules.md).`, `#${id}`);
+      }
+    }
+    // sections whose subject is absent from the org (sections.yml › when:)
+    const evaluateWhen = await loadEvaluateWhen();
+    if (evaluateWhen) {
+      const specs = (readYaml(path.join(TEMPLATES, 'specs', 'sections.yml'), {}).sections) || {};
+      const anchors = skeletonAnchors(doc, templateLang(cfg.language));
+      const ids = new Set(sections.map((s) => s.id));
+      for (const [id, spec] of Object.entries(specs)) {
+        if (!spec || !spec.when || (spec.doc && spec.doc !== doc)) continue;
+        let on = true;
+        try { on = !!evaluateWhen(spec.when, facts); } catch { continue; }
+        const anchor = spec.anchor || anchors[id];
+        if (!on && anchor && ids.has(anchor)) add('error', 'section-out-of-scope', `Section "${id}" (#${anchor}) is about something this org does not have (when: ${spec.when}): remove it.`, `#${anchor}`);
+      }
+    }
+    // cover: who it is for, by whom, and a real title
+    const cover = (/<section class="cover">([\s\S]*?)<\/section>/.exec(htmlText) || [null, ''])[1];
+    const client = cfg.client && cfg.client.name;
+    if (!client || !String(client).trim()) add('error', 'cover-client', 'The client name is missing (tadforce.config.json › client.name).');
+    else if (isRawCode(client) && client === cfg.client.short) add('warn', 'cover-client', `The client name "${client}" looks like a code: write the name the client uses.`);
+    if (isRawCode(cfg.document && cfg.document.title)) add('error', 'cover-title', `The document title "${cfg.document.title}" is a code, not a title (tadforce.config.json › document.title).`);
+    for (const m of cover.matchAll(/<div><b>([^<]*)<\/b><span>([\s\S]*?)<\/span><\/div>/g)) {
+      if (/^\s*(—|–|-)?\s*$/.test(strip(m[2]))) add('error', 'cover-empty-field', `Cover field "${m[1]}" is empty or « — »: fill it in tadforce.config.json, or leave the value out.`);
+    }
+  }
+
+  // figures: what the visual QA measured in the page
+  const figs = Array.isArray(figures) ? figures : figures && Array.isArray(figures.figures) ? figures.figures : null;
+  if (figs) {
+    for (const f of figs) {
+      for (const i of f.issues || []) {
+        const where = f.png ? path.relative(ctx.project || process.cwd(), f.png) : `#${f.id}`;
+        const name = `Figure ${f.n}${f.caption ? ` (${String(f.caption).slice(0, 70)})` : ''}`;
+        if (UNREADABLE.has(i.code)) add('error', 'figure-unreadable', `${name}: ${i.code} — ${i.detail}. Look at the PNG and simplify the figure.`, where);
+        else add('warn', 'figure-' + i.code, `${name}: ${i.detail}`, where);
+      }
+    }
+  }
+
+  const out = summarize(issues);
+  out.figures = figs ? figs.length : null;
+  out.draft = !out.ok;
+  if (!out.ok && mark && isPath) markDraft(html, dict, { errors: out.errors.length });
+  if (report) report.draft = out.draft;
+  return out;
 }

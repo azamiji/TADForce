@@ -101,6 +101,18 @@ async function connectedOrgs() {
   }
 }
 
+/**
+ * Recommended framing answers before the org is confirmed: read from the org named with --org, the workspace's,
+ * or the project's own default org when it is connected — never from a machine-wide default (another client's).
+ */
+async function framingProposals(project, ctx, args) {
+  if (ctx.cfg.source.mode === 'local') return {};
+  let alias = typeof args.org === 'string' ? args.org : ctx.cfg.org.alias;
+  if (!alias) { const def = await defaultOrg(project); alias = def && !def.global ? def.alias : null; }
+  if (!alias || !(await orgStatus(alias)).ok) return {};
+  return proposals(alias);
+}
+
 /** Org facts that give a recommended answer to the framing questions. */
 async function proposals(alias) {
   const out = {};
@@ -134,8 +146,17 @@ async function applyAnswers(ctx, args) {
   set(listArg(args.packageDirs), () => { cfg.scope.packageDirectories = listArg(args.packageDirs); });
   set(args.source && ['org', 'local', 'both'].includes(args.source), () => { cfg.source.mode = args.source; });
   if (typeof args.org === 'string') cfg.org.alias = args.org;
-  if (args.logo && args.logo !== true) cfg.client.logo = await importAsset(ctx, String(args.logo), 'client-logo');
-  if (args.integratorLogo && args.integratorLogo !== true) cfg.integrator.logo = await importAsset(ctx, String(args.integratorLogo), 'integrator-logo');
+  // a logo that cannot be found is a warning with its fix, never a crash of the whole doctor
+  const issues = { ...(cfg.setup.logoIssues || {}) };
+  const logo = async (value, key, name, set) => {
+    if (value === undefined || value === true) return;
+    if (value === false || value === '' || value === 'none') { set(null); delete issues[key]; return; }
+    try { set(await importAsset(ctx, String(value), name)); delete issues[key]; } catch (e) { issues[key] = e.message; }
+  };
+  await logo(args.logo, 'client', 'client-logo', (v) => { cfg.client.logo = v; if (v) cfg.setup.logoSearched = true; });
+  await logo(args.integratorLogo, 'integrator', 'integrator-logo', (v) => { cfg.integrator.logo = v; });
+  if (args.integratorLogo !== undefined) cfg.setup.integratorLogoAsked = true;
+  if (Object.keys(issues).length) cfg.setup.logoIssues = issues; else delete cfg.setup.logoIssues;
   if (listArg(args.specs)) {
     const kept = [];
     for (const s of listArg(args.specs)) {
@@ -159,14 +180,17 @@ async function applyAnswers(ctx, args) {
 async function importAsset(ctx, src, name) {
   let ext, bytes;
   if (/^https?:\/\//i.test(src)) {
-    const r = await fetch(src);
-    if (!r.ok) throw new Error(`Logo download failed (${r.status}): ${src}`);
+    let r;
+    try { r = await fetch(src); } catch (e) { throw new Error(`Logo URL cannot be reached (${e.cause?.code || e.message}): ${src} — check the address, or give a local file`); }
+    if (!r.ok) throw new Error(`Logo URL answered ${r.status}: ${src} — check the address, or give a local file`);
+    if (!/^image\//.test((r.headers.get('content-type') || '').split(';')[0]) && !/\.(svg|png|jpe?g|webp|gif)$/i.test(new URL(src).pathname)) throw new Error(`Logo URL is not an image (${r.headers.get('content-type') || 'no content type'}): ${src} — give the address of the image itself`);
     const type = (r.headers.get('content-type') || '').split(';')[0];
     ext = { 'image/svg+xml': '.svg', 'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp', 'image/gif': '.gif' }[type] || path.extname(new URL(src).pathname) || '.png';
     bytes = Buffer.from(await r.arrayBuffer());
   } else {
     const p = path.resolve(src);
-    if (!exists(p)) throw new Error(`Logo not found: ${src}`);
+    if (!exists(p)) throw new Error(`Logo file not found: ${src} (looked for ${p}) — give an absolute path, a path from ${process.cwd()}, or an https:// URL`);
+    if (!/\.(svg|png|jpe?g|webp|gif)$/i.test(p)) throw new Error(`Logo file is not an image (svg, png, jpg, webp, gif): ${p}`);
     ext = path.extname(p).toLowerCase(); bytes = fs.readFileSync(p);
   }
   const rel = `knowledge/assets/${name}${ext}`;
@@ -215,9 +239,19 @@ function factQuestions(ctx) {
   const qs = readJson(p);
   const out = [];
   for (const s of qs.systems || []) out.push({ id: `system:${s.key}`, kind: 'system', question: `Which system is ${s.key}? (name as the client calls it)`, recommended: '', endpoints: s.endpoints, writeTo: 'knowledge/glossary.yml › systems' });
-  for (const g of (qs.exclusions && qs.exclusions.groups) || []) out.push({ id: `exclude:${g.reason}`, kind: 'exclusion', question: `${g.count} component(s): ${g.reason}. Exclude from the document? (all / none / list of names)`, recommended: 'none', items: g.items, writeTo: 'knowledge/exclusions.yml › exclude' });
+  // what is surely not the project's own work (libraries, generated LWC, DevOps objects, demos, unused standard
+  // objects) is recommended « all »; mere suspicions (unplaced, inactive) stay « none »
+  for (const g of (qs.exclusions && qs.exclusions.groups) || []) out.push({ id: `exclude:${g.reason}`, kind: 'exclusion', question: `${g.count} component(s): ${g.reason}. Exclude from the document? (all / none / list of names)`, recommended: g.recommended === 'exclude' ? 'all' : 'none', items: g.items, writeTo: 'knowledge/exclusions.yml › exclude' });
+  for (const p of qs.packages || []) out.push({ id: `package:${p.name}`, kind: 'package', question: p.question, recommended: '', writeTo: 'knowledge/exclusions.yml › exclude' });
   out.push({ id: 'features', kind: 'features', question: 'Any feature decommissioned or switched off that the document must not describe? (blank: none)', recommended: '', writeTo: 'knowledge/exclusions.yml › features' });
   return out;
+}
+
+/** An exclusion answer (all / none / names) as exclusions.yml entries. */
+function exclusionEntries(q, answer) {
+  if (!answer || answer === 'none') return [];
+  const names = answer === 'all' || answer === 'exclude' ? q.items : answer.split(',').map((x) => x.trim()).filter(Boolean);
+  return names.map((it) => { const [type, ...rest] = it.includes(':') ? it.split(':') : [null, it]; return { name: rest.join(':') || it, ...(type ? { type } : {}), reason: q.id.slice(8) }; });
 }
 
 function editYaml(file, key, items) {
@@ -232,17 +266,20 @@ function editYaml(file, key, items) {
 async function askFacts(ctx, rl, questions) {
   const systems = [], exclude = [], features = [];
   log.step('What the metadata cannot tell:');
-  questions.forEach((q, i) => console.log(`  ${i + 1}. ${q.question}`));
-  console.log(`     ${c.dim('recommended: systems « to be confirmed » in the document, nothing excluded, no decommissioned feature')}`);
-  if (yes((await rl.question('  Accept the recommended answers? [Y/n] ')).trim())) return 0;
+  questions.forEach((q, i) => console.log(`  ${i + 1}. ${q.question}${q.items ? '\n     ' + c.dim(q.items.slice(0, 8).join(', ') + (q.items.length > 8 ? ` … +${q.items.length - 8}` : '')) : ''}${q.kind === 'exclusion' ? `\n     ${c.dim('recommended:')} ${c.bold(q.recommended)}` : ''}`));
+  const recommendedOut = questions.filter((q) => q.kind === 'exclusion' && q.recommended === 'all').reduce((n, q) => n + q.items.length, 0);
+  console.log(`     ${c.dim(`recommended: systems « to be confirmed » in the document, ${recommendedOut ? `${recommendedOut} component(s) that are not the project's own work excluded` : 'nothing excluded'}, no decommissioned feature`)}`);
+  if (yes((await rl.question('  Accept the recommended answers? [Y/n] ')).trim())) {
+    for (const q of questions.filter((x) => x.kind === 'exclusion')) exclude.push(...exclusionEntries(q, q.recommended));
+    if (exclude.length) editYaml(ctx.p('knowledge', 'exclusions.yml'), 'exclude', exclude);
+    return exclude.length;
+  }
   for (const q of questions) {
-    const a = (await rl.question(`  ${q.question}${q.items ? '\n    ' + c.dim(q.items.slice(0, 12).join(', ') + (q.items.length > 12 ? ` … +${q.items.length - 12}` : '')) : ''}${q.endpoints ? '\n    ' + c.dim(q.endpoints.join(', ')) : ''}\n  > `)).trim();
+    const a = (await rl.question(`  ${q.question}${q.items ? '\n    ' + c.dim(q.items.slice(0, 12).join(', ') + (q.items.length > 12 ? ` … +${q.items.length - 12}` : '')) : ''}${q.endpoints ? '\n    ' + c.dim(q.endpoints.join(', ')) : ''}${q.recommended ? `\n    ${c.dim('[' + q.recommended + ']')}` : ''}\n  > `)).trim() || (q.kind === 'exclusion' ? q.recommended : '');
     if (!a) continue;
     if (q.kind === 'system') systems.push({ id: a.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name: a, match: [q.id.slice(7)] });
-    if (q.kind === 'exclusion' && a !== 'none') {
-      const names = a === 'all' ? q.items : a.split(',').map((x) => x.trim()).filter(Boolean);
-      for (const it of names) { const [type, ...rest] = it.includes(':') ? it.split(':') : [null, it]; exclude.push({ name: rest.join(':') || it, ...(type ? { type: type.replace(/^object$/, 'object') } : {}), reason: q.id.slice(8) }); }
-    }
+    if (q.kind === 'exclusion') exclude.push(...exclusionEntries(q, a));
+    if (q.kind === 'package') for (const pat of a.split(',').map((x) => x.trim()).filter(Boolean)) exclude.push({ name: pat, reason: `package ${q.id.slice(8)} (installed without namespace)` });
     if (q.kind === 'features') features.push({ name: a, note: 'Decommissioned (confirmed during doctor)', components: [], keywords: [] });
   }
   if (systems.length) editYaml(ctx.p('knowledge', 'glossary.yml'), 'systems', systems);
@@ -251,14 +288,20 @@ async function askFacts(ctx, rl, questions) {
   return systems.length + exclude.length + features.length;
 }
 
-/** Framing questions (5 to 6), each with a recommended answer. Title and short code are derived. */
+/**
+ * Framing questions, each with a recommended answer, in the order of the cover: language, the integrator
+ * writing the document (name and logo), the final client (name and logo), then author, specifications, scope.
+ * Title and short code are derived.
+ */
 function framingQuestions(cfg, prop) {
   if (cfg.setup.confirmed) return [];
   const q = [];
   const ask = (id, question, recommended, extra = {}) => q.push({ id, question, recommended, ...extra });
   ask('lang', `Document language (${LANGUAGES.join(', ')} built in, or any code: es, de, it, pt, ar…)`, prop.language || cfg.language, { options: [...LANGUAGES, 'other'] });
-  ask('client', 'Client name, as it must appear in the document', prop.client || (cfg.client.name !== 'Client' ? cfg.client.name : ''));
-  ask('integrator', 'Integrator (blank: the document only names the client)', cfg.integrator.name || '', { optional: true });
+  ask('integrator', 'Integrator: the company writing the document (blank: the document only names the client)', cfg.integrator.name || '', { optional: true, flag: '--integrator' });
+  ask('integrator-logo', 'Integrator logo: a file or an https URL (blank: none, or the name as a badge)', cfg.integrator.logo || '', { optional: true, flag: '--integrator-logo' });
+  ask('client', 'Final client name, as it must appear in the document', prop.client || (cfg.client.name !== 'Client' ? cfg.client.name : ''), { flag: '--client' });
+  ask('logo', 'Client logo: a file or an https URL (blank: searched in the org metadata, confirmed after the retrieve)', cfg.client.logo || '', { optional: true, flag: '--logo' });
   ask('author', 'Author of the document (blank: no author shown)', cfg.document.author || '', { optional: true });
   ask('specs', 'Functional specifications to use, comma-separated paths (blank: none)', (cfg.inputs.specs || []).join(','), { optional: true });
   ask('scope', 'Part of the org to document, name patterns such as NWB_* (blank: the whole org)', (cfg.scope.include || []).join(','), { optional: true });
@@ -433,6 +476,35 @@ async function confirmBranding(ctx, args, rl, say) {
   return null;
 }
 
+// Metadata folders the document is built on: when one is missing, its counts read « not collected ».
+const CORE_FOLDERS = { classes: 'ApexClass', objects: 'CustomObject', flows: 'Flow', lwc: 'LightningComponentBundle', profiles: 'Profile', permissionsets: 'PermissionSet', permissionsetgroups: 'PermissionSetGroup', flexipages: 'FlexiPage', applications: 'CustomApplication', layouts: 'Layout' };
+
+/** Completeness of the metadata: types the retrieve asked for that came back empty, core folders absent from local sources. */
+function completenessChecks(ctx, hasFacts) {
+  const out = [];
+  const rr = ctx.p('.snapshot', 'retrieve-report.json');
+  const fromOrg = ctx.cfg.source.mode !== 'local' && exists(rr);
+  const suspicious = fromOrg ? readJson(rr).suspicious || [] : [];
+  if (suspicious.length) out.push({ id: 'retrieve-empty', message: `Requested from the org but nothing came back: ${suspicious.join(', ')} — every org has some; their counts read « not collected »`, fix: 'retrieve again: tadforce doctor --refresh (or check the permissions of the user: View Setup and Configuration, Modify Metadata through the Metadata API)', human: false });
+  if (hasFacts && !fromOrg) {
+    const f = readJson(ctx.p('facts', 'facts.json'));
+    const missing = Object.keys(CORE_FOLDERS).filter((k) => f.coverage && f.coverage[k] && !f.coverage[k].collected);
+    if (missing.length) out.push({ id: 'metadata-missing', message: `Not in the sources: ${missing.join(', ')} — their counts read « not collected », not 0`, fix: `retrieve them into the project (sf project retrieve start --metadata ${missing.map((k) => CORE_FOLDERS[k]).join(' --metadata ')}), or let TADForce retrieve everything: tadforce doctor --refresh --source org`, human: true });
+  }
+  return out;
+}
+
+/** Logos given but not usable: the path or URL and what to do. */
+function logoChecks(ctx) {
+  const out = [];
+  const issues = ctx.cfg.setup.logoIssues || {};
+  for (const [who, msg] of Object.entries(issues)) out.push({ id: `${who}-logo`, message: `${who === 'client' ? 'Client' : 'Integrator'} logo not used: ${msg}`, fix: `${who === 'client' ? '--logo' : '--integrator-logo'} <file|https URL> (or none)` });
+  for (const [who, rel] of [['client', ctx.cfg.client.logo], ['integrator', ctx.cfg.integrator.logo]]) {
+    if (rel && !issues[who] && !/^https?:/i.test(rel) && !exists(ctx.p(rel))) out.push({ id: `${who}-logo`, message: `${who === 'client' ? 'Client' : 'Integrator'} logo not found: ${rel} (looked for ${ctx.p(rel)})`, fix: `${who === 'client' ? '--logo' : '--integrator-logo'} <file|https URL> (or none), or put the file back` });
+  }
+  return out;
+}
+
 /** One pass: where the workspace stands, and what remains. */
 async function evaluate(project, args) {
   const tools = await checks(project);
@@ -471,6 +543,8 @@ async function evaluate(project, args) {
     const rr = ctx.p('.snapshot', 'retrieve-report.json');
     const lost = exists(rr) ? (readJson(rr).failed || []).filter((x) => x.core).map((x) => x.type) : [];
     if (lost.length) add('retrieve', true, `Not retrieved, the document needs them: ${lost.join(', ')}`, 'rerun the retrieve when the org is less busy: tadforce doctor --refresh', false, 'warn');
+    for (const x of completenessChecks(ctx, facts)) add(x.id, true, x.message, x.fix, x.human, 'warn');
+    for (const x of logoChecks(ctx)) add(x.id, true, x.message, x.fix, true, 'warn');
     if (facts) add('metadata', true, `Metadata: ${exists(ctx.p(ctx.cfg.source.dir)) && ctx.cfg.source.mode !== 'local' ? 'retrieved from the org' : 'local sources'} → facts/facts.json`);
   }
   return { tools, ws, cfg, list, facts };
@@ -507,24 +581,26 @@ export async function run(args) {
     await applyAnswers(ctx, args);
     ctx = loadWorkspace(project);
 
-    // 3. The org: the default one is proposed; « no » opens the login and asks again.
-    const o = await confirmOrg(project, ctx, args, rl);
-    if (!o.ok) return o.stop ? finish(args, await evaluate(project, args), [o.stop], `ask the human, then run '${again('--org <alias>')}' (or --source local)`) : 1;
-    ctx = loadWorkspace(project);
-
-    // 4. Framing: 6 questions, each with a recommended answer; « accept all » in one keystroke.
-    const prop = !ctx.cfg.setup.confirmed && ctx.cfg.org.alias && ctx.cfg.source.mode !== 'local' ? await proposals(ctx.cfg.org.alias) : {};
+    // 3. Framing first, in the order of the cover: language, integrator (name, logo), final client (name, logo),
+    // author, specifications, scope — each with a recommended answer; « accept all » in one keystroke.
+    const prop = !ctx.cfg.setup.confirmed ? await framingProposals(project, ctx, args) : {};
     const framing = framingQuestions(ctx.cfg, prop);
     if (framing.length) {
-      if (!rl) return finish(args, await evaluate(project, args), framing, `ask the human in one message (recommended answers shown; « accept all » is fine), then run '${again('--confirm --lang … --client "…" --integrator …|none --author …|none [--specs …|--no-specs] [--scope …]')}'`);
+      if (!rl) return finish(args, await evaluate(project, args), framing, `ask the human in one message (recommended answers shown; « accept all » is fine), then run '${again('--confirm --lang … --integrator …|none --integrator-logo <file|url>|none --client "…" [--logo <file|url>] --author …|none [--specs …|--no-specs] [--scope …]')}'`);
       const a = await askBatch(rl, 'A few facts only you can confirm:', framing);
       await applyAnswers(loadWorkspace(project), {
         confirm: true, lang: a.lang, client: a.client || undefined,
-        integrator: a.integrator || 'none', author: a.author || 'none',
-        specs: a.specs || false, scope: a.scope || undefined,
+        integrator: a.integrator || 'none', integratorLogo: a['integrator-logo'] || 'none', logo: a.logo || undefined,
+        author: a.author || 'none', specs: a.specs || false, scope: a.scope || undefined,
       });
       ctx = loadWorkspace(project);
+      for (const x of logoChecks(ctx)) say(() => log.warn(`${x.message}\n    fix: ${x.fix}`));
     }
+
+    // 4. The org: connected? shown and confirmed; none (or not the right one) → the Salesforce login, then asked again.
+    const o = await confirmOrg(project, ctx, args, rl);
+    if (!o.ok) return o.stop ? finish(args, await evaluate(project, args), [o.stop], `ask the human, then run '${again('--org <alias>')}' (or --source local)`) : 1;
+    ctx = loadWorkspace(project);
 
     // 5. Metadata: org, local or retrieved by the user — and a go before a long retrieve.
     if (!exists(ctx.p('facts', 'facts.json')) || args.refresh) {
@@ -560,20 +636,31 @@ export async function run(args) {
       const c2 = loadWorkspace(project); c2.cfg.setup.factsReviewed = true; c2.save(c2.cfg);
       if (changed) await quietly(args.json, () => docs.facts({ cwd: project, org: false }));
     }
-    // answers written to the knowledge files (systems, exclusions) change the facts: recompute once
+    // answers written to the knowledge files (systems, exclusions) change the facts: recompute once,
+    // and the outline with them (sections about what was excluded leave, never written text)
     const c3 = loadWorkspace(project);
-    if (c3.cfg.setup.factsDirty) {
-      await quietly(args.json, () => docs.facts({ cwd: project, org: false }));
+    if (c3.cfg.setup.factsDirty || fq.length) {
+      if (c3.cfg.setup.factsDirty) await quietly(args.json, () => docs.facts({ cwd: project, org: false }));
+      await quietly(args.json, () => docs.scaffold({ cwd: project }));
       const c4 = loadWorkspace(project); delete c4.cfg.setup.factsDirty; c4.save(c4.cfg);
     }
 
-    // 7. All green: say it, and offer to start the writing.
+    // 7. All green: ask whether to launch the build now (writing by the agent, then build and validation).
     const last = await evaluate(project, args);
     const translate = last.list.some((x) => x.id === 'language') ? 'first translate once (check « language »), then ' : '';
-    const code = finish(args, last, [], null, `${translate}write the sections: 'npx tadforce next --json --cwd "${project}"' (loop), then 'npx tadforce build --cwd "${project}"'`);
-    // CI, agents (--json) and agent sessions stop here; a person in a terminal is offered the writing.
-    if (code || args.json || args.launch === false || !process.stdin.isTTY || insideAgent()) return code;
-    return handOver(project, args, rl);
+    const writeNext = `${translate}loop on 'npx tadforce build --json --cwd "${project}"' (understand → write → review → render) until the phase is render`;
+    // a « yes » is remembered (later runs do not ask again); a « no » only means « not now »
+    const go = buildAnswer(args) ?? (!rl && last.cfg.setup.buildLaunched ? true : null);
+    if (go === true && !rl && !last.cfg.setup.buildLaunched) { const c5 = loadWorkspace(project); c5.cfg.setup.buildLaunched = true; c5.save(c5.cfg); }
+    if (args.json || !rl) {
+      if (last.list.some((x) => x.level === 'error')) return finish(args, last, [], null, writeNext);
+      if (go === null) return finish(args, last, [{ id: 'launch-build', question: 'Everything is ready. Launch the build of the document now (the agent writes the sections, then builds and validates)?', recommended: 'yes', options: ['yes', 'no'] }], `ask the human, then run '${again('--build yes|no')}'`);
+      return finish(args, last, [], null, go ? writeNext : `the human stops here for now: when ready, type /tadforce in the agent (or run '${again('--build yes')}')`);
+    }
+    const code = finish(args, last, [], null, writeNext);
+    // CI and agent sessions stop here; a person in a terminal is asked whether to launch the build now.
+    if (code || args.launch === false || !process.stdin.isTTY || insideAgent()) return code;
+    return handOver(project, args, rl, go);
   } finally {
     if (rl) rl.close();
   }
@@ -583,8 +670,9 @@ export async function run(args) {
  * Everything is green: offer to start the AI agent on the writing, in this terminal. The agent is chosen
  * once (--agent claude|codex|gemini|cursor) and remembered; --no-launch stops at the prerequisites.
  */
-async function handOver(project, args, rl) {
+async function handOver(project, args, rl, go = null) {
   const ctx = loadWorkspace(project);
+  if (go === false) { log.info(`Later: open your agent in ${project} and type /tadforce (or run tadforce doctor --build yes).`); return 0; }
   const found = installedAgents();
   const wanted = typeof args.agent === 'string' ? args.agent : ctx.cfg.setup.agent;
   let agent = found.find((a) => a.id === wanted) || (wanted ? null : found[0]);
@@ -593,7 +681,7 @@ async function handOver(project, args, rl) {
     return 0;
   }
   if (rl) {
-    if (!yes((await rl.question(`  Launch the writing of the document now with ${agent.name}? [Y/n] `)).trim())) {
+    if (go !== true && !yes((await rl.question(`  Everything is ready. Launch the build of the document now with ${agent.name} (it writes the sections, then builds and validates)? [Y/n] `)).trim())) {
       log.info(`Later: open your agent in ${project} and type /tadforce.`);
       rl.close(); return 0;
     }
@@ -606,6 +694,14 @@ async function handOver(project, args, rl) {
   ctx.cfg.setup.agent = agent.id; ctx.save(ctx.cfg);
   log.step(`Handing over to ${agent.name}: it writes the document, then builds and validates it…`);
   return launchAgent(agent, project);
+}
+
+/** --build yes|no (the answer to « launch-build »): true, false, or null when not answered. --yes accepts the recommended yes. */
+export function buildAnswer(args) {
+  const b = args.build;
+  if (b === undefined) return args.yes ? true : null;
+  if (b === false || /^(no|n|non|false|0)$/i.test(String(b))) return false;
+  return true;
 }
 
 /** In --json mode stdout carries only the answer: messages are dropped, or sent to stderr as progress. */

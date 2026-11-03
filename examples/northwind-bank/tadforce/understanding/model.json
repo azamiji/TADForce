@@ -1,0 +1,102 @@
+{
+  "_comment": "Fictional example of the understanding model (Northwind Bank is not a real company). Read by @@ERD-DOMAIN@@, @@SEQ@@, @@STATE@@ and @@CONTEXT@@.",
+  "actors": [
+    { "id": "advisor", "name": "Branch advisors", "kind": "employee" },
+    { "id": "manager", "name": "Branch managers", "kind": "employee" },
+    { "id": "agent", "name": "Contact center agents", "kind": "employee" },
+    { "id": "customer", "name": "Mobile app customers", "kind": "customer" }
+  ],
+  "domains": [
+    { "id": "customers", "name": "Customers, branches and leads", "objects": ["Account", "Branch__c", "Lead", "ContactAttempt__c"], "components": ["LeadTrigger", "Lead_Assign_Branch", "customer360"] },
+    { "id": "loans", "name": "Loan applications and their documents", "objects": ["LoanApplication__c", "LoanDocument__c", "Account", "Opportunity", "Branch__c"], "components": ["LoanApplicationTrigger", "LoanScoringService", "DocumentArchiveQueueable"] }
+  ],
+  "processes": [
+    {
+      "id": "lead-intake",
+      "name": "Creation of a lead from the mobile banking app",
+      "domain": "customers",
+      "participants": [
+        { "id": "mob", "label": "Mobile banking app", "kind": "external" },
+        { "id": "api", "label": "LeadApiResource", "kind": "component" },
+        { "id": "trg", "label": "LeadTriggerHandler", "kind": "component" },
+        { "id": "flow", "label": "Lead_Assign_Branch", "kind": "component" },
+        { "id": "lead", "label": "Lead", "kind": "object" }
+      ],
+      "steps": [
+        { "from": "mob", "to": "api", "label": "POST /leads/v1 (name, channel)", "async": false, "reply": false, "group": null },
+        { "from": "api", "to": "lead", "label": "insert Lead (user mode)", "async": false, "reply": false, "group": null },
+        { "from": "lead", "to": "trg", "label": "before insert", "async": false, "reply": false, "group": null },
+        { "from": "trg", "to": "lead", "label": "initialise Score__c", "async": false, "reply": false, "group": null },
+        { "from": "api", "to": "mob", "label": "lead Id", "async": false, "reply": true, "group": null },
+        { "from": "lead", "to": "flow", "label": "after save", "async": false, "reply": false, "group": null },
+        { "from": "flow", "to": "lead", "label": "set Branch__c", "async": false, "reply": false, "group": { "kind": "opt", "label": "branch known for the postal code" } }
+      ]
+    },
+    {
+      "id": "loan-status",
+      "name": "Propagation of a loan status change",
+      "domain": "loans",
+      "participants": [
+        { "id": "adv", "label": "Advisor", "kind": "actor" },
+        { "id": "trg", "label": "LoanApplicationTriggerHandler", "kind": "component" },
+        { "id": "bus", "label": "Event bus", "kind": "component" },
+        { "id": "notif", "label": "Loan_Status_Notification", "kind": "component" },
+        { "id": "arch", "label": "DocumentArchiveQueueable", "kind": "component" },
+        { "id": "store", "label": "Document store", "kind": "external" }
+      ],
+      "steps": [
+        { "from": "adv", "to": "trg", "label": "update Status__c", "async": false, "reply": false, "group": null },
+        { "from": "trg", "to": "bus", "label": "publish LoanStatusChange__e", "async": true, "reply": false, "group": null },
+        { "from": "bus", "to": "notif", "label": "event", "async": true, "reply": false, "group": null },
+        { "from": "notif", "to": "notif", "label": "create follow-up task", "async": false, "reply": false, "group": null },
+        { "from": "trg", "to": "arch", "label": "enqueue", "async": true, "reply": false, "group": { "kind": "alt", "label": "status: Approved or Rejected" } },
+        { "from": "arch", "to": "store", "label": "POST /archive", "async": false, "reply": false, "group": { "kind": "alt", "label": "status: Approved or Rejected" } },
+        { "from": "store", "to": "arch", "label": "archive identifier", "async": false, "reply": true, "group": { "kind": "alt", "label": "status: Approved or Rejected" } },
+        { "from": "trg", "to": "adv", "label": "saved, no archiving", "async": false, "reply": true, "group": { "kind": "alt", "label": "status: any other value" } }
+      ]
+    },
+    {
+      "id": "customer-sync",
+      "name": "Nightly synchronisation of the customer segment",
+      "domain": "customers",
+      "participants": [
+        { "id": "sch", "label": "Scheduler", "kind": "component" },
+        { "id": "batch", "label": "CustomerSyncBatch", "kind": "component" },
+        { "id": "client", "label": "CoreBankingClient", "kind": "component" },
+        { "id": "acc", "label": "Account", "kind": "object" },
+        { "id": "core", "label": "Core banking", "kind": "external" }
+      ],
+      "steps": [
+        { "from": "sch", "to": "batch", "label": "execute (batches of 50)", "async": true, "reply": false, "group": null },
+        { "from": "batch", "to": "client", "label": "positions(customer number)", "async": false, "reply": false, "group": { "kind": "loop", "label": "each customer of the batch" } },
+        { "from": "client", "to": "core", "label": "GET /customers/{n}/positions", "async": false, "reply": false, "group": { "kind": "loop", "label": "each customer of the batch" } },
+        { "from": "core", "to": "client", "label": "positions", "async": false, "reply": true, "group": { "kind": "loop", "label": "each customer of the batch" } },
+        { "from": "batch", "to": "acc", "label": "update Segment__c (partial success allowed)", "async": false, "reply": false, "group": null }
+      ]
+    }
+  ],
+  "lifecycles": [
+    {
+      "id": "loan-status",
+      "object": "LoanApplication__c",
+      "field": "Status__c",
+      "states": [
+        { "id": "draft", "label": "Draft" },
+        { "id": "submitted", "label": "Submitted" },
+        { "id": "incomplete", "label": "Documents missing" },
+        { "id": "approved", "label": "Approved" },
+        { "id": "rejected", "label": "Rejected" }
+      ],
+      "initial": "draft",
+      "final": ["approved", "rejected"],
+      "transitions": [
+        { "from": "draft", "to": "submitted", "label": "submit" },
+        { "from": "submitted", "to": "incomplete", "label": "document missing" },
+        { "from": "incomplete", "to": "incomplete", "label": "daily SMS reminder" },
+        { "from": "incomplete", "to": "submitted", "label": "documents received" },
+        { "from": "submitted", "to": "approved", "label": "decision" },
+        { "from": "submitted", "to": "rejected", "label": "decision" }
+      ]
+    }
+  ]
+}

@@ -2,7 +2,9 @@
 import path from 'node:path';
 import { t, formatNumber, formatDate } from '../util/i18n.js';
 import { exists, readText } from '../util/fsx.js';
-import { contextView, layersBlock } from './figures.js';
+import { contextView, layersBlock, rolesTree, legendHtml, figureHtml, esc } from './figures.js';
+import { erdModel, erdSvg, ERD_MAX } from './erd.js';
+import { sequenceCode, stateCode } from './diagrams.js';
 
 const cell = (v) => String(v ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
 const code = (v) => (v ? '`' + String(v).replace(/`/g, '') + '`' : '—');
@@ -18,6 +20,20 @@ export function get(obj, p) {
   return p.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
 }
 
+/**
+ * Counts the facts could not collect (facts.coverageByCount[path] === 'missing'): never printed as 0.
+ * Paths are those of {{n:…}}, relative to facts.counts (`apex.classes`); `counts.apex.classes` works too.
+ */
+export function countMissing(facts, p) {
+  const cov = facts && facts.coverageByCount;
+  if (!cov) return false;
+  const k = String(p).replace(/^counts\./, '');
+  return cov[k] === 'missing' || cov['counts.' + k] === 'missing';
+}
+
+/** A configured value that says nothing (empty, a dash, « none ») is treated as absent. */
+export const present = (v) => (v == null || /^\s*(—|–|-|none|n\/a|null)?\s*$/i.test(String(v)) ? null : v);
+
 const truthy = (v) => (Array.isArray(v) ? v.length > 0 : v && typeof v === 'object' ? Object.keys(v).length > 0 : !!v);
 
 /** <!-- tad:if modules.omnistudio --> … <!-- tad:else --> … <!-- tad:endif --> (nestable, `!` negates). */
@@ -25,7 +41,8 @@ export function resolveConditionals(text, scope) {
   const out = [];
   const stack = [];
   for (const line of text.split('\n')) {
-    const mIf = /^\s*<!--\s*tad:if\s+(!?)([\w.|]+)\s*-->\s*$/.exec(line);
+    // paths may name annex families with hyphens: facts.annexes.named-credentials.count
+    const mIf = /^\s*<!--\s*tad:if\s+(!?)([\w.|-]+)\s*-->\s*$/.exec(line);
     const mElse = /^\s*<!--\s*tad:else\s*-->\s*$/.test(line);
     const mEnd = /^\s*<!--\s*tad:endif\s*-->\s*$/.test(line);
     const active = stack.every((s) => s.on);
@@ -55,6 +72,10 @@ export function resolveIncludes(text, baseDir) {
 export function resolveValues(text, ctx, problems) {
   return text.replace(/\{\{(n|v|cfg):([\w.-]+)\}\}/g, (m, kind, p) => {
     const src = kind === 'cfg' ? ctx.cfg : ctx.facts;
+    if (kind === 'n' && countMissing(ctx.facts, p)) {
+      problems.push({ level: 'warn', code: 'count-not-collected', message: `${m} was not collected from the org: the document says « ${t(ctx.dict, 'ui.notCollected')} ». Collect it (tadforce facts --org) or rewrite the sentence.` });
+      return `<span class="nc">${esc(t(ctx.dict, 'ui.notCollected'))}</span>`;
+    }
     let v = kind === 'n' ? (get(ctx.facts.counts, p) ?? get(ctx.facts, p)) : get(src, p);
     if (kind === 'n' && Array.isArray(v)) v = v.length;
     if (v === undefined || v === null || v === '') {
@@ -73,35 +94,46 @@ function annexes(ctx) {
   const yes = A('yes'), no = A('no');
   const kindsLabel = (ks) => ks.filter((k) => dict.kinds[k]).map((k) => dict.kinds[k]).join(', ') || '—';
   const local = f.data.objects.filter((o) => !o.namespace);
-  const n = (x) => formatNumber(x, ctx.lang);
+  const nc = t(dict, 'ui.notCollected');
+  // a count that was not collected reads « not collected », never 0
+  const n = (x, p) => (p && countMissing(f, p) ? nc : formatNumber(x, ctx.lang));
+  const n2 = (a, pa, b, pb) => (countMissing(f, pa) && countMissing(f, pb) ? nc : `${n(a, pa)} / ${n(b, pb)}`);
   return {
     'doc-control': () => mdTable([t(dict, 'control.element'), t(dict, 'control.value')], [
       [t(dict, 'control.title'), `${ctx.docName || t(dict, 'meta.docName')} — ${cfg.document.title}`],
       [t(dict, 'control.reference'), ctx.doc === 'axes' ? cfg.document.reference + '-AX' : cfg.document.reference],
       [t(dict, 'control.client'), cfg.client.name],
-      ...(cfg.integrator.name ? [[t(dict, 'control.integrator'), cfg.integrator.name]] : []),
-      ...(cfg.document.author ? [[t(dict, 'control.preparedBy'), cfg.document.author]] : []),
-      [t(dict, 'control.version'), `${cfg.document.version}${cfg.document.status ? ' — ' + cfg.document.status : ''}`],
+      ...(present(cfg.integrator.name) ? [[t(dict, 'control.integrator'), cfg.integrator.name]] : []),
+      ...(present(cfg.document.author) ? [[t(dict, 'control.preparedBy'), cfg.document.author]] : []),
+      // the status lives in a span: a document that fails the quality gate gets the draft status there
+      [t(dict, 'control.version'), `${cfg.document.version}<span class="doc-status">${present(cfg.document.status) ? ' — ' + esc(cfg.document.status) : ''}</span>`],
       [t(dict, 'control.date'), formatDate(cfg.document.date, ctx.lang)],
       [t(dict, 'control.classification'), ctx.doc === 'axes' ? t(dict, 'doc.axesKicker') : cfg.document.classification],
       [t(dict, 'control.scope'), t(dict, cfg.source && cfg.source.mode === 'local' ? 'control.scopeValueLocal' : 'control.scopeValue', { environment: cfg.document.environment, client: cfg.client.name, date: formatDate(cfg.document.date, ctx.lang) })
         + (cfg.scope && (cfg.scope.include || []).length ? ' — ' + t(dict, 'control.scopeLimited', { scope: cfg.scope.label || cfg.scope.include.join(', ') }) : '')],
     ]),
-    'version-history': () => mdTable([t(dict, 'control.version'), t(dict, 'control.date'), t(dict, 'control.author'), t(dict, 'control.purpose')],
-      (cfg.document.history && cfg.document.history.length ? cfg.document.history : [{ version: cfg.document.version, date: cfg.document.date, author: [cfg.document.author, cfg.integrator.name].filter(Boolean).join(' — ') || '—', purpose: t(dict, 'control.firstVersion', { client: cfg.client.name }) }])
-        .map((h) => [h.version, formatDate(h.date, ctx.lang), h.author || '—', h.purpose])),
-    legend: () => `<div class="legend">\n<span class="lg actor">${t(dict, 'legend.actor')}</span>\n<span class="lg sf">${t(dict, 'legend.sf')}</span>\n<span class="lg ext">${t(dict, 'legend.ext')}</span>\n<span class="lg data">${t(dict, 'legend.data')}</span>\n</div>`,
-    'key-figures': () => mdTable([A('domain'), A('count')], [
-      [t(dict, 'keyfig.apps'), n(f.counts.ui.apps)], [t(dict, 'keyfig.pages'), n(f.counts.ui.flexipages)], [t(dict, 'keyfig.lwc'), n(f.counts.ui.lwc)],
-      ...(f.counts.ui.aura ? [[t(dict, 'keyfig.aura'), n(f.counts.ui.aura)]] : []), ...(f.counts.ui.vfPages ? [[t(dict, 'keyfig.vf'), n(f.counts.ui.vfPages)]] : []),
-      [t(dict, 'keyfig.classes'), n(f.counts.apex.classes)], [t(dict, 'keyfig.tests'), n(f.counts.apex.tests)], [t(dict, 'keyfig.triggers'), n(f.counts.apex.triggers)],
-      [t(dict, 'keyfig.flows'), `${n(f.counts.flows.active)} / ${n(f.counts.flows.total)}`],
-      ...(f.modules.omnistudio ? [[t(dict, 'keyfig.os'), n(f.counts.omni.scriptsActive)], [t(dict, 'keyfig.ips'), n(f.counts.omni.ipsActive)], [t(dict, 'keyfig.dms'), n(f.counts.omni.dataMappers)]] : []),
-      [t(dict, 'keyfig.objects'), n(f.counts.objects.custom)], [t(dict, 'keyfig.fields'), n(f.counts.fields.custom)], [t(dict, 'keyfig.cmdt'), `${n(f.counts.cmdt.types)} / ${n(f.counts.cmdt.records)}`],
-      [t(dict, 'keyfig.psg'), `${n(f.counts.security.permissionSetGroups)} / ${n(f.counts.security.permissionSets)}`], [t(dict, 'keyfig.roles'), n(f.counts.security.roles)],
-      [t(dict, 'keyfig.nc'), `${n(f.counts.integration.namedCredentials)} / ${n(f.counts.integration.externalCredentials)}`], [t(dict, 'keyfig.rest'), n(f.counts.integration.restResources)],
-      [t(dict, 'keyfig.reports'), `${n(f.counts.misc.reports)} / ${n(f.counts.misc.dashboards)}`],
-    ]),
+    'version-history': () => {
+      // no author anywhere: the column is left out (never a column of « — »)
+      const rows = cfg.document.history && cfg.document.history.length ? cfg.document.history : [{ version: cfg.document.version, date: cfg.document.date, author: [present(cfg.document.author), present(cfg.integrator.name)].filter(Boolean).join(' — '), purpose: t(dict, 'control.firstVersion', { client: cfg.client.name }) }];
+      const withAuthor = rows.some((h) => present(h.author));
+      return mdTable([t(dict, 'control.version'), t(dict, 'control.date'), ...(withAuthor ? [t(dict, 'control.author')] : []), t(dict, 'control.purpose')],
+        rows.map((h) => [h.version, formatDate(h.date, ctx.lang), ...(withAuthor ? [present(h.author) || ''] : []), h.purpose]));
+    },
+    legend: () => legendHtml(dict),
+    'key-figures': () => {
+      const k = f.counts;
+      return mdTable([A('domain'), A('count')], [
+        [t(dict, 'keyfig.apps'), n(k.ui.apps, 'ui.apps')], [t(dict, 'keyfig.pages'), n(k.ui.flexipages, 'ui.flexipages')], [t(dict, 'keyfig.lwc'), n(k.ui.lwc, 'ui.lwc')],
+        ...(k.ui.aura ? [[t(dict, 'keyfig.aura'), n(k.ui.aura, 'ui.aura')]] : []), ...(k.ui.vfPages ? [[t(dict, 'keyfig.vf'), n(k.ui.vfPages, 'ui.vfPages')]] : []),
+        [t(dict, 'keyfig.classes'), n(k.apex.classes, 'apex.classes')], [t(dict, 'keyfig.tests'), n(k.apex.tests, 'apex.tests')], [t(dict, 'keyfig.triggers'), n(k.apex.triggers, 'apex.triggers')],
+        [t(dict, 'keyfig.flows'), n2(k.flows.active, 'flows.active', k.flows.total, 'flows.total')],
+        ...(f.modules.omnistudio ? [[t(dict, 'keyfig.os'), n(k.omni.scriptsActive, 'omni.scriptsActive')], [t(dict, 'keyfig.ips'), n(k.omni.ipsActive, 'omni.ipsActive')], [t(dict, 'keyfig.dms'), n(k.omni.dataMappers, 'omni.dataMappers')]] : []),
+        [t(dict, 'keyfig.objects'), n(k.objects.custom, 'objects.custom')], [t(dict, 'keyfig.fields'), n(k.fields.custom, 'fields.custom')], [t(dict, 'keyfig.cmdt'), n2(k.cmdt.types, 'cmdt.types', k.cmdt.records, 'cmdt.records')],
+        [t(dict, 'keyfig.psg'), n2(k.security.permissionSetGroups, 'security.permissionSetGroups', k.security.permissionSets, 'security.permissionSets')], [t(dict, 'keyfig.roles'), n(k.security.roles, 'security.roles')],
+        [t(dict, 'keyfig.nc'), n2(k.integration.namedCredentials, 'integration.namedCredentials', k.integration.externalCredentials, 'integration.externalCredentials')], [t(dict, 'keyfig.rest'), n(k.integration.restResources, 'integration.restResources')],
+        [t(dict, 'keyfig.reports'), n2(k.misc.reports, 'misc.reports', k.misc.dashboards, 'misc.dashboards')],
+      ]);
+    },
     products: () => mdTable([A('product'), A('evidence')], [
       ...f.modules.clouds.map((x) => [x.name, x.evidence.map((e) => (e === 'metadata' ? A('evMetadata') : e.replace(/^(namespace|object) (.+)$/, (m0, k, v) => A(k === 'namespace' ? 'evNamespace' : 'evObject') + ' ' + code(v)))).join(', ')]),
       ...(f.modules.omniChannel && !f.modules.clouds.some((x) => x.id === 'serviceCloud') ? [['Omni-Channel', `${f.misc.signals.serviceChannels} service channels`]] : []),
@@ -147,7 +179,10 @@ function annexes(ctx) {
       return row;
     })),
     roles: () => mdTable([A('apiName'), A('label'), A('parent')], f.security.roles.map((r) => [code(r.name), r.label || '—', r.parent ? code(r.parent) : '—'])),
-    owd: () => mdTable([A('object'), A('owd')], local.filter((o) => o.sharingModel && ['custom', 'standard'].includes(o.kind)).map((o) => [code(o.name), `${o.sharingModel} / ${o.externalSharingModel || '—'}`])),
+    // facts.data.owd (project objects and the standard objects they use) when the facts provide it
+    owd: () => (Array.isArray(f.data.owd)
+      ? mdTable([A('object'), A('label'), A('owd')], f.data.owd.map((o) => [code(o.object), o.label || '—', `${o.internal || '—'} / ${o.external || '—'}`]))
+      : mdTable([A('object'), A('owd')], local.filter((o) => o.sharingModel && ['custom', 'standard'].includes(o.kind)).map((o) => [code(o.name), `${o.sharingModel} / ${o.externalSharingModel || '—'}`]))),
     'sharing-rules': () => mdTable([A('object'), A('rule'), A('kind'), A('access')], f.security.sharingRules.flatMap((s) => s.rules.map((r) => [code(s.object), code(r.name), r.kind, r.access || '—']))),
     queues: () => mdTable([A('apiName'), A('label'), A('object')], f.security.queues.map((q) => [code(q.name), q.label || '—', q.objects.map(code).join(', ') || '—'])),
     'named-credentials': () => mdTable([A('apiName'), A('label'), A('type'), A('endpoint'), A('externalCredential')], f.integration.namedCredentials.map((x) => [code(x.name), x.label || '—', x.type, x.host || '—', x.externalCredential ? code(x.externalCredential) : '—'])),
@@ -190,18 +225,23 @@ function signalTable(ctx, pillar) {
 
 // ---------------------------------------------------------------- ERD, figures, KPIs
 
-/** Mermaid ER diagram limited to Lookup / Master-Detail relationships between the given objects. */
+/** Objects of `@@ERD:auto@@`: the most connected objects documented here (never out-of-scope or excluded ones). */
+function autoObjects(facts, max = ERD_MAX) {
+  const byName = new Map(facts.data.objects.map((o) => [o.name, o]));
+  const degree = {};
+  for (const o of facts.data.objects.filter((x) => !x.namespace)) {
+    for (const r of o.relations) for (const to of r.to) { if (to === o.name || to === 'User' || to === 'Group' || !byName.has(to)) continue; degree[o.name] = (degree[o.name] || 0) + 1; degree[to] = (degree[to] || 0) + 1; }
+  }
+  return Object.entries(degree).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, max).map(([k]) => k);
+}
+
+/**
+ * Mermaid ER diagram limited to Lookup / Master-Detail relationships between the given objects.
+ * Kept for compatibility (and as a text form of the model); the documents draw ERDs with erdSvg().
+ */
 export function erd(facts, objectNames, caption) {
   const byName = new Map(facts.data.objects.map((o) => [o.name, o]));
-  let names = objectNames;
-  if (names.length === 1 && names[0] === 'auto') {
-    const degree = {};
-    for (const o of facts.data.objects.filter((x) => !x.namespace)) {
-      // only objects documented here: an out-of-scope or excluded target never becomes a box
-      for (const r of o.relations) for (const to of r.to) { if (to === o.name || to === 'User' || to === 'Group' || !byName.has(to)) continue; degree[o.name] = (degree[o.name] || 0) + 1; degree[to] = (degree[to] || 0) + 1; }
-    }
-    names = Object.entries(degree).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 12).map(([k]) => k);
-  }
+  const names = objectNames.length === 1 && objectNames[0] === 'auto' ? autoObjects(facts) : objectNames;
   const set = new Set(names);
   const lines = ['erDiagram'];
   const seen = new Set();
@@ -224,16 +264,18 @@ export function erd(facts, objectNames, caption) {
 }
 const ent = (n) => n.replace(/[^A-Za-z0-9_]/g, '_');
 
-function rolesFigure(facts, caption) {
-  const roles = facts.security.roles;
-  if (!roles.length) return '';
-  const id = new Map(roles.map((r, i) => [r.name, 'r' + i]));
-  const depth = (r, d = 0) => (d > 12 || !r.parent || !id.has(r.parent) ? d : depth(roles.find((x) => x.name === r.parent), d + 1));
-  const shown = roles.filter((r) => depth(r) <= (roles.length > 40 ? 2 : 5));
-  const lines = ['flowchart TB'];
-  for (const r of shown) lines.push(`  ${id.get(r.name)}["${(r.label || r.name).replace(/"/g, "'")}"]:::${r.parent ? 'sf' : 'data'}`);
-  for (const r of shown) if (r.parent && id.has(r.parent) && shown.some((s) => s.name === r.parent)) lines.push(`  ${id.get(r.parent)} --> ${id.get(r.name)}`);
-  return '```mermaid\n' + lines.join('\n') + '\n```\nFigure: ' + caption + '\n';
+/** ER diagram figure (SVG) of at most ERD_MAX objects. */
+export function erdFigure(ctx, names, caption, problems, where) {
+  let list = names.length === 1 && names[0] === 'auto' ? autoObjects(ctx.facts) : [...new Set(names)];
+  if (list.length > ERD_MAX) {
+    problems.push({ level: 'warn', code: 'erd-too-many', message: `${where}: ${list.length} objects, only the first ${ERD_MAX} are drawn — split the diagram by domain (@@ERD-DOMAIN:…@@).` });
+    list = list.slice(0, ERD_MAX);
+  }
+  const model = erdModel(ctx.facts, list, ctx.dict);
+  if (model.missing.length) problems.push({ level: 'warn', code: 'erd-unknown-object', message: `${where}: not in the metadata: ${model.missing.join(', ')}` });
+  const cap = caption || t(ctx.dict, 'figures.erd');
+  const svg = erdSvg(model, cap);
+  return svg ? figureHtml(svg, cap, 'erd') : '';
 }
 
 function integrationsFigure(facts, cfg, dict, caption) {
@@ -257,24 +299,48 @@ function integrationsFigure(facts, cfg, dict, caption) {
 function kpis(ctx) {
   const { facts: f, dict } = ctx;
   const n = (x) => formatNumber(x, ctx.lang);
+  const miss = (...ps) => ps.some((p) => countMissing(f, p));
   const tile = (href, value, label) => `<a class="kpi" href="#${href}"><b>${value}</b><span>${label}</span></a>`;
+  // a tile whose count was not collected is left out: a KPI is never « 0 » by lack of data
   const tiles = [
-    tile('annex-apps', n(f.counts.ui.apps), t(dict, 'kpi.apps')),
-    tile('annex-objects', n(f.counts.objects.custom), t(dict, 'kpi.objects')),
-    tile('annex-apex', n(f.counts.apex.classes), t(dict, 'kpi.classes', { tests: n(f.counts.apex.tests) })),
-    tile('annex-lwc', n(f.counts.ui.lwc), t(dict, 'kpi.lwc')),
-    f.modules.omnistudio && tile('annex-omnistudio', `${n(f.counts.omni.scriptsActive)} / ${n(f.counts.omni.ipsActive)}`, t(dict, 'kpi.omni')),
-    tile('annex-automation', n(f.counts.flows.active), t(dict, 'kpi.flows')),
-    f.counts.cmdt.records && tile('annex-cmdt', n(f.counts.cmdt.records), t(dict, 'kpi.cmdt', { types: n(f.counts.cmdt.types) })),
-    f.counts.integration.systems ? tile('annex-integration', n(f.counts.integration.systems), t(dict, 'kpi.systems')) : tile('annex-integration', n(f.counts.integration.namedCredentials + f.counts.integration.restResources), t(dict, 'kpi.integrations')),
+    !miss('ui.apps') && tile('annex-apps', n(f.counts.ui.apps), t(dict, 'kpi.apps')),
+    !miss('objects.custom') && tile('annex-objects', n(f.counts.objects.custom), t(dict, 'kpi.objects')),
+    !miss('apex.classes', 'apex.tests') && tile('annex-apex', n(f.counts.apex.classes), t(dict, 'kpi.classes', { tests: n(f.counts.apex.tests) })),
+    !miss('ui.lwc') && tile('annex-lwc', n(f.counts.ui.lwc), t(dict, 'kpi.lwc')),
+    f.modules.omnistudio && !miss('omni.scriptsActive', 'omni.ipsActive') && tile('annex-omnistudio', `${n(f.counts.omni.scriptsActive)} / ${n(f.counts.omni.ipsActive)}`, t(dict, 'kpi.omni')),
+    !miss('flows.active') && tile('annex-automation', n(f.counts.flows.active), t(dict, 'kpi.flows')),
+    f.counts.cmdt.records && !miss('cmdt.records', 'cmdt.types') && tile('annex-cmdt', n(f.counts.cmdt.records), t(dict, 'kpi.cmdt', { types: n(f.counts.cmdt.types) })),
+    f.counts.integration.systems ? !miss('integration.systems') && tile('annex-integration', n(f.counts.integration.systems), t(dict, 'kpi.systems'))
+      : !miss('integration.namedCredentials', 'integration.restResources') && tile('annex-integration', n(f.counts.integration.namedCredentials + f.counts.integration.restResources), t(dict, 'kpi.integrations')),
   ].filter(Boolean);
-  return `<div class="kpis">\n${tiles.join('\n')}\n</div>`;
+  return tiles.length ? `<div class="kpis">\n${tiles.join('\n')}\n</div>` : '';
 }
 
-/** Replace every @@DIRECTIVE@@ line by generated content. Unknown directives are reported. */
+/** The understanding model element a directive names; reports a missing model or an unknown id. */
+function modelItem(ctx, list, id, directive, problems) {
+  if (!ctx.model) {
+    problems.push({ level: 'warn', code: 'no-model', message: `${directive} needs tadforce/understanding/model.json (the understanding step): nothing drawn.` });
+    return null;
+  }
+  const item = (ctx.model[list] || []).find((x) => x && String(x.id) === id);
+  if (!item) problems.push({ level: 'error', code: 'unknown-model-id', message: `${directive}: no ${list.replace(/s$/, '')} "${id}" in understanding/model.json (known: ${(ctx.model[list] || []).map((x) => x.id).join(', ') || 'none'}).` });
+  return item || null;
+}
+
+const mermaidFigure = (code, caption) => '```mermaid\n' + code + '\n```\nFigure: ' + String(caption).replace(/\n/g, ' ') + '\n';
+
+/**
+ * Replace every @@DIRECTIVE@@ line by generated content. Unknown directives are reported.
+ *   @@ANNEX:<name>@@  @@KPIS@@  @@LEGEND@@  @@CONTEXT@@  @@LAYERS@@  @@ROLES[|caption]@@
+ *   @@ERD:A,B,…|caption@@  @@ERD-DOMAIN:<domainId>[|caption]@@  @@SEQ:<processId>[|caption]@@  @@STATE:<lifecycleId>[|caption]@@
+ *   @@FIGURE:context|layers|roles|integrations[|caption]@@ (aliases kept from 0.4)
+ */
 export function resolveDirectives(text, ctx, problems) {
   const A = annexes(ctx);
-  return text.replace(/^@@([A-Z]+)(?::([^@|]*))?(?:\|([^@]*))?@@[ \t]*$/gm, (m, kind, arg = '', caption = '') => {
+  const missing = (p) => countMissing(ctx.facts, p);
+  const context = (caption) => figureHtml(contextView(ctx.facts, ctx.glossary, ctx.cfg, ctx.dict, { model: ctx.model, missing }), caption || t(ctx.dict, 'context.caption'), 'context');
+  const roles = (caption) => { const s = rolesTree(ctx.facts, ctx.dict); return s ? figureHtml(s, caption || t(ctx.dict, 'figures.roles'), 'roles') : ''; };
+  return text.replace(/^@@([A-Z][A-Z-]*)(?::([^@|]*))?(?:\|([^@]*))?@@[ \t]*$/gm, (m, kind, arg = '', caption = '') => {
     arg = arg.trim(); caption = caption.trim();
     if (kind === 'ANNEX') {
       const fn = A[arg];
@@ -282,12 +348,39 @@ export function resolveDirectives(text, ctx, problems) {
       const out = fn();
       return out || `<p class="empty-annex">${t(ctx.dict, 'annex.none')}</p>`;
     }
-    if (kind === 'ERD') return erd(ctx.facts, arg.split(',').map((s) => s.trim()).filter(Boolean), caption);
+    if (kind === 'ERD') return erdFigure(ctx, arg.split(',').map((s) => s.trim()).filter(Boolean), caption, problems, m);
+    if (kind === 'ERD-DOMAIN') {
+      const d = modelItem(ctx, 'domains', arg, m, problems);
+      if (!d) return '';
+      const objs = (d.objects || []).map(String);
+      if (!objs.length) { problems.push({ level: 'warn', code: 'erd-empty-domain', message: `${m}: the domain "${arg}" lists no object.` }); return ''; }
+      return erdFigure(ctx, objs, caption || t(ctx.dict, 'figures.erdDomain', { domain: d.name || d.id }), problems, m);
+    }
+    if (kind === 'SEQ') {
+      const p = modelItem(ctx, 'processes', arg, m, problems);
+      if (!p) return '';
+      if (!(p.steps || []).length) { problems.push({ level: 'warn', code: 'seq-empty', message: `${m}: the process "${arg}" has no step.` }); return ''; }
+      const { code, warnings } = sequenceCode(p, ctx.dict);
+      for (const w of warnings) problems.push({ level: 'warn', code: 'model-inconsistent', message: `${m}: ${w}` });
+      return mermaidFigure(code, caption || t(ctx.dict, 'figures.seq', { process: p.name || p.id }));
+    }
+    if (kind === 'STATE') {
+      const lc = modelItem(ctx, 'lifecycles', arg, m, problems);
+      if (!lc) return '';
+      if (!(lc.states || []).length) { problems.push({ level: 'warn', code: 'state-empty', message: `${m}: the lifecycle "${arg}" has no state.` }); return ''; }
+      const { code, warnings } = stateCode(lc);
+      for (const w of warnings) problems.push({ level: 'warn', code: 'model-inconsistent', message: `${m}: ${w}` });
+      return mermaidFigure(code, caption || t(ctx.dict, 'figures.state', { object: lc.object || lc.id, field: lc.field || '' }).replace(/\s*\(\)\s*$/, ''));
+    }
     if (kind === 'KPIS') return kpis(ctx);
+    if (kind === 'LEGEND') return legendHtml(ctx.dict);
+    if (kind === 'CONTEXT') return context(caption);
+    if (kind === 'LAYERS') return layersBlock(ctx.facts, ctx.dict, { missing });
+    if (kind === 'ROLES') return roles(caption);
     if (kind === 'FIGURE') {
-      if (arg === 'context') return '<div class="fig-body hand">' + contextView(ctx.facts, ctx.glossary, ctx.cfg, ctx.dict) + '</div>\n<p class="figcap">Figure — ' + (caption || t(ctx.dict, 'context.caption')) + '</p>';
-      if (arg === 'layers') return layersBlock(ctx.facts, ctx.dict);
-      if (arg === 'roles') return rolesFigure(ctx.facts, caption || t(ctx.dict, 'figures.roles'));
+      if (arg === 'context') return context(caption);
+      if (arg === 'layers') return layersBlock(ctx.facts, ctx.dict, { missing });
+      if (arg === 'roles') return roles(caption);
       if (arg === 'integrations') return integrationsFigure(ctx.facts, ctx.cfg, ctx.dict, caption || t(ctx.dict, 'figures.integrations'));
       problems.push({ level: 'error', code: 'unknown-figure', message: `Unknown figure @@FIGURE:${arg}@@` });
       return '';

@@ -118,6 +118,10 @@ export async function run(args) {
   const newPrints = fingerprints(sourceDirs(ctx2));
   writeJson(ctx2.p('facts', 'fingerprints.json'), newPrints);
   const newFacts = readJson(ctx2.p('facts', 'facts.json'));
+  // the outline follows the org: sections about what appeared are added, pending ones about what is gone
+  // are removed; written ones are never deleted, they are listed to review
+  const outline = docs.syncOutline(ctx2);
+  for (const k of outline.kept) say(() => log.warn(`${k.file}: « ${k.id} » is written but the org no longer has what it describes — review it.`));
 
   // 3. What changed, and which sections it touches.
   const diff = diffFingerprints(oldPrints, newPrints);
@@ -133,7 +137,9 @@ export async function run(args) {
   const specs = readYaml(path.join(TEMPLATES, 'specs', 'sections.yml'), {}).sections || {};
   // sections still to write are not « to rewrite »: their first writing reads the new facts anyway
   const srcText = (file) => (exists(ctx2.p(file)) ? readText(ctx2.p(file)) : '');
+  const active = new Set(newFacts.outline || Object.keys(specs));
   const sections = affectedSections(areas, specs, sectionLocations(templateLang(ctx2.cfg.language)))
+    .filter((x) => active.has(x.id) || outline.kept.some((k) => k.id === x.id))
     .filter((x) => !x.file || !new RegExp(`<!--\\s*tad:pending\\s+${x.id.replace(/\./g, '\\.')}\\s*-->`).test(srcText(x.file)));
   const upToDate = !(diff.added.length + diff.changed.length + diff.removed.length) && !Object.keys(counts).length;
 
@@ -160,7 +166,7 @@ export async function run(args) {
     cfg.document.history = [...history, { version: cfg.document.version, date: stamp, author: by, purpose }];
     ctx2.save(cfg);
   }
-  const report = { upToDate, from, to: cfg.document.version, changes: diff, counts, sections, next: upToDate ? null : sections.length ? 'rewrite the sections whose relevance is « components » from the new facts (keep heading and anchor); check the « counts » ones for numbers written in the text; then `npx tadforce build`' : `npx tadforce build --cwd "${ctx2.project}"` };
+  const report = { upToDate, from, to: cfg.document.version, changes: diff, counts, sections, outline: { added: outline.added, removed: outline.removed, review: outline.kept }, next: upToDate ? null : sections.length ? 'rewrite the sections whose relevance is « components » from the new facts (keep heading and anchor); check the « counts » ones for numbers written in the text; then `npx tadforce build`' : `npx tadforce build --cwd "${ctx2.project}"` };
   // a rerun before the rewrite and the build keeps the work to do of the previous update
   const prevFile = ctx2.p('facts', 'update.json');
   const prev = exists(prevFile) ? readJson(prevFile) : null;

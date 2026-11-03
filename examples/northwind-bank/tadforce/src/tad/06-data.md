@@ -19,7 +19,7 @@ The customer (`Account`) is the centre of the model: its branch, its loan applic
 
 ### Customers and branches {#data-customers}
 
-@@ERD:Account,Branch__c,Lead,ContactAttempt__c|Customers, branches and leads@@
+@@ERD-DOMAIN:customers@@
 
 | Object | Role | Key fields |
 |---|---|---|
@@ -30,7 +30,7 @@ The customer (`Account`) is the centre of the model: its branch, its loan applic
 
 ### Loans {#data-loans}
 
-@@ERD:LoanApplication__c,LoanDocument__c,Account,Opportunity,Branch__c|Loan applications and their documents@@
+@@ERD-DOMAIN:loans@@
 
 | Object | Role | Key fields |
 |---|---|---|
