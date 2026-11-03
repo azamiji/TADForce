@@ -113,6 +113,22 @@ export async function manifest(args) {
   return 0;
 }
 
+/** A folder the CLI writes into: outDir itself, unless a folder of its path (from the project root) is hidden. */
+export function stagingDir(ctx, outDir) {
+  const hidden = (p) => path.relative(ctx.project, p).split(/[\\/]/).some((seg) => seg.startsWith('.') && seg !== '.' && seg !== '..');
+  if (!hidden(outDir)) return outDir;
+  return path.join(hidden(ctx.ws) ? ctx.project : ctx.ws, 'retrieve-staging');
+}
+
+/** Move every file of `from` into `to`, replacing what is there (a later batch wins). */
+export function moveTree(from, to) {
+  if (!exists(from)) return;
+  for (const e of fs.readdirSync(from, { withFileTypes: true })) {
+    const a = path.join(from, e.name), b = path.join(to, e.name);
+    if (e.isDirectory()) { fs.mkdirSync(b, { recursive: true }); moveTree(a, b); } else { fs.mkdirSync(to, { recursive: true }); fs.rmSync(b, { force: true }); fs.renameSync(a, b); }
+  }
+}
+
 /** Retrieve the manifest into tadforce/.snapshot/source, type batch by type batch. force-app is never touched. */
 export async function retrieve(args) {
   const ctx = loadWorkspace(args.cwd || process.cwd());
@@ -131,10 +147,17 @@ export async function retrieve(args) {
   const failed = [];
   const nameOf = (b) => /<name>([^<]+)<\/name>/.exec(b)[1];
   const typeXml = (name, members) => `    <types>\n${members.map((m) => `        <members>${m}</members>`).join('\n')}\n        <name>${name}</name>\n    </types>`;
+  // The Salesforce CLI silently writes nothing (« Succeeded », 0 files) when --output-dir sits in a hidden folder
+  // (.snapshot): each batch lands in a visible staging folder of the workspace, then moves into the snapshot.
+  const staging = stagingDir(ctx, outDir);
   const runBatch = async (batch, label, minutes) => {
     const p = ctx.p('.snapshot', 'batch.xml');
     writeText(p, `<?xml version="1.0" encoding="UTF-8"?>\n<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n${batch.join('\n')}\n    <version>${version}</version>\n</Package>\n`);
-    await sfJson(['project', 'retrieve', 'start', '--manifest', p, '--target-org', alias, '--output-dir', outDir, '--wait', String(minutes), '--ignore-conflicts'], { timeoutMs: (minutes + 2) * 60000, cwd: ctx.project });
+    if (staging !== outDir) fs.rmSync(staging, { recursive: true, force: true });
+    try {
+      await sfJson(['project', 'retrieve', 'start', '--manifest', p, '--target-org', alias, '--output-dir', staging, '--wait', String(minutes), '--ignore-conflicts'], { timeoutMs: (minutes + 2) * 60000, cwd: ctx.project });
+      if (staging !== outDir) moveTree(staging, outDir);
+    } finally { if (staging !== outDir) fs.rmSync(staging, { recursive: true, force: true }); }
     if (label) log.ok(label);
   };
   // the CLI stopped waiting (« The client has timed out »): the job was too big for one retrieve

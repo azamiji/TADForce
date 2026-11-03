@@ -79,7 +79,7 @@ export function ensureWorkspace(project, cfg) {
   if (!exists(path.join(ws, 'knowledge', 'glossary.yml'))) writeText(path.join(ws, 'knowledge', 'glossary.yml'), GLOSSARY);
   if (!exists(path.join(ws, 'knowledge', 'exclusions.yml'))) writeText(path.join(ws, 'knowledge', 'exclusions.yml'), EXCLUSIONS);
   if (!exists(path.join(ws, 'knowledge', 'inputs', 'README.md'))) writeText(path.join(ws, 'knowledge', 'inputs', 'README.md'), '# Inputs\n\nDrop here what the metadata cannot tell: functional specifications (`specs/`), previous architecture documents, a Code Analyzer report (`code-analyzer-results.json`), decisions. They are read by the agent, never published as such.\n');
-  if (!exists(path.join(ws, '.gitignore'))) writeText(path.join(ws, '.gitignore'), '.snapshot/\n.cache/\nout/*_comments_*.html\nout/figures/\nunderstanding/tasks/\nunderstanding/tasks.json\n');
+  if (!exists(path.join(ws, '.gitignore'))) writeText(path.join(ws, '.gitignore'), '.snapshot/\n.cache/\nout/*_comments_*.html\nout/figures/\nunderstanding/tasks/\nunderstanding/tasks.json\nretrieve-staging/\n');
   return ws;
 }
 
