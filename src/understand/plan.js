@@ -81,7 +81,7 @@ export function lifecycleCandidates(dirs, facts) {
   for (const f of files(roots, 'globalValueSets', '.globalValueSet-meta.xml')) globals.set(path.basename(f, '.globalValueSet-meta.xml'), arr(readXml(f).customValue).map((v) => str(v.fullName)).filter(Boolean));
   const standards = new Map();
   for (const f of files(roots, 'standardValueSets', '.standardValueSet-meta.xml')) standards.set(path.basename(f, '.standardValueSet-meta.xml'), arr(readXml(f).standardValue).map((v) => str(v.fullName)).filter(Boolean));
-  const STANDARD = { 'Lead.Status': 'LeadStatus', 'Case.Status': 'CaseStatus', 'Opportunity.StageName': 'OpportunityStage', 'Contract.Status': 'ContractStatus', 'Order.Status': 'OrderStatus', 'Solution.Status': 'SolutionStatus', 'Task.Status': 'TaskStatus' };
+  const STANDARD = { 'Lead.Status': 'LeadStatus', 'Case.Status': 'CaseStatus', 'Opportunity.StageName': 'OpportunityStage', 'Contract.Status': 'ContractStatus', 'Order.Status': 'OrderStatus', 'Solution.Status': 'SolutionStatus', 'Task.Status': 'TaskStatus', 'Campaign.Status': 'CampaignStatus', 'WorkOrder.Status': 'WorkOrderStatus', 'Quote.Status': 'QuoteStatus' };
   const paths = new Map();
   for (const f of files(roots, 'pathAssistants', '.pathAssistant-meta.xml')) {
     const x = readXml(f);
