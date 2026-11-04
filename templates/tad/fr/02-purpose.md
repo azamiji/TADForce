@@ -15,14 +15,16 @@
 ## Méthode d'élaboration {#method}
 
 <!-- tad:if source.local -->
-Le présent document décrit l'architecture **telle qu'elle est mise en œuvre** dans le projet Salesforce DX de {{cfg:client.name}}, état au {{cfg:document.date}}. Il a été établi à partir des sources de métadonnées du projet
+Le présent document décrit l'architecture **telle qu'elle est mise en œuvre** dans le projet Salesforce DX de {{cfg:client.name}}, état au {{cfg:document.date}}. Il a été établi à partir des sources de métadonnées du projet.
 <!-- tad:else -->
-Le présent document décrit l'architecture **telle qu'elle est mise en œuvre** dans l'organisation Salesforce de {{cfg:client.name}} ({{cfg:document.environment}}), état au {{cfg:document.date}}. Il a été établi à partir des métadonnées de l'organisation, récupérées en lecture seule,
+Le présent document décrit l'architecture **telle qu'elle est mise en œuvre** dans l'organisation Salesforce de {{cfg:client.name}} ({{cfg:document.environment}}), état au {{cfg:document.date}}. Il a été établi à partir des métadonnées de l'organisation, récupérées en lecture seule.
 <!-- tad:endif -->
+<!-- tad:if cfg.inputs.specs -->
 <!-- tad:if cfg.integrator.name -->
-et des éléments fournis par {{cfg:client.name}} et {{cfg:integrator.name}}.
+Il s'appuie également sur les éléments fournis par {{cfg:client.name}} et {{cfg:integrator.name}}.
 <!-- tad:else -->
-et des éléments fournis par {{cfg:client.name}}.
+Il s'appuie également sur les éléments fournis par {{cfg:client.name}}.
+<!-- tad:endif -->
 <!-- tad:endif -->
 
 <!-- tad:if cfg.scope.include -->

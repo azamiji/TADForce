@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { exists, readText, writeText, writeJson } from '../util/fsx.js';
-import { loadWorkspace } from '../util/config.js';
+import { loadWorkspace, runnerOf } from '../util/config.js';
 import { TEMPLATES } from '../util/paths.js';
 import { sfJson, sfInteractive, soql } from '../sf/sf.js';
 import { log } from '../util/log.js';
@@ -234,10 +234,10 @@ export async function retrieve(args) {
   const check = retrieveCompleteness(types.map(nameOf), outDir, failed.map((x) => x.type));
   const suspicious = check.empty.filter((t) => EXPECTED_NON_EMPTY.includes(t));
   writeJson(ctx.p('.snapshot', 'retrieve-report.json'), { failed, types: check.byType, empty: check.empty, suspicious });
-  if (suspicious.length) log.warn(`Requested but nothing came back: ${suspicious.join(', ')} — every org has some. Their counts are « not collected » until the retrieve gets them (tadforce doctor --refresh).`);
+  if (suspicious.length) log.warn(`Requested but nothing came back: ${suspicious.join(', ')} — every org has some. Their counts are « not collected » until the retrieve gets them (${runnerOf(ctx.cfg)} doctor --refresh).`);
   // a type the document is built on is missing: not a ready snapshot
   const lost = failed.filter((x) => x.core).map((x) => x.type);
-  if (lost.length) { log.fail(`Not retrieved, and the document needs them: ${lost.join(', ')}. Run the retrieve again (tadforce doctor --refresh).`); return 1; }
+  if (lost.length) { log.fail(`Not retrieved, and the document needs them: ${lost.join(', ')}. Run the retrieve again (${runnerOf(ctx.cfg)} doctor --refresh).`); return 1; }
   log.ok(`Snapshot ready in ${path.relative(ctx.project, outDir)}${failed.length ? ` — ${failed.length} type(s) could not be retrieved (see .snapshot/retrieve-report.json)` : ''}.`);
   return 0;
 }

@@ -1,0 +1,998 @@
+{
+  "_about": "Lexicons of the claims check (src/validate/claims.js). Every entry is a regular expression source, matched case-insensitively as a whole word. 'any' applies to every document language; 'en' and 'fr' to theirs (a French document is also checked with the English terms, which French documents quote); 'generic' is added for any other language. A feature is absent when every facts path of 'absentWhen' that the facts know is false, 0 or empty.",
+  "features": [
+    {
+      "id": "omniChannel",
+      "name": "Omni-Channel",
+      "absentWhen": [
+        "modules.omniChannel",
+        "misc.signals.serviceChannels",
+        "misc.signals.routingConfigs",
+        "misc.signals.presenceConfigs"
+      ],
+      "strong": {
+        "any": [
+          "Omni-Channel",
+          "Omni Channel"
+        ],
+        "en": [
+          "omni-?channel routing"
+        ],
+        "fr": [
+          "routage omnicanal"
+        ]
+      }
+    },
+    {
+      "id": "experience",
+      "name": "Experience Cloud site / portal",
+      "absentWhen": [
+        "modules.experienceCloud",
+        "misc.signals.experiences",
+        "misc.signals.networks",
+        "misc.signals.sites"
+      ],
+      "strong": {
+        "any": [
+          "Experience Cloud",
+          "Experience Builder",
+          "Salesforce Sites",
+          "Force\\.com Sites",
+          "Community Cloud"
+        ],
+        "en": [
+          "experience sites?",
+          "community sites?",
+          "customer community",
+          "partner community",
+          "(?:customer|partner|self-service|supplier|buyer|member|dealer) portals?"
+        ],
+        "fr": [
+          "sites? Experience",
+          "communautés? (?:clients?|partenaires?)",
+          "portails? (?:clients?|partenaires?|libre-service|fournisseurs?|acheteurs?|adhérents?|distributeurs?)",
+          "espace client"
+        ]
+      },
+      "weak": {
+        "en": [
+          "portals?",
+          "communit(?:y|ies)"
+        ],
+        "fr": [
+          "portails?",
+          "communautés?"
+        ]
+      }
+    },
+    {
+      "id": "psg",
+      "name": "Permission Set Groups",
+      "absentWhen": [
+        "counts.security.permissionSetGroups"
+      ],
+      "strong": {
+        "any": [
+          "Permission Set Groups?",
+          "PSGs?"
+        ],
+        "fr": [
+          "groupes? d['’]ensembles? d['’]autorisations",
+          "groupes? de jeux d['’]autorisations",
+          "groupes? d['’]autorisations"
+        ]
+      }
+    },
+    {
+      "id": "shield",
+      "name": "Salesforce Shield",
+      "absentWhen": [
+        "modules.shield"
+      ],
+      "strong": {
+        "any": [
+          "Salesforce Shield",
+          "Shield",
+          "Platform Encryption",
+          "Event Monitoring",
+          "Field Audit Trail",
+          "Transaction Security"
+        ],
+        "fr": [
+          "chiffrement (?:de (?:la )?plateforme|Shield)"
+        ]
+      }
+    },
+    {
+      "id": "cti",
+      "name": "CTI / telephony",
+      "absentWhen": [
+        "modules.cti",
+        "counts.integration.callCenters"
+      ],
+      "strong": {
+        "any": [
+          "CTI",
+          "Open CTI",
+          "Service Cloud Voice",
+          "softphone"
+        ],
+        "en": [
+          "computer telephony integration",
+          "call cent(?:er|re) adapters?"
+        ],
+        "fr": [
+          "couplage téléphonie[- ]informatique"
+        ]
+      },
+      "weak": {
+        "en": [
+          "telephony"
+        ],
+        "fr": [
+          "téléphonie"
+        ]
+      }
+    },
+    {
+      "id": "marketingCloud",
+      "name": "Marketing Cloud",
+      "absentWhen": [
+        "modules.marketingCloud"
+      ],
+      "strong": {
+        "any": [
+          "Marketing Cloud",
+          "Journey Builder",
+          "Email Studio",
+          "Marketing Cloud Connect"
+        ]
+      }
+    },
+    {
+      "id": "accountEngagement",
+      "name": "Account Engagement (Pardot)",
+      "absentWhen": [
+        "modules.accountEngagement"
+      ],
+      "strong": {
+        "any": [
+          "Pardot",
+          "Account Engagement"
+        ]
+      }
+    },
+    {
+      "id": "dataCloud",
+      "name": "Data Cloud",
+      "absentWhen": [
+        "modules.dataCloud",
+        "misc.signals.dataStreams"
+      ],
+      "strong": {
+        "any": [
+          "Data Cloud",
+          "Data 360",
+          "Customer Data Platform"
+        ]
+      }
+    },
+    {
+      "id": "agentforce",
+      "name": "Agentforce / Einstein bots",
+      "absentWhen": [
+        "modules.agentforce",
+        "misc.signals.bots",
+        "misc.signals.genAi"
+      ],
+      "strong": {
+        "any": [
+          "Agentforce",
+          "Einstein Bots?",
+          "Einstein Copilot",
+          "Einstein GPT",
+          "Prompt Builder"
+        ],
+        "en": [
+          "chatbots?",
+          "AI agents?"
+        ],
+        "fr": [
+          "agents? (?:IA|conversationnels?)",
+          "chatbots?"
+        ]
+      }
+    },
+    {
+      "id": "cpq",
+      "name": "Salesforce CPQ",
+      "absentWhen": [
+        "modules.cpq"
+      ],
+      "strong": {
+        "any": [
+          "CPQ",
+          "Salesforce CPQ",
+          "SBQQ",
+          "Steelbrick"
+        ]
+      }
+    },
+    {
+      "id": "revenueCloud",
+      "name": "Revenue Cloud",
+      "absentWhen": [
+        "modules.revenueCloud"
+      ],
+      "strong": {
+        "any": [
+          "Revenue Cloud",
+          "Revenue Lifecycle Management"
+        ]
+      }
+    },
+    {
+      "id": "fieldService",
+      "name": "Field Service",
+      "absentWhen": [
+        "modules.fieldService"
+      ],
+      "strong": {
+        "any": [
+          "Field Service(?: Lightning)?",
+          "FSL"
+        ]
+      }
+    },
+    {
+      "id": "namedCredential",
+      "name": "Named Credentials",
+      "absentWhen": [
+        "counts.integration.namedCredentials"
+      ],
+      "strong": {
+        "any": [
+          "Named Credentials?"
+        ],
+        "fr": [
+          "identifiants? nommés?",
+          "informations d['’]identification nommées"
+        ]
+      }
+    },
+    {
+      "id": "platformEvents",
+      "name": "Platform Events / Change Data Capture",
+      "absentWhen": [
+        "modules.events",
+        "counts.objects.platformEvents"
+      ],
+      "strong": {
+        "any": [
+          "Platform Events?",
+          "Change Data Capture"
+        ],
+        "fr": [
+          "événements? (?:de )?plateforme"
+        ]
+      }
+    },
+    {
+      "id": "omnistudio",
+      "name": "OmniStudio",
+      "absentWhen": [
+        "modules.omnistudio"
+      ],
+      "strong": {
+        "any": [
+          "OmniStudio",
+          "OmniScripts?",
+          "FlexCards?",
+          "DataRaptors?",
+          "Integration Procedures?"
+        ],
+        "fr": [
+          "procédures? d['’]intégration"
+        ]
+      }
+    },
+    {
+      "id": "crmAnalytics",
+      "name": "CRM Analytics",
+      "absentWhen": [
+        "modules.crmAnalytics"
+      ],
+      "strong": {
+        "any": [
+          "CRM Analytics",
+          "Tableau CRM",
+          "Einstein Analytics"
+        ]
+      }
+    },
+    {
+      "id": "slack",
+      "name": "Slack",
+      "absentWhen": [
+        "modules.slack"
+      ],
+      "strong": {
+        "any": [
+          "Slack"
+        ]
+      }
+    },
+    {
+      "id": "visualforce",
+      "name": "Visualforce",
+      "absentWhen": [
+        "counts.ui.vfPages",
+        "modules.visualforce"
+      ],
+      "strong": {
+        "any": [
+          "Visualforce"
+        ]
+      }
+    },
+    {
+      "id": "aura",
+      "name": "Aura components",
+      "absentWhen": [
+        "counts.ui.aura"
+      ],
+      "strong": {
+        "en": [
+          "Aura components?"
+        ],
+        "fr": [
+          "composants? Aura"
+        ]
+      }
+    },
+    {
+      "id": "commerce",
+      "name": "Commerce Cloud",
+      "absentWhen": [
+        "modules.commerce"
+      ],
+      "strong": {
+        "any": [
+          "B2B Commerce",
+          "B2C Commerce",
+          "D2C Commerce",
+          "Commerce Cloud"
+        ]
+      }
+    }
+  ],
+  "negation": {
+    "en": [
+      "no",
+      "not",
+      "none",
+      "never",
+      "without",
+      "neither",
+      "nor",
+      "absent",
+      "\\w+n['’]t",
+      "lacks?",
+      "is not (?:used|enabled|activated|licensed|configured|deployed)",
+      "no longer"
+    ],
+    "fr": [
+      "aucun(?:e|s)?",
+      "ne",
+      "n['’]\\w+",
+      "pas",
+      "sans",
+      "ni",
+      "jamais",
+      "absente?s?",
+      "non (?:utilisée?s?|activée?s?|déployée?s?|configurée?s?|licenciée?s?)",
+      "plus de"
+    ],
+    "generic": [
+      "no",
+      "not",
+      "none",
+      "never",
+      "without",
+      "ningun[oa]?",
+      "ningún",
+      "sin",
+      "nunca",
+      "kein(?:e|en|er)?",
+      "nicht",
+      "ohne",
+      "nie",
+      "nessun[oa]?",
+      "non",
+      "senza",
+      "mai",
+      "nenhum(?:a)?",
+      "não",
+      "sem",
+      "nunca",
+      "geen",
+      "niet",
+      "zonder"
+    ]
+  },
+  "proposal": {
+    "en": [
+      "recommend\\w*",
+      "consider\\w*",
+      "could",
+      "should",
+      "would",
+      "adopt\\w*",
+      "introduc\\w+",
+      "evaluat\\w+",
+      "roadmap",
+      "option"
+    ],
+    "fr": [
+      "recommand\\w*",
+      "envisag\\w*",
+      "pourrai\\w*",
+      "devrai\\w*",
+      "adopt\\w*",
+      "introdui\\w*",
+      "mettre en place",
+      "mise en place",
+      "évalu\\w+",
+      "feuille de route",
+      "option"
+    ],
+    "generic": [
+      "recommend\\w*",
+      "consider\\w*",
+      "could",
+      "should",
+      "roadmap"
+    ]
+  },
+  "frequency": {
+    "en": [
+      "hourly",
+      "every hour",
+      "each hour",
+      "nightly",
+      "every night",
+      "each night",
+      "overnight",
+      "daily",
+      "every day",
+      "each day",
+      "every morning",
+      "each morning",
+      "every evening",
+      "weekly",
+      "every week",
+      "each week",
+      "monthly",
+      "every month",
+      "each month",
+      "every \\d+ (?:minutes?|hours?|days?)",
+      "every (?:few|other|two|three|four|five|six|ten|twelve|fifteen|thirty) (?:minutes|hours|days)",
+      "at \\d{1,2}(?::\\d{2})? ?(?:am|pm)"
+    ],
+    "fr": [
+      "toutes les heures",
+      "chaque heure",
+      "chaque nuit",
+      "toutes les nuits",
+      "la nuit",
+      "nocturnes?",
+      "quotidien(?:ne)?s?",
+      "quotidiennement",
+      "chaque jour",
+      "tous les jours",
+      "chaque matin",
+      "tous les matins",
+      "chaque soir",
+      "tous les soirs",
+      "hebdomadaires?",
+      "hebdomadairement",
+      "chaque semaine",
+      "toutes les semaines",
+      "mensuel(?:le)?s?",
+      "mensuellement",
+      "chaque mois",
+      "tous les mois",
+      "toutes les \\d+ (?:minutes|heures)",
+      "tous les \\d+ jours",
+      "à \\d{1,2} ?h(?:\\d{2})?"
+    ],
+    "generic": [
+      "hourly",
+      "nightly",
+      "daily",
+      "weekly",
+      "monthly",
+      "every \\d+ (?:minutes?|hours?)"
+    ]
+  },
+  "scheduled": {
+    "any": [
+      "cron",
+      "CronTrigger"
+    ],
+    "en": [
+      "scheduled",
+      "on a schedule",
+      "runs? on schedule"
+    ],
+    "fr": [
+      "planifiée?s?",
+      "programmée?s? (?:chaque|tous|toutes|à)"
+    ],
+    "generic": [
+      "scheduled"
+    ]
+  },
+  "scheduleExempt": {
+    "en": [
+      "not (?:yet )?scheduled",
+      "isn['’]t scheduled",
+      "never scheduled",
+      "no schedule\\w*",
+      "unscheduled",
+      "(?:once|when|if|after) (?:it is |they are |it['’]s )?scheduled",
+      "(?:can|could|may|might|would|will|must|should|to) be scheduled",
+      "(?:designed|meant|intended|built|able) to (?:run|be run|be scheduled)",
+      "(?:can|could|may) (?:run|be run)",
+      "schedulable",
+      "no scheduled job",
+      "once (?:\\S+ ){0,3}scheduled"
+    ],
+    "fr": [
+      "(?:n['’](?:est|sont)|ne (?:sont|est)) pas (?:encore )?(?:planifiée?s?|programmée?s?)",
+      "(?:non|pas) planifiée?s?",
+      "jamais planifiée?s?",
+      "aucune? (?:tâche|job|traitement|travail)s? planifiée?s?",
+      "(?:une fois|si (?:il|elle|ils|elles) (?:est|sont)|lorsqu['’](?:il|elle|ils|elles) (?:est|sont)|quand (?:il|elle|ils|elles) (?:est|sont)|dès qu['’](?:il|elle) est) planifiée?s?",
+      "(?:peut|peuvent|pourrait|pourraient|doit|doivent|devrait|devraient) être (?:planifiée?s?|programmée?s?|exécutée?s?)",
+      "(?:conçue?s?|prévue?s?|destinée?s?) (?:pour|à) (?:s['’]exécuter|tourner|être planifiée?s?)",
+      "à planifier",
+      "planifiable",
+      "une fois (?:\\S+ ){0,3}planifié(?:e|s|es)?"
+    ],
+    "generic": [
+      "not scheduled",
+      "once scheduled",
+      "can be scheduled"
+    ]
+  },
+  "jobWords": {
+    "en": [
+      "jobs?",
+      "batch(?:es)?",
+      "process(?:es|ing)?",
+      "sync(?:hronisation|hronization)?",
+      "refresh",
+      "purge",
+      "export"
+    ],
+    "fr": [
+      "jobs?",
+      "batchs?",
+      "traitements?",
+      "tâches?",
+      "synchronisations?",
+      "purges?",
+      "exports?"
+    ],
+    "generic": [
+      "jobs?",
+      "batch(?:es)?"
+    ]
+  },
+  "environment": {
+    "production": {
+      "en": [
+        "production (?:org|orgs|environment|instance)",
+        "in production",
+        "(?:the|our) production"
+      ],
+      "fr": [
+        "(?:org|orgs|organisation|environnement|instance) de production",
+        "en production",
+        "la production"
+      ],
+      "generic": [
+        "production"
+      ]
+    },
+    "sandbox": {
+      "any": [
+        "sandbox(?:es)?",
+        "full copy",
+        "partial copy"
+      ],
+      "fr": [
+        "bacs? à sable"
+      ]
+    },
+    "developer": {
+      "any": [
+        "Developer Edition",
+        "Dev Edition",
+        "DE org"
+      ]
+    },
+    "thisSandbox": {
+      "en": [
+        "this sandbox",
+        "the sandbox (?:documented|described|analysed|analyzed) here"
+      ],
+      "fr": [
+        "cette sandbox",
+        "la sandbox (?:documentée|décrite|analysée)"
+      ]
+    },
+    "thisProduction": {
+      "en": [
+        "this production (?:org|environment|instance)"
+      ],
+      "fr": [
+        "cette (?:org|organisation|instance) de production",
+        "cet environnement de production"
+      ]
+    },
+    "goLive": {
+      "en": [
+        "go-?live",
+        "goes live",
+        "before (?:going to |the move to )?production",
+        "move to production"
+      ],
+      "fr": [
+        "(?:mises?|passages?) en production",
+        "avant (?:la )?(?:mise en )?production",
+        "en vue de la production"
+      ]
+    }
+  },
+  "risk": {
+    "en": [
+      "risks?",
+      "risky",
+      "technical debt",
+      "tech debt",
+      "weakness(?:es)?",
+      "weak points?",
+      "vulnerabilit(?:y|ies)",
+      "vulnerable",
+      "non-?compliant",
+      "not compliant",
+      "non-?compliance",
+      "(?:should|must|needs? to|has to|to) be (?:fixed|corrected|remediated)",
+      "flaws?",
+      "flawed",
+      "recommendations?",
+      "we recommend",
+      "(?:is|are) recommended",
+      "anti-patterns?",
+      "bad practices?",
+      "security holes?",
+      "loopholes?",
+      "remediation"
+    ],
+    "fr": [
+      "risques?",
+      "risquée?s?",
+      "dette technique",
+      "failles?",
+      "vulnérabilités?",
+      "vulnérables?",
+      "non[- ]conformes?",
+      "non[- ]conformités?",
+      "à corriger",
+      "(?:doit|doivent|devrait|devraient) être corrigée?s?",
+      "recommandations?",
+      "nous recommandons",
+      "(?:il est|est|sont) recommandée?s?",
+      "mauvaises? pratiques?",
+      "anti-patterns?",
+      "faiblesses?",
+      "points? faibles?",
+      "lacunes?",
+      "remédiation"
+    ],
+    "generic": [
+      "risks?",
+      "technical debt",
+      "vulnerabilit(?:y|ies)",
+      "recommendations?"
+    ]
+  },
+  "riskAllow": {
+    "en": [
+      "risk (?:score|scores|scoring|rating|ratings|level|levels|class|classes|category|categories|profile|profiles|assessment|assessments|grade|band|indicator|indicators|management|appetite|model)",
+      "(?:credit|market|fraud|default|operational|counterparty|liquidity|insurance|claims?|underwriting) risks?",
+      "at-risk",
+      "(?:product|next best action|einstein) recommendations?",
+      "without (?:any |the )?risks? (?:of|that)",
+      "no risk of",
+      "without (?:any )?risk\\b"
+    ],
+    "fr": [
+      "(?:score|scores|scoring|niveau|niveaux|classe|classes|catégorie|catégories|profil|profils|cotation|notation|indicateur|indicateurs|évaluation|appétence|modèle|gestion|maîtrise)s? (?:de|du|des) risques?",
+      "risques? (?:de crédit|de marché|de fraude|de défaut|opérationnels?|de contrepartie|de liquidité|assurés?|clients?)",
+      "recommandations? (?:de )?produits?",
+      "prochaine meilleure action",
+      "sans (?:aucun )?risques? (?:de|d'|que)",
+      "sans (?:aucun )?risques?\\b"
+    ],
+    "generic": [
+      "risk (?:score|rating|level|profile)"
+    ]
+  },
+  "untranslated": {
+    "english": [
+      "object",
+      "objects",
+      "role",
+      "roles",
+      "field",
+      "fields",
+      "step",
+      "steps",
+      "mechanism",
+      "mechanisms",
+      "component",
+      "components",
+      "name",
+      "names",
+      "owner",
+      "owners",
+      "purpose",
+      "value",
+      "values",
+      "status",
+      "statuses",
+      "rule",
+      "rules",
+      "event",
+      "events",
+      "process",
+      "processes",
+      "overview",
+      "summary",
+      "details",
+      "key",
+      "main",
+      "comments",
+      "frequency",
+      "kind",
+      "label",
+      "labels",
+      "level",
+      "levels",
+      "count",
+      "number",
+      "target",
+      "protocol",
+      "authentication",
+      "access",
+      "sharing",
+      "profile",
+      "profiles",
+      "user",
+      "users",
+      "team",
+      "teams",
+      "channel",
+      "channels",
+      "endpoint",
+      "endpoints",
+      "system",
+      "systems",
+      "integration",
+      "integrations",
+      "security",
+      "domain",
+      "domains",
+      "element",
+      "elements",
+      "author",
+      "reason",
+      "priority",
+      "responsibility",
+      "responsibilities",
+      "input",
+      "inputs",
+      "output",
+      "outputs",
+      "result",
+      "results",
+      "error",
+      "errors",
+      "handling",
+      "limit",
+      "limits",
+      "record",
+      "records",
+      "data",
+      "model",
+      "models",
+      "behaviour",
+      "behavior",
+      "when",
+      "who",
+      "what",
+      "where",
+      "how",
+      "why",
+      "used",
+      "by",
+      "usage",
+      "notes",
+      "scope",
+      "page",
+      "pages",
+      "layer",
+      "layers",
+      "service",
+      "services",
+      "controller",
+      "controllers",
+      "list",
+      "class",
+      "classes",
+      "method",
+      "methods",
+      "condition",
+      "conditions",
+      "action",
+      "actions",
+      "outcome",
+      "dependencies",
+      "dependency",
+      "approach",
+      "decision",
+      "decisions",
+      "context",
+      "consequences",
+      "option",
+      "options",
+      "volume",
+      "volumes",
+      "schedule",
+      "job",
+      "jobs",
+      "and",
+      "of",
+      "the",
+      "per",
+      "for",
+      "with",
+      "to",
+      "in",
+      "from",
+      "at"
+    ],
+    "same": {
+      "fr": [
+        "description",
+        "descriptions",
+        "type",
+        "types",
+        "action",
+        "actions",
+        "source",
+        "sources",
+        "date",
+        "dates",
+        "version",
+        "versions",
+        "section",
+        "sections",
+        "message",
+        "messages",
+        "notes",
+        "note",
+        "permission",
+        "permissions",
+        "volume",
+        "volumes",
+        "impact",
+        "impacts",
+        "effort",
+        "direction",
+        "page",
+        "pages",
+        "usage",
+        "option",
+        "options",
+        "condition",
+        "conditions",
+        "service",
+        "services",
+        "label",
+        "labels",
+        "on",
+        "or",
+        "contexte",
+        "client",
+        "clients",
+        "composant",
+        "statut",
+        "sources",
+        "format",
+        "formats",
+        "contact",
+        "contacts",
+        "application",
+        "applications",
+        "architecture",
+        "documents",
+        "document",
+        "total",
+        "minimum",
+        "maximum",
+        "question",
+        "questions",
+        "solution",
+        "solutions",
+        "distribution",
+        "configuration",
+        "configurations",
+        "commentaires"
+      ]
+    },
+    "neutral": [
+      "apex",
+      "flow",
+      "flows",
+      "trigger",
+      "triggers",
+      "lwc",
+      "aura",
+      "omnistudio",
+      "omniscript",
+      "omniscripts",
+      "visualforce",
+      "lightning",
+      "salesforce",
+      "sales",
+      "cloud",
+      "api",
+      "apis",
+      "rest",
+      "soap",
+      "batch",
+      "queueable",
+      "schedulable",
+      "sso",
+      "saml",
+      "oauth",
+      "jwt",
+      "json",
+      "xml",
+      "crm",
+      "id",
+      "url",
+      "cmdt",
+      "psg",
+      "owd",
+      "cti",
+      "cdc",
+      "fls",
+      "crud",
+      "dml",
+      "soql",
+      "kpi",
+      "kpis",
+      "ui",
+      "ux",
+      "it",
+      "sla",
+      "rgpd",
+      "gdpr"
+    ]
+  }
+}

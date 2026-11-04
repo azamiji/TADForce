@@ -15,14 +15,16 @@
 ## Method {#method}
 
 <!-- tad:if source.local -->
-This document describes the architecture **as implemented** in the Salesforce DX project of {{cfg:client.name}}, as of {{cfg:document.date}}. It was produced from the metadata sources of the project
+This document describes the architecture **as implemented** in the Salesforce DX project of {{cfg:client.name}}, as of {{cfg:document.date}}. It was produced from the metadata sources of the project.
 <!-- tad:else -->
-This document describes the architecture **as implemented** in the Salesforce organization of {{cfg:client.name}} ({{cfg:document.environment}}), as of {{cfg:document.date}}. It was produced from the metadata of the organization, retrieved in read-only mode,
+This document describes the architecture **as implemented** in the Salesforce organization of {{cfg:client.name}} ({{cfg:document.environment}}), as of {{cfg:document.date}}. It was produced from the metadata of the organization, retrieved in read-only mode.
 <!-- tad:endif -->
+<!-- tad:if cfg.inputs.specs -->
 <!-- tad:if cfg.integrator.name -->
-and from the inputs provided by {{cfg:client.name}} and {{cfg:integrator.name}}.
+It also draws on the inputs provided by {{cfg:client.name}} and {{cfg:integrator.name}}.
 <!-- tad:else -->
-and from the inputs provided by {{cfg:client.name}}.
+It also draws on the inputs provided by {{cfg:client.name}}.
+<!-- tad:endif -->
 <!-- tad:endif -->
 
 <!-- tad:if cfg.scope.include -->

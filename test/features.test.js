@@ -235,7 +235,8 @@ test('Salesforce-shipped components are set aside; CSP trusted sites follow the 
     fs.copyFileSync(path.join(apps, fs.readdirSync(apps)[0]), path.join(apps, 'standard__TadFixtureShipped.app-meta.xml'));
     const f = extractFacts([dir], {}, {});
     assert.ok(!f.ui.apps.some((a) => a.name.startsWith('standard__')));
-    assert.equal(f.salesforceShipped['ui.apps'], 1);
+    assert.equal(f.salesforceShipped.counts['ui.apps'], 1);
+    assert.ok(f.salesforceShipped.reasons.some((r) => r.path === 'ui.apps' && r.names.includes('standard__TadFixtureShipped') && r.reason));
     const all = extractFacts([SRC], {}, {});
     const scoped = extractFacts([SRC], { scope: { include: ['Loan*'] } }, {});
     assert.ok(all.integration.cspTrustedSites.length > 0);

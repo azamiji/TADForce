@@ -37,18 +37,18 @@ The CLI (`npx tadforce …`) does everything deterministic: org access, retrieve
 `build --json` decides the phase from the workspace:
 
 1. **understand** — developers read the code (one card per component), a functional analyst maps actors, domains and lifecycles, then an architect assembles the end-to-end processes from the cards and the call graph (`facts/graph.json`). The CLI merges the parts into `understanding/model.json` and refuses invented names. → `references/understand.md`
-2. **write** — groups of sections that can be written in parallel (chapters 6–13, then 5, then 4/14/15, then 2–3, then 1, then the Improvement Axes), each with its spec and its slice of the model. → `references/style-guide.md`, `references/writing-rules.md`
-3. **review** — an independent reviewer reads the built documents against the model and the facts, fixes what it can prove and writes `understanding/review.json`.
+2. **write** — groups of sections that can be written in parallel (chapters 6–13, then 5, then 4/14/15, then 2–3, then 1, then the Improvement Axes), each with its spec, its slice of the model, the **ground-truth brief** of the org (`brief`, `understanding/brief.md` — mandatory reading), the **figures it owns and those it links to** (`figures`, `understanding/figures.json`), the chapters already written (`context`), `parts` to write and save section by section, and a `resume` hint. → `references/style-guide.md`, `references/writing-rules.md`
+3. **review** — an independent reviewer reads the built documents against the brief, the automatic claims check, the model and the facts, fixes what it can prove and writes `understanding/review.json`.
 4. **render** — HTML, PDF, DOCX, validation, and the final report.
 
-In Claude Code, run each task or group in its own **subagent, in parallel** (Agent tool, `general-purpose`, the task JSON given verbatim). Without subagents, do the packages one after the other. → `references/agents.md`
+In Claude Code, run each task or group in its own **subagent, in parallel** (Agent tool, `general-purpose`, the task JSON given verbatim). Without subagents, do the packages one after the other. Interrupted by a usage limit? Call `build --json` again and resend what it returns: what is written stays. Keep one TADForce version for the whole run. → `references/agents.md`
 
 ## Writing a section
 
 Each section of a write group comes with its `spec` (`intent`, `must`, `never`, `figure`, `facts` with an excerpt, `readModules`), the file and the marker. Then:
 
-1. Read the model slice of the group (domains, processes, lifecycles, component cards) and the facts excerpt; open the code when a detail is missing.
-2. Replace the `<!-- tad:pending id -->` line with the content. Keep the headings and their `{#id}` anchors.
+1. Read the `brief` of the group first (what the org is, what it does not have, what never to claim), then the model slice (domains, processes, lifecycles, component cards), the `context` (chapters already written: do not repeat them) and the facts excerpt; open the code when a detail is missing.
+2. Replace the `<!-- tad:pending id -->` line with the content, part after part, saving the file after each section. Keep the headings and their `{#id}` anchors. Draw only the figures of `figures.own` (under a heading with their anchor); link the others with their `ref`.
 3. Follow `references/style-guide.md` (lead paragraph, « Component | Role » tables, one `> [!INTEGRATOR]` per major mechanism, process = paragraph + figure + « Step | Mechanism » table) and `references/markdown-conventions.md` (`{{n:…}}`, `{{ref:…}}`, `@@ERD:…@@`, `@@SEQ:<processId>@@`, `@@STATE:<lifecycleId>@@`, `@@ERD-DOMAIN:<domainId>@@`, Mermaid + `Figure:` line, cards and KPI blocks).
 4. Follow `references/writing-rules.md` (voice, structure, length) and `references/figure-rules.md`.
 5. Never write a section about an absent module; never leave a section empty — state what is proven.
@@ -81,4 +81,4 @@ When a product is used but not detected (no metadata trace), the human tells you
 ## Done means
 
 - `build --json` returned `phase: "render"`: the TAD (HTML, PDF, DOCX) and the Improvement Axes (HTML) are in `tadforce/out/`, validated with 0 error.
-- You give the human: the paths, the validation scores, the open questions of `report.questions` (what the metadata could not settle) and the review points left `remaining`.
+- You give the human: the paths, the validation scores, the open questions of `report.questions` (what the metadata could not settle — the model's findings and the writers' `understanding/questions.md`) and the review points left `remaining`.

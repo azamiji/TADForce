@@ -81,5 +81,14 @@ export function extractAutomation(roots) {
     duplicateRules: count('duplicateRules', '.duplicateRule-meta.xml'),
     matchingRules: count('matchingRules', '.matchingRule-meta.xml'),
   };
-  return { flows, omnistudio, rules: legacy };
+  // the rules inside assignment, escalation and auto-response files (one file per object), by name: the ones
+  // Salesforce ships with a new org are recognised and set aside (heuristics/shipped.js)
+  const ruleEntries = [];
+  for (const [kind, folder, suffix, tag] of [['assignment', 'assignmentRules', '.assignmentRules-meta.xml', 'assignmentRule'], ['escalation', 'escalationRules', '.escalationRules-meta.xml', 'escalationRule'], ['autoResponse', 'autoResponseRules', '.autoResponseRules-meta.xml', 'autoResponseRule']]) {
+    for (const f of files(roots, folder, suffix)) {
+      const object = baseName(f, suffix);
+      for (const r of arr(readXml(f)[tag])) ruleEntries.push({ kind, object, name: str(r.fullName), active: bool(r.active) });
+    }
+  }
+  return { flows, omnistudio, rules: legacy, ruleEntries: ruleEntries.filter((r) => r.name).sort((a, b) => `${a.kind}/${a.object}/${a.name}`.localeCompare(`${b.kind}/${b.object}/${b.name}`)) };
 }

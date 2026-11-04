@@ -69,7 +69,7 @@ export async function collectOrgFacts(alias, facts, { onProgress = () => {} } = 
   const usersByProfile = rows(await run('users', () => soql('SELECT Profile.Name p, COUNT(Id) c FROM User WHERE IsActive = true GROUP BY Profile.Name', alias)))
     .map((r) => ({ profile: r.p || r.Name, users: r.c ?? r.expr0 })).sort((a, b) => String(a.profile).localeCompare(String(b.profile)));
   const usersByRole = rows(await run('roles', () => soql('SELECT UserRole.DeveloperName r, COUNT(Id) c FROM User WHERE IsActive = true GROUP BY UserRole.DeveloperName', alias)))
-    .map((r) => ({ role: r.r || r.DeveloperName || null, users: r.c ?? r.expr0 })).sort((a, b) => String(a.role).localeCompare(String(b.role)));
+    .map((r) => ({ role: (r.r || r.DeveloperName) && !/^EMPTY_ID$/i.test(r.r || r.DeveloperName) ? r.r || r.DeveloperName : null, users: r.c ?? r.expr0 })).sort((a, b) => String(a.role).localeCompare(String(b.role)));
   const usersByLicense = rows(await run('licenses', () => soql('SELECT Name, TotalLicenses, UsedLicenses FROM UserLicense', alias)))
     .filter((r) => r.UsedLicenses > 0).map((r) => ({ license: r.Name, used: r.UsedLicenses, total: r.TotalLicenses })).sort((a, b) => a.license.localeCompare(b.license));
   const psgAssignments = rows(await run('psg', () => soql('SELECT PermissionSetGroup.DeveloperName g, COUNT(Id) c FROM PermissionSetAssignment WHERE PermissionSetGroupId != null AND Assignee.IsActive = true GROUP BY PermissionSetGroup.DeveloperName', alias)))
@@ -77,6 +77,12 @@ export async function collectOrgFacts(alias, facts, { onProgress = () => {} } = 
   // persona (permission set group) × role, for « Persona | Role | Application | Users »
   const psgByRole = rows(await run('psg-roles', () => soql('SELECT PermissionSetGroup.DeveloperName g, Assignee.UserRole.DeveloperName r, COUNT(Id) c FROM PermissionSetAssignment WHERE PermissionSetGroupId != null AND Assignee.IsActive = true GROUP BY PermissionSetGroup.DeveloperName, Assignee.UserRole.DeveloperName', alias)))
     .map((r) => ({ group: r.g || null, role: r.r || null, users: r.c ?? r.expr0 })).sort((a, b) => `${a.group}/${a.role}`.localeCompare(`${b.group}/${b.role}`));
+  // plain permission sets (not a profile's, not through a group): the personas of an org without groups
+  const psWhere = 'WHERE PermissionSet.IsOwnedByProfile = false AND PermissionSetGroupId = null AND Assignee.IsActive = true';
+  const usersByPermissionSet = rows(await run('permission-sets', () => soql(`SELECT PermissionSet.Name n, COUNT(Id) c FROM PermissionSetAssignment ${psWhere} GROUP BY PermissionSet.Name`, alias)))
+    .map((r) => ({ permissionSet: r.n || r.Name, users: r.c ?? r.expr0 })).filter((r) => r.permissionSet).sort((a, b) => String(a.permissionSet).localeCompare(String(b.permissionSet)));
+  const psByRole = rows(await run('permission-set-roles', () => soql(`SELECT PermissionSet.Name n, Assignee.UserRole.DeveloperName r, COUNT(Id) c FROM PermissionSetAssignment ${psWhere} GROUP BY PermissionSet.Name, Assignee.UserRole.DeveloperName`, alias)))
+    .map((r) => ({ permissionSet: r.n || null, role: r.r || null, users: r.c ?? r.expr0 })).filter((r) => r.permissionSet).sort((a, b) => `${a.permissionSet}/${a.role}`.localeCompare(`${b.permissionSet}/${b.role}`));
 
   onProgress('records');
   const labels = Object.fromEntries(facts.data.objects.map((o) => [o.name, o.label || null]));
@@ -124,6 +130,8 @@ export async function collectOrgFacts(alias, facts, { onProgress = () => {} } = 
     usersByLicense,
     psgAssignments,
     psgByRole,
+    usersByPermissionSet,
+    psByRole,
     volumes,
     scheduledJobs: jobs.scheduledJobs,
     salesforceJobs: jobs.internal,

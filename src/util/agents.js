@@ -7,9 +7,11 @@ export const PROMPT = [
   'Use the tadforce skill: the prerequisites are green (tadforce doctor), every human question is answered.',
   'Run the build loop without asking for validation: call `npx tadforce build --json`, do the work packages of the phase it returns, then call it again, until it returns the phase render with the outputs.',
   'understand: each task (developer cards, functional analyst, architect, fixes) writes its part file under tadforce/understanding/parts/;',
-  'write: each group replaces the pending sections of its files from its spec and model slice;',
-  'review: an independent reviewer checks the documents and writes tadforce/understanding/review.json.',
+  'write: each group reads its ground-truth brief first, then replaces the pending sections of its files from its spec and model slice, part after part, saving the file after each section; it draws only the figures it owns and links to the others;',
+  'review: an independent reviewer checks the documents against the brief and the claims check, and writes tadforce/understanding/review.json.',
   'Run independent tasks in parallel when you can start subagents, one after the other otherwise.',
+  'If a usage limit interrupts a task, send the same task again later: the outputs already written stay, and build --json lists only what is left.',
+  'Keep the same TADForce version for the whole run.',
   'Never invent a name, a count or a system; what cannot be proven goes to the final report and the Improvement Axes.',
   'End with the paths of the documents, the validation scores and the open questions.',
 ].join(' ');
@@ -36,7 +38,9 @@ export function insideAgent() {
 }
 
 /** Start the agent in this terminal, in the project folder. Returns its exit code. */
-export function launchAgent(agent, cwd) {
+/** Start the agent; the prompt names the command the human actually runs (npx github:…, a clone, a global install). */
+export function launchAgent(agent, cwd, runner = 'npx tadforce') {
+  agent = { ...agent, args: agent.args.map((a) => a.split('npx tadforce').join(runner)) };
   const quote = (a) => (/^[\w./-]+$/.test(a) ? a : `"${a.replace(/"/g, '\\"')}"`);
   const r = process.platform === 'win32'
     ? spawnSync([agent.bin, ...agent.args].map(quote).join(' '), [], { cwd, stdio: 'inherit', shell: true })

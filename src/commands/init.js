@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline/promises';
 import { exists, writeText, writeJson, copyDir, readJson } from '../util/fsx.js';
-import { defaultConfig, findWorkspace } from '../util/config.js';
+import { defaultConfig, findWorkspace, detectRunner } from '../util/config.js';
 import { WORKSPACE_DIR, CONFIG_FILE, SKILLS } from '../util/paths.js';
 import { LANGUAGES, normalizeLang } from '../util/i18n.js';
 import { log } from '../util/log.js';
@@ -127,6 +127,6 @@ export async function run(args) {
   console.log('');
   await doctor({ cwd: project });
   console.log('');
-  log.human('open your AI agent in this folder and type /tadforce — or run `npx tadforce doctor` to finish the setup here.');
+  log.human(`open your AI agent in this folder and type /tadforce — or run \`${detectRunner()} doctor\` to finish the setup here.`);
   return 0;
 }

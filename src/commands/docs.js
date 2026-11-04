@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { exists, writeJson, writeText, readText, readJson, stableStringify, walk } from '../util/fsx.js';
-import { loadWorkspace, sourceDirs, sourceFlags } from '../util/config.js';
+import { loadWorkspace, sourceDirs, sourceFlags, runnerOf } from '../util/config.js';
 import { resolveConditionals } from '../build/directives.js';
 import { TEMPLATES } from '../util/paths.js';
 import { LANGUAGES, normalizeLang, templateLang } from '../util/i18n.js';
@@ -226,10 +226,10 @@ export async function build(args) {
     if (agent) {
       ctx.cfg.setup.agent = agent.id; ctx.save(ctx.cfg);
       log.step(`Handing over to ${agent.name}: it runs the build loop (understand → write → review → render)…`);
-      return launchAgent(agent, ctx.project);
+      return launchAgent(agent, ctx.project, runnerOf(ctx.cfg));
     }
     log.human(found.length ? `agent "${wanted}" not found; installed: ${found.map((a) => a.id).join(', ')} (--agent <id>).` : 'open your AI agent (Claude Code, Codex, Cursor, Copilot…) in this folder and type /tadforce: it runs the build loop.');
-  } else log.info('The agent drives this loop with `tadforce build --json`. Preview of what is written so far:');
+  } else log.info(`The agent drives this loop with \`${runnerOf(ctx.cfg)} build --json\`. Preview of what is written so far:`);
   return (await renderDocuments(ctx, args)).code;
 }
 
@@ -253,10 +253,31 @@ export async function nextPhase(ctx, facts, graph, args = {}) {
           built.push({ doc, html: path.relative(ctx.project, r.html).split(path.sep).join('/'), validation: validateDocument(ctx, doc, { buildReport: r }) });
         }
       } finally { await closeBrowser(); }
-      return { phase: 'review', stale: !!rs.stale, task: understand.reviewTask(ctx, built) };
+      const brief = understand.groundTruth(ctx, facts, model, graph);
+      const claims = await claimsOf(ctx, built.map((b) => b.doc));
+      return { phase: 'review', stale: !!rs.stale, task: understand.reviewTask(ctx, built, { brief, claims }) };
     }
   }
   return { phase: 'render' };
+}
+
+/**
+ * The automatic claims check of each document (src/validate/claims.js › claimsCheck(ctx, doc)), for the
+ * reviewer; null when the check is not available in this version.
+ */
+export async function claimsOf(ctx, docs) {
+  let mod;
+  try { mod = await import('../validate/claims.js'); } catch { return null; }
+  if (!mod || typeof mod.claimsCheck !== 'function') return null;
+  const out = {};
+  for (const doc of docs) {
+    try {
+      const r = await mod.claimsCheck(ctx, doc);
+      const issues = Array.isArray(r) ? r : (r && Array.isArray(r.issues) ? r.issues : []);
+      out[doc] = issues.slice(0, 80);
+    } catch (e) { out[doc] = [{ level: 'warning', code: 'claims-check-failed', message: String(e && e.message || e) }]; }
+  }
+  return out;
 }
 
 const PHASES = { understand: 'UNDERSTAND', write: 'WRITE', review: 'REVIEW', render: 'RENDER' };
@@ -270,7 +291,7 @@ function printPhase(p) {
     for (const t of p.tasks) console.log(`   ${c.dim(t.id.padEnd(10))} ${t.role.padEnd(18)} ${t.title || (t.errors ? `${t.errors.length} error(s) in ${t.file}` : '')}`);
   } else if (p.phase === 'write') {
     log.step(`Write · stage ${p.stage}: ${p.remaining} section(s) still to write; ${p.groups.length} group(s) now${p.parallel ? ', in parallel' : ''}.`);
-    for (const g of p.groups) console.log(`   ${c.dim(g.id.padEnd(10))} ${g.sections.length} section(s) · ${g.files.join(', ')}`);
+    for (const g of p.groups) console.log(`   ${c.dim(g.id.padEnd(10))} ${g.sections.length} section(s)${(g.parts || []).length > 1 ? ` in ${g.parts.length} parts` : ''}${g.resume && g.resume.written.length ? `, ${g.resume.written.length} already written` : ''} · ${g.files.join(', ')}`);
   } else if (p.phase === 'review') {
     log.step(`Review: an independent reviewer reads the documents against the model and the facts${p.stale ? ' (the sources changed since the last review)' : ''}.`);
     for (const [doc, v] of Object.entries(p.task.inputs.validation)) console.log(`   ${c.dim(doc.padEnd(10))} score ${v.score}/100 · ${v.errors.length} error(s), ${v.warnings.length} warning(s)`);
@@ -303,7 +324,7 @@ async function renderDocuments(ctx, args) {
       if (!exists(ctx.p('src', doc))) { log.warn(`src/${doc} missing — skipped`); continue; }
       const r = await buildDocument(ctx, doc, { render: args.render !== false });
       built.push(r);
-      if (r.pending.length) log.warn(`${r.pending.length} section(s) of ${doc} still to write — your agent writes them (tadforce build --json), then build again.`);
+      if (r.pending.length) log.warn(`${r.pending.length} section(s) of ${doc} still to write — your agent writes them (${runnerOf(ctx.cfg)} build --json), then build again.`);
       log.ok(`${relp(r.html)} (${r.sizeKB} KB, ${r.figures} figures)`);
       const out = { doc, html: relp(r.html) };
       // figures photographed and checked before the exports: an unreadable figure marks PDF and Word as DRAFT too
@@ -364,10 +385,13 @@ export async function validate(args) {
       // build into the cache, so that anchors, placeholders and figures are checked too
       const cfgOut = { ...ctx, cfg: { ...ctx.cfg, outputs: { ...ctx.cfg.outputs, dir: '.cache/validate' } } };
       const r = await buildDocument(cfgOut, doc, { render: qa, gate: false });
-      const figures = qa ? await figureQA(ctx, r.html, doc) : null;
+      // a figure with issues is drawn once more in its simplified variant (split ERD, merged lanes…) before the gate decides
+      const figures = qa ? await figureQA(ctx, r.html, doc, { report: r }) : null;
       results[doc] = await qualityGate(ctx, doc, { html: r.html, report: r, figures });
+      if (figures && figures.retried) results[doc].simplified = figures.retried;
       if (!args.json) {
         report(results[doc], doc);
+        if (figures && figures.retried) log.info(`${figures.retried.length} figure(s) redrawn in their simplified variant: ${figures.retried.join(', ')}`);
         if (figures) log.info(`${figures.figures.length} figure(s) checked and photographed → ${path.relative(ctx.project, ctx.p('out', 'figures'))}/${doc}-fig-<n>.png (look at them, fix the sources, validate again)`);
         else log.info('figures not checked (no Chrome / Edge found, or --no-figures)');
         if (results[doc].draft) log.warn(`${doc}: quality gate not passed — the build is marked ${c.bold('DRAFT')} until the errors are fixed.`);

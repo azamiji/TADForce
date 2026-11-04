@@ -39,7 +39,7 @@ Everything else — branches, loan applications, documents, scoring, Customer 36
 
 - **Standard first**: standard objects, queues, record types, platform events and OmniStudio before custom code.
 - **Configuration over code**: business parameters in Custom Metadata (`ScoringRule__mdt`, `IntegrationSetting__mdt`).
-- **Bulk-safe**: triggers process lists, the nightly synchronisation runs in batches of 50 records (`CustomerSyncBatch`).
+- **Bulk-safe**: triggers process lists, the customer synchronisation (`CustomerSyncBatch`, designed to run nightly) works in batches of 50 records.
 - **Secure server-side**: controllers run `with sharing` and query in user mode; the inbound API inserts records as the calling user.
 - **Loose coupling**: the trigger publishes an event; subscribers react independently.
 

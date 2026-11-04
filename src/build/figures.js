@@ -32,10 +32,14 @@ export function wrap(s, n, max = 2) {
   return lines.map((l) => clip(l, n));
 }
 
-/** A generated figure: the body and its caption stay together (numbered at build: « Figure N — … »). */
-export function figureHtml(body, caption, kind = 'svg') {
+/**
+ * A generated figure: the body and its caption stay together (numbered at build: « Figure N — … »).
+ * `src` names the directive that drew it (« ERD-DOMAIN:loans »): the visual QA asks that directive for
+ * its simplified variant when the figure does not read well.
+ */
+export function figureHtml(body, caption, kind = 'svg', src = null) {
   // one line, blank lines around: Markdown keeps it as one HTML block
-  return `\n<figure class="diagram hand" data-kind="${kind}"><div class="fig-body">${body.replace(/\s*\n\s*/g, ' ')}</div><figcaption class="figcap">Figure — ${esc(caption)}</figcaption></figure>\n`;
+  return `\n<figure class="diagram hand" data-kind="${kind}"${src ? ` data-src="${esc(src)}"` : ''}><div class="fig-body">${body.replace(/\s*\n\s*/g, ' ')}</div><figcaption class="figcap">Figure — ${esc(caption)}</figcaption></figure>\n`;
 }
 
 /** Legend chips (HTML), shared by every figure. */

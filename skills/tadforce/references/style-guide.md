@@ -29,18 +29,19 @@ A good Technical Architecture Document shows that someone **understood** the org
 
 - Per domain: `@@ERD-DOMAIN:<domainId>@@@@`, then « Object | Role | Key fields ».
 - **Volumetry table** « Object | Records | Growth driver » from the org facts (`{{n:…}}` or the generated volumes table), when org facts exist.
-- Lifecycles with their state diagram when not already shown in chapter 5 (link with `{{ref:…}}` instead of repeating).
+- Lifecycles with their state diagram when this chapter owns them (`figures.own`); a lifecycle owned by chapter 5 is linked with `{{ref:lc-<lifecycleId>}}`, never redrawn.
 
 ## Application (chapter 7)
 
 - **Layered architecture with real class names per layer and counts**: « Layer | Convention | Examples | Count » (presentation, controllers, services, selectors, integration, async).
 - **Triggers**: « Object | Trigger | Handler | Events », then an **order-of-execution table** for every object with several automations: « Order | Mechanism | Component | Effect » (before-save flows, before triggers, validation rules, after triggers, after-save flows, async).
-- **Async and scheduled jobs**: « Job | Type | Started by | Schedule | Purpose ».
+- **Async and scheduled jobs**: « Job | Type | Started by | Schedule | Purpose » — the schedule from the brief (scheduled jobs of the org, scheduled flows), « can be scheduled » for a Schedulable class with no job.
+- **Technical view only**: the processes are told in chapter 5; here, link to them (`{{ref:fn-<processId>}}`) and give what chapter 5 does not (transaction boundaries, handlers, thresholds, error handling).
 
 ## Integrations (chapter 9)
 
 - **Flows table with ids**: « ID | Flow | Direction | System | Salesforce component | Pattern », ids `FLX-01`, `FLX-02`…; the pattern is one of **Request-Reply**, **Fire-and-Forget**, **Batch Data Synchronization**, **Remote Call-In**, **UI Update Based on Data Changes**, **Data Virtualization**.
-- One subsection per system (glossary names only) with its sequence (`@@SEQ:…@@` when the model has the process).
+- One subsection per system (glossary names only) with its main exchange: a link to the chapter 5 figure (`{{ref:fn-<processId>}}`) when the model has the process, a hand-drawn sequence only otherwise.
 
 ## Security (chapter 10)
 
@@ -60,7 +61,17 @@ A good Technical Architecture Document shows that someone **understood** the org
 | `@@STATE:<lifecycleId>@@` | state diagram of a lifecycle of `model.lifecycles` |
 | `@@ERD-DOMAIN:<domainId>@@` | ER diagram of the objects of a domain of `model.domains` |
 
-A caption may follow the id after `|`, as for `@@ERD:…|@@SEQ:<processId>@@`. The ids are those of `tadforce/understanding/model.json`; the write payload lists the directives available for each group (`model.figures`). Other figures: `references/figure-rules.md`.
+A caption may follow the id after `|`, as for `@@ERD:…|@@SEQ:<processId>@@`. The ids are those of `tadforce/understanding/model.json`. Other figures: `references/figure-rules.md`.
+
+**Each figure is drawn once.** The CLI gives every figure of the model one owner section (`understanding/figures.json`; the write group's `figures.own`), by default:
+
+| Figure | Owner | Anchor of its heading |
+|---|---|---|
+| `@@SEQ:<processId>@@` | chapter 5, `functional.processes` | `{#fn-<processId>}` |
+| `@@STATE:<lifecycleId>@@` | chapter 5 when a process of the model covers its object's domain, else chapter 6 `data.domains` | `{#lc-<lifecycleId>}` |
+| `@@ERD-DOMAIN:<domainId>@@` | chapter 6, `data.domains` | `{#data-<domainId>}` |
+
+Every other section links with the `ref` of `figures.link` (« the decision chain is shown in {{ref:fn-loan-decision}} ») and adds only what is its own (the technical detail in chapter 7, the system side in chapter 9).
 
 ## Words
 

@@ -9,6 +9,10 @@
 | **P3** | Functional document, ticket, interview | « Advisors handle 30 leads a day » | Attribute it: « according to the specifications (DR-01) » |
 | **Not proven** | Deduction, missing or contradictory information | Retention policy not configured in the org | **Not written in the TAD.** It becomes a finding of the model (kind `question`), reported at the end and in the Improvement Axes; the section states only what is proven |
 
+## The org state wins
+
+The ground-truth brief (`tadforce/understanding/brief.md`, `brief` of each write group) states what the org is and is not, from the metadata and the org facts. Code that *could* do something is not evidence that the org *does* it: a Schedulable class with no scheduled job does not run on a schedule; a Permission Set Group, a site or a Named Credential the brief lists as absent does not exist; a Developer Edition is not a production org. When the code and the brief disagree, the brief wins and the gap becomes a finding.
+
 ## Kinds of statements
 
 Keep them apart in your head and in the text:

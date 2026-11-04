@@ -3,6 +3,7 @@ import { parseArgs } from './util/args.js';
 import { log, c, setQuiet } from './util/log.js';
 import { readJson } from './util/fsx.js';
 import { PKG_ROOT } from './util/paths.js';
+import { detectRunner } from './util/config.js';
 import * as initCmd from './commands/init.js';
 import * as doctorCmd from './commands/doctor.js';
 import * as org from './commands/org.js';
@@ -37,9 +38,10 @@ const ADVANCED = {
 const COMMANDS = { ...MAIN, ...ADVANCED };
 
 function help(all) {
+  const run = detectRunner();
   const v = readJson(path.join(PKG_ROOT, 'package.json')).version;
   console.log(`${c.violet('▲')} ${c.bold('TADForce')} ${v} — AI-Powered Salesforce Technical Documentation. ${c.dim('No evidence, no sentence.')}\n`);
-  console.log(`Usage: ${c.bold('npx tadforce <command> [options]')}\n`);
+  console.log(`Usage: ${c.bold(`${run} <command> [options]`)}\n`);
   for (const [k, [, d]] of Object.entries(MAIN)) console.log(`  ${c.cyan(k.padEnd(15))} ${d}`);
   if (all) {
     console.log('\nAdvanced (CI, experts):');
@@ -47,7 +49,7 @@ function help(all) {
   } else console.log(c.dim(`\n  ${Object.keys(ADVANCED).length} advanced commands: tadforce help --all`));
   console.log('\nCommon options: --cwd <dir>  --org <alias>  --doc tad|axes|all  --json  --quiet');
   console.log('Build options:  --render-only  --merge-understanding  --no-review  --pdf --docx  --open  --agent <id>  --no-launch');
-  console.log(`Start here:     ${c.bold('npx tadforce doctor')}   then type ${c.bold('/tadforce')} in your AI agent.\n`);
+  console.log(`Start here:     ${c.bold(`${run} doctor`)}   then type ${c.bold('/tadforce')} in your AI agent.\n`);
 }
 
 export async function main(argv) {

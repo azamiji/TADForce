@@ -51,7 +51,7 @@ Conditions are facts paths (`modules.*`, `counts.*`, `org.*`, `facts.*`), `!` ne
 > The scoring rules are Custom Metadata records: a new rule needs no deployment.
 ```
 
-Kinds: `INTEGRATOR` (the integrator's contribution), `NOTE`, `RECO` (rare in the TAD), `WARN`.
+Kinds: `INTEGRATOR` (the integrator's contribution), `NOTE`, `RECO` (Improvement Axes — in the TAD its wording is a `risk-wording` error), `WARN`.
 
 ## HTML blocks
 
@@ -89,5 +89,19 @@ Errors — while one remains the document is a **DRAFT** (watermark on every pag
 | `figure-unreadable` | overlapping labels, text too small on A4, Mermaid error (see figure-rules.md, the QA loop) |
 | `cover-client`, `cover-title`, `cover-empty-field` | no client name, a code as title (`NWB_CRM`), a « — » on the cover |
 | `unknown-model-id` | a figure directive names an id absent from understanding/model.json |
+| `absent-feature` | the text names a product or feature the facts say the org does not have (Omni-Channel, Experience site or portal, Permission Set Groups, Shield, CTI, Marketing Cloud, Data Cloud, Agentforce, CPQ, Field Service, Named Credentials, Platform Events, OmniStudio…). Not raised when the sentence states the absence (« aucun », « n'utilise pas », « no », « does not »…) or in the Outlook chapter; a generic word (« portail », « portal ») or a weakly detected module (`modules.weak`) is a warning; in the Axes it is a warning, and nothing for a proposal (« recommend », « envisager »…) |
+| `unproven-schedule` | a frequency (« toutes les heures », « chaque nuit », « quotidien », hourly, nightly, every N minutes, cron, scheduled) next to an Apex class or flow in code font that no scheduled job of the org runs (facts/org.json › scheduledJobs, matched by name; a scheduled flow carries its own schedule). Write « can be scheduled », « une fois planifié », « designed to run nightly »… or name the job. Without org facts: a warning. A frequency for an unnamed job while the org has no scheduled job at all: an error |
+| `environment-mismatch` | « production », « sandbox », « Developer Edition » contradicting the org (facts/org.json › organization) or the cover (document.environment); also the cover itself when it contradicts the org |
+| `risk-wording` | TAD only: risk and debt vocabulary (risque, dette technique, faille, vulnérabilité, non conforme, à corriger, recommandation; risk, technical debt, weakness, should be fixed…) — it belongs to the Improvement Axes. Business terms are not risks (« score de risque », « credit risk »…), nor the glossary terms |
+| `control-chars` | a C0 control character (other than tab and line feed) in a source: it stood for lost punctuation (« : », « ; ») — retype it. The build strips them (`report.sanitized.controlChars`) |
+| `duplicate-figure` | the same `@@SEQ@@` / `@@STATE@@` / `@@ERD-DOMAIN@@` twice, or outside the section that owns it (understanding/figures.json, see figure-rules.md) |
+
+Warnings of the claims check: `untranslated` — in a non-English document, a table header cell or a heading made only of common English words (Object, Role, Field, Step, Mechanism, Component, Name…; words that are also French — Type, Description, Action, Source — and Salesforce terms — Flows, Triggers, Apex — are fine).
+
+The claims check (`src/validate/claims.js`, lexicons in `claims-lexicon.json`) reads the sources as the reader gets them: inactive `tad:if` blocks, code fences, HTML comments and code spans are not read as claims.
+
+## French typography (French documents, at build)
+
+You type ordinary spaces; the build sets the French typography in the HTML (and so in PDF and Word): a no-break space before « : » and « » » and after « « », a narrow no-break space before « ; », « ! », « ? » (added when missing), a narrow no-break space as thousands separator (12 345) and a no-break space before %, € after a number. Never inside code spans, code blocks, URLs, e-mail addresses, times (12:30), HTML entities, figures (SVG, Mermaid sources) or tags.
 
 Plus the earlier checks (terminology, excluded components, secrets, broken anchors, unknown placeholders). Warnings lower the score but do not make a draft. An empty author or integrator is never printed as « — »: the line is left out.

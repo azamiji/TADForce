@@ -28,7 +28,7 @@ const KEY_RE = /(status|stage|type|amount|score|code|number|date|name|channel|se
  * (FK: lookups / master-details, UK: external IDs and unique fields, then up to KEY_FIELDS more)
  * and the relationships between the chosen objects (label = field name).
  */
-export function erdModel(facts, names, dict = {}) {
+export function erdModel(facts, names, dict = {}, { types = true } = {}) {
   const byName = new Map(facts.data.objects.map((o) => [o.name, o]));
   const set = new Set(names.filter((n) => byName.has(n)));
   const missing = names.filter((n) => !byName.has(n));
@@ -60,6 +60,8 @@ export function erdModel(facts, names, dict = {}) {
     const total = rows.length;
     const shown = rows.slice(0, MAX_ROWS);
     const more = total - shown.length + Math.max(0, pool.length - KEY_FIELDS);
+    // without the type column (a dense diagram that must fit the page), the FK target stays: it is the relationship
+    if (!types) for (const r of shown) r.type = r.key === 'FK' ? r.type.replace(/^.*?→ /, '→ ') : '';
     entities.push({ name: nm, label: o.label || null, rows: shown, more: more > 0 ? more : 0 });
   }
   return { entities, edges, missing };
@@ -212,12 +214,89 @@ function glyphs(ed) {
   return s.join('');
 }
 
+// wide and short or narrow and tall: the row width that gives the largest text once fitted to the page
+const fitScale = (l) => Math.min(1, PAGE.w / (l.width + (l.corridors.left.length + l.corridors.right.length) * CORR + 64), PAGE.h / (l.height + 24));
+const WIDTHS = [480, 600, 760, 920, 1080];
+
+/** The layout of an ER diagram that reads best on A4 (largest text once fitted to the page). */
+export function erdBestLayout(model) {
+  return WIDTHS.map((w) => erdLayout(model, w)).reduce((best, l) => (fitScale(l) > fitScale(best) + 0.01 ? l : best));
+}
+
+/** Smallest text of the diagram once fitted to the A4 content box, in px (the field types and labels, 11 user units). */
+export function erdTextPx(model) {
+  if (!model.entities.length) return Infinity;
+  return fitScale(erdBestLayout(model)) * (FS - 1);
+}
+
+/**
+ * Split the objects of a dense ER diagram into `k` groups by graph clustering. The hub (the object
+ * linked to most of the others) is repeated in every group; the others are grouped by their strongest
+ * relationships first (master-detail weighs 2, lookup 1), each group holding at most ceil(n / k) of
+ * them; an object with no relationship inside the diagram joins the smallest group. Deterministic:
+ * ties follow the order of the names.
+ * @returns {{ hub: string|null, parts: string[][] }}
+ */
+export function erdClusters(facts, names, k) {
+  const byName = new Map(facts.data.objects.map((o) => [o.name, o]));
+  const list = [...new Set(names)].filter((n) => byName.has(n));
+  const order = new Map(list.map((n, i) => [n, i]));
+  const w = new Map();
+  const key = (a, b) => (order.get(a) < order.get(b) ? `${a}|${b}` : `${b}|${a}`);
+  for (const nm of list) {
+    for (const r of byName.get(nm).relations || []) {
+      for (const to of r.to) {
+        if (to === nm || !order.has(to)) continue;
+        const kk = key(nm, to);
+        w.set(kk, (w.get(kk) || 0) + (r.type === 'MasterDetail' ? 2 : 1));
+      }
+    }
+  }
+  const nb = (a) => list.filter((b) => b !== a && w.has(key(a, b)));
+  const wdeg = (a) => nb(a).reduce((s, b) => s + w.get(key(a, b)), 0);
+  // the hub: linked to at least 3 objects and to half of the others
+  let hub = null;
+  for (const n of list) {
+    const d = nb(n).length;
+    if (d >= 3 && d >= Math.ceil((list.length - 1) / 2) && (!hub || d > nb(hub).length || (d === nb(hub).length && wdeg(n) > wdeg(hub)))) hub = n;
+  }
+  const rest = list.filter((n) => n !== hub);
+  const cap = Math.max(1, Math.ceil(rest.length / k));
+  const comp = new Map(rest.map((n) => [n, [n]]));
+  const edges = [...w.entries()].map(([kk, v]) => [...kk.split('|'), v]).filter(([a, b]) => a !== hub && b !== hub)
+    .sort((x, y) => y[2] - x[2] || Math.min(order.get(x[0]), order.get(x[1])) - Math.min(order.get(y[0]), order.get(y[1])) || Math.max(order.get(x[0]), order.get(x[1])) - Math.max(order.get(y[0]), order.get(y[1])));
+  const join = (a, b) => {
+    const ca = comp.get(a), cb = comp.get(b);
+    if (ca === cb || ca.length + cb.length > cap) return;
+    ca.push(...cb);
+    for (const n of cb) comp.set(n, ca);
+  };
+  // each object first joins its strongest relationship (the least connected first: a child stays with its parent)
+  const restNb = (a) => nb(a).filter((b) => b !== hub);
+  for (const a of [...rest].sort((x, y) => restNb(x).length - restNb(y).length || order.get(x) - order.get(y))) {
+    const best = restNb(a).sort((x, y) => w.get(key(a, y)) - w.get(key(a, x)) || order.get(x) - order.get(y))[0];
+    if (best) join(a, best);
+  }
+  for (const [a, b] of edges) join(a, b);
+  let groups = [...new Set(comp.values())].sort((x, y) => order.get(x[0]) - order.get(y[0]));
+  const link = (g, h) => g.reduce((s, a) => s + h.reduce((t, b) => t + (w.get(key(a, b)) || 0), 0), 0);
+  while (groups.length > k) {
+    // the smallest group (the last one on ties) joins the group it is most linked to that has room, else the smallest
+    const small = [...groups].sort((x, y) => x.length - y.length || order.get(y[0]) - order.get(x[0]))[0];
+    const others = groups.filter((g) => g !== small);
+    const room = others.filter((g) => g.length + small.length <= cap).sort((x, y) => link(y, small) - link(x, small) || x.length - y.length || order.get(x[0]) - order.get(y[0]));
+    const target = room.length && link(room[0], small) > 0 ? room[0] : room.length ? room.sort((x, y) => x.length - y.length || order.get(x[0]) - order.get(y[0]))[0] : others.sort((x, y) => x.length - y.length || order.get(x[0]) - order.get(y[0]))[0];
+    target.push(...small);
+    groups = others;
+  }
+  const parts = groups.map((g) => [...(hub ? [hub] : []), ...g.sort((a, b) => order.get(a) - order.get(b))]);
+  return { hub, parts };
+}
+
 /** SVG of an ER diagram; returns '' when there is nothing to draw. */
 export function erdSvg(model, title = '') {
   if (!model.entities.length) return '';
-  // wide and short or narrow and tall: keep the row width that gives the largest text once fitted to the page
-  const scale = (l) => Math.min(PAGE.w / (l.width + (l.corridors.left.length + l.corridors.right.length) * CORR + 64), PAGE.h / (l.height + 24));
-  const lay = [480, 600, 760, 920, 1080].map((w) => erdLayout(model, w)).reduce((best, l) => (scale(l) > scale(best) + 0.01 ? l : best));
+  const lay = erdBestLayout(model);
   const parts = [];
   let minX = 0, maxX = lay.width, maxY = lay.height;
   for (const ed of lay.edges) {

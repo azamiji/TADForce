@@ -198,7 +198,8 @@ The TADForce CLI sends nothing anywhere: no telemetry, no server, no account. It
 - **Facts are code, not prose.** `facts.json` is extracted deterministically (sorted, stable) — tested byte for byte.
 - **Numbers are placeholders.** Writers type `{{n:apex.classes}}`, never `132`. Tables, ERDs, role trees, KPIs and appendices are generated.
 - **Specs, not prompts.** 84 section specifications (`intent · facts · must · never`) drive every agent the same way.
-- **A gate, not a hope.** `npx tadforce validate` fails on unwritten sections, unknown placeholders, identifiers that do not exist in the org, excluded or decommissioned components, forbidden terms, broken anchors, Mermaid errors and secrets. Every figure is photographed and checked for overlapping or too-small labels; a document that does not pass is marked **DRAFT**, never « For review ».
+- **A gate, not a hope.** `npx tadforce validate` fails on unwritten sections, unknown placeholders, identifiers that do not exist in the org, excluded or decommissioned components, forbidden terms, broken anchors, Mermaid errors and secrets. Every sentence is checked against the org (a feature it does not have, a frequency no scheduled job proves, the wrong environment, risk wording in the client document), every figure is photographed and simplified when it would be unreadable; a document that does not pass is marked **DRAFT**, never « For review ».
+- **Ground truth, not guesses.** A product counts only with strong evidence; Salesforce's own samples and defaults are set aside; every writer gets a brief of what the org really has and does not have.
 - **Knowledge that sticks.** Client vocabulary, system names and exclusions live in `knowledge/*.yml`, so a regeneration never brings back a mistake a reader already fixed.
 
 ## ⚔️ With vs without TADForce

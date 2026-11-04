@@ -10,6 +10,9 @@ import { resolveConditionals } from '../build/directives.js';
 import { buildGraph, GRAPH_VERSION, indexGraph } from './graph.js';
 import { planUnderstanding, fingerprintOf } from './plan.js';
 import { validateModel, normalizeId, MODEL_VERSION, CARD_KEYS } from './schema.js';
+import { sectionFilter } from '../facts/outline.js';
+import { writeBrief, groundTruth } from './brief.js';
+import { skeletonMap, figureOwnership, groupFigures, writeFigures, docContext, sectionParts, resumeHint, readQuestions } from './doc.js';
 
 const sha = (s) => crypto.createHash('sha1').update(s).digest('hex').slice(0, 12);
 const rel = (ctx, ...p) => toPosix(path.relative(ctx.project, ctx.p(...p)));
@@ -221,10 +224,23 @@ export function modelSlice(model, graph, doc, chapter) {
   }
 }
 
+const scopeOf = (ctx, facts) => ({ modules: facts.modules, counts: facts.counts, org: facts.org, cfg: ctx.cfg, facts, glossary: ctx.glossary(), source: sourceFlags(ctx.cfg) });
+
+/** Figure ownership of the model, written to understanding/figures.json. */
+export function ensureFigures(ctx, facts, model) {
+  return writeFigures(ctx, figureOwnership(model, sectionFilter(facts)));
+}
+
 /** The write phase payload, or null when every section is written. */
 export function writePhase(ctx, facts, graph, model, { specOf }) {
   const pending = pendingSections(ctx, facts);
+  // the ground truth and the figure ownership are refreshed at each call (the model or the org facts may change)
+  const brief = writeBrief(ctx, facts, model, graph);
+  const ownership = ensureFigures(ctx, facts, model);
   if (!pending.length) return null;
+  const skeleton = skeletonMap(ctx);
+  const isActive = sectionFilter(facts);
+  const scope = scopeOf(ctx, facts);
   const stageIndex = WRITE_STAGES.findIndex((s) => pending.some((p) => p.doc === s.doc && (!s.chapters || s.chapters.includes(p.chapter))));
   // a chapter outside every stage (custom file) is written with the first stage
   const stage = stageIndex >= 0 ? WRITE_STAGES[stageIndex] : WRITE_STAGES[0];
@@ -238,15 +254,35 @@ export function writePhase(ctx, facts, graph, model, { specOf }) {
     if (!gr.files.includes(p.file)) gr.files.push(p.file);
     gr.sections.push({ id: p.id, file: p.file, line: p.line, marker: p.marker, spec: specOf(p.id) || { id: p.id } });
   }
-  const files = { model: rel(ctx, 'understanding', 'model.json'), graph: rel(ctx, 'facts', 'graph.json'), facts: rel(ctx, 'facts', 'facts.json') };
+  const files = { model: rel(ctx, 'understanding', 'model.json'), graph: rel(ctx, 'facts', 'graph.json'), facts: rel(ctx, 'facts', 'facts.json'), brief: rel(ctx, 'understanding', 'brief.md'), figures: rel(ctx, 'understanding', 'figures.json'), questions: rel(ctx, 'understanding', 'questions.md') };
+  const questions = readQuestions(ctx);
   return {
     phase: 'write', stage: `${stageIndex + 1}/${WRITE_STAGES.length}`, parallel: groups.size > 1, remaining: pending.length, files,
-    groups: withTaskFiles(ctx, [...groups.values()].map((gr) => ({
-      ...gr,
-      read: ['references/style-guide.md', 'references/writing-rules.md', 'references/markdown-conventions.md', 'references/figure-rules.md'],
-      instructions: 'Replace each pending marker of these files with the section content, following its spec. Write from the model slice (what the org does), the component cards, the facts and the code — never invent a name, a count or a system. State only what is proven; a doubt is not written: it is already a finding of the model, or add it to tadforce/understanding/questions.md. Keep headings and {#anchors}. Never write a section about an absent module.',
-      model: modelSlice(model, graph, gr.doc, gr.chapters[0]),
-    }))),
+    groups: withTaskFiles(ctx, [...groups.values()].map((gr) => {
+      const ids = gr.sections.map((s) => s.id);
+      const parts = sectionParts(gr.sections);
+      const figures = gr.doc === 'tad' ? groupFigures(ownership, ids, skeleton) : { own: [], link: [] };
+      const slice = modelSlice(model, graph, gr.doc, gr.chapters[0]);
+      // the slice lists only the figures this group draws: the others are linked (figures.link), never redrawn
+      if (slice && slice.figures) {
+        const owned = new Set(figures.own.map((f) => f.directive));
+        const kept = Object.fromEntries(Object.entries(slice.figures).map(([k, v]) => [k, v.filter((d) => owned.has(d))]).filter(([, v]) => v.length));
+        if (Object.keys(kept).length) slice.figures = kept; else delete slice.figures;
+      }
+      const out = {
+        ...gr,
+        read: ['tadforce/understanding/brief.md', 'references/style-guide.md', 'references/writing-rules.md', 'references/markdown-conventions.md', 'references/figure-rules.md'],
+        instructions: 'Read the brief first: it is the ground truth of the org (what exists, what is absent, what never to claim); a sentence that contradicts it is wrong. Replace each pending marker of these files with the section content, following its spec, part after part, saving the file after each section. Write from the model slice (what the org does), the component cards, the facts and the code — never invent a name, a count or a system. Draw only the figures of figures.own, each under a heading carrying its anchor; for every other figure link with its ref ({{ref:…}}), never redraw it. Do not repeat what the chapters of context already say: link to them. State only what is proven; a doubt is not written: it is already a finding of the model, or add it to tadforce/understanding/questions.md as « - <section.id>: question ». Keep headings and {#anchors}. Never write a section about an absent module.',
+        brief,
+        figures,
+        context: docContext(ctx, scope, { docs: gr.doc === 'axes' ? ['tad', 'axes'] : [gr.doc], exclude: gr.chapters.map((c) => `${gr.doc}-${c}`) }),
+        parts,
+        resume: resumeHint(skeleton, gr.chapters, gr.doc, ids, isActive),
+        model: slice,
+      };
+      if (gr.doc === 'axes') out.inputs = { questions, questionsFile: files.questions };
+      return out;
+    })),
   };
 }
 
@@ -280,16 +316,24 @@ export const REVIEW_CHECKS = [
   'debt, risks or recommendations in the TAD: they go to the Improvement Axes',
   'style: chapter lead paragraph, Component | Role tables, one INTEGRATOR callout per major mechanism, numbered figures with captions (references/style-guide.md)',
   'excluded or decommissioned components mentioned anywhere',
+  'ground truth: no sentence contradicts the brief (inputs.brief, understanding/brief.md) — a schedule that does not exist, a product, a site, Permission Set Groups or « Production » the org does not have',
+  'automatic claims check (inputs.claims): each issue is fixed in the sources or listed as remaining with the reason',
+  'figure ownership (understanding/figures.json): every @@SEQ@@, @@STATE@@ and @@ERD-DOMAIN@@ appears once, in its owner section; elsewhere a {{ref:…}} link',
+  'no repetition: chapter 5 tells the business view of a process, chapter 7 the technical mechanism; the same paragraph or table never appears in both',
 ];
 
-export function reviewTask(ctx, built) {
+export function reviewTask(ctx, built, { brief = null, claims = null } = {}) {
   return withTaskFiles(ctx, [{
     id: 'review', role: 'reviewer',
     title: 'Independent review of the written documents',
-    read: ['references/style-guide.md', 'references/evidence-rules.md', 'references/writing-rules.md', 'references/axes-rules.md'],
-    instructions: 'You did not write these documents. Read them as a senior Salesforce architect would before sending them to the client: the built HTML for the reading, the markdown sources for the fixes. Check every point of `checks` against the model, the cards and the facts. Fix in the sources (tadforce/src/**.md) what you can prove; list the rest as remaining with the reason. Then write the output file and call `tadforce build --json` again.',
+    read: ['tadforce/understanding/brief.md', 'references/style-guide.md', 'references/evidence-rules.md', 'references/writing-rules.md', 'references/axes-rules.md'],
+    instructions: 'You did not write these documents. Read the brief first (the ground truth of the org), then the documents as a senior Salesforce architect would before sending them to the client: the built HTML for the reading, the markdown sources for the fixes. Check every point of `checks` against the brief, the model, the cards and the facts; go through every issue of the automatic claims check. Fix in the sources (tadforce/src/**.md) what you can prove; list the rest as remaining with the reason. Then write the output file and call `tadforce build --json` again.',
     checks: REVIEW_CHECKS,
     inputs: {
+      brief: brief || undefined,
+      figures: rel(ctx, 'understanding', 'figures.json'),
+      ...(claims ? { claims } : {}),
+      questions: readQuestions(ctx),
       html: built.map((b) => b.html),
       sources: DOCS_ORDER.map((d) => rel(ctx, 'src', d)),
       model: rel(ctx, 'understanding', 'model.json'),
@@ -309,12 +353,26 @@ export function finalReport(ctx) {
   const model = safeReadJson(ctx.p('understanding', 'model.json'));
   const review = safeReadJson(ctx.p('understanding', 'review.json'));
   const findings = (model?.findings || []);
+  const fromModel = findings.filter((f) => f.kind === 'question').map((f) => pick(f, ['id', 'text', 'evidence']));
+  // the doubts the writers noted (understanding/questions.md), once per section, after the model's
+  const norm = (s) => String(s || '').toLowerCase().replace(/\W+/g, ' ').trim();
+  const known = new Set(fromModel.map((q) => norm(q.text)));
+  const perSection = new Map();
+  const fromWriters = [];
+  for (const q of readQuestions(ctx)) {
+    if (known.has(norm(q.text))) continue;
+    known.add(norm(q.text));
+    const key = q.section || 'general';
+    const n = (perSection.get(key) || 0) + 1;
+    perSection.set(key, n);
+    fromWriters.push({ id: `q-${key}-${n}`, text: q.text, section: q.section || null, source: 'questions.md' });
+  }
   return {
-    questions: findings.filter((f) => f.kind === 'question').map((f) => pick(f, ['id', 'text', 'evidence'])),
+    questions: [...fromModel, ...fromWriters],
     axesFindings: findings.filter((f) => f.kind !== 'question').length,
     reviewRemaining: review?.remaining || [],
     reviewFixed: (review?.fixed || []).length,
   };
 }
 
-export { fingerprintOf };
+export { fingerprintOf, groundTruth, readQuestions };

@@ -57,7 +57,7 @@ On the customer record page (`Account_Record_Page`), the `customer360` component
 3. `CoreBankingClient` calls the core banking API through the named credential `NWB_CoreBanking`;
 4. each position is rendered by `positionTile`.
 
-Each night, `CustomerSyncBatch` refreshes the customer segment (`Segment__c`) from the same API.
+`CustomerSyncBatch`, designed to run each night once scheduled, refreshes the customer segment (`Segment__c`) from the same API.
 
 ## Notifications {#fn-notifications}
 

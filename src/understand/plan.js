@@ -3,15 +3,43 @@
 //                code, fill one card per component
 //   analyst    — actors, domains, lifecycles, from objects, record types, status picklists, paths, apps, queues
 //   architect  — end-to-end processes assembled from the cards and the observed edges, findings
-// Each task carries a fingerprint of its inputs: a part written for an older fingerprint is redone.
+// Each task carries a fingerprint of its input DATA: a part written for an older fingerprint is redone.
+// The fingerprint never depends on TADForce's own code (a better parser, new lifecycle candidates, an extra
+// edge kind): it hashes the files the task reads and the slice of facts it is written from, plus the
+// schema version of its output (TASK_SCHEMA) — bumping that version is the only way the CLI forces a redo.
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { findMetadataRoots, files, bundles, readXml, arr, str } from '../facts/xml.js';
+import { findMetadataRoots, files, bundles, readXml, arr, str, safeRead } from '../facts/xml.js';
 import { CODE_KINDS, indexGraph } from './graph.js';
 import { CARD_KEYS } from './schema.js';
 
 const sha = (s) => crypto.createHash('sha1').update(typeof s === 'string' ? s : JSON.stringify(s)).digest('hex').slice(0, 12);
 export const fingerprintOf = sha;
+
+/** Version of the output format of each role: bump one only when its part files must be rewritten. */
+export const TASK_SCHEMA = { developer: 1, analyst: 1, architect: 1 };
+
+/**
+ * Fingerprint of a developer slice: its components and the contents of their files. The edges the parser
+ * draws are derived from the same files: they do not enter the fingerprint (a new parser keeps the cards).
+ */
+export function developerFingerprint(nodes) {
+  return sha(['developer', TASK_SCHEMA.developer, nodes.map((n) => [n.id, n.hash || null]).sort((a, b) => a[0].localeCompare(b[0]))]);
+}
+
+/** Hash of the metadata files the analyst's candidates come from (value sets, path assistants, objects). */
+export function analystSourceHash(dirs, facts) {
+  const roots = findMetadataRoots(dirs);
+  const known = new Set((facts.data?.objects || []).map((o) => o.name));
+  const list = [
+    ...files(roots, 'globalValueSets', '.globalValueSet-meta.xml'),
+    ...files(roots, 'standardValueSets', '.standardValueSet-meta.xml'),
+    ...files(roots, 'pathAssistants', '.pathAssistant-meta.xml'),
+    ...bundles(roots, 'objects').filter((b) => known.has(b.name)).flatMap((b) => files([b.dir], 'fields', '.field-meta.xml')),
+  ];
+  const rel = (f) => { const r = roots.find((x) => f.startsWith(x)); return (r ? path.relative(r, f) : path.basename(f)).split(path.sep).join('/'); };
+  return sha(list.map((f) => [rel(f), sha(safeRead(f))]).sort((a, b) => a[0].localeCompare(b[0])));
+}
 
 const MAX_NODES = 30;
 const MAX_LINES = 5000;
@@ -148,9 +176,10 @@ export function entryChains(graph, { maxChains = 60, maxSteps = 24 } = {}) {
         if (steps.length >= maxSteps) return;
         const target = g.byId.get(to);
         const from = g.byId.get(e.from);
-        steps.push({ from: from ? from.name : e.from, to: target ? target.name : to, edge: e.kind, ...(e.async ? { async: e.async } : {}), ...(e.methods ? { methods: e.methods } : {}), ...(e.ops ? { ops: e.ops } : {}) });
-        // do not walk on from what is only read, nor re-enter the trigger that started the chain
-        if (e.kind === 'reads' || e.kind === 'triggers-on' || seen.has(to)) continue;
+        steps.push({ from: from ? from.name : e.from, to: target ? target.name : to, edge: e.kind, ...(e.async ? { async: e.async } : {}), ...(e.methods ? { methods: e.methods } : {}), ...(e.ops ? { ops: e.ops } : {}), ...(e.via === 'before-save' ? { via: e.via } : {}) });
+        // do not walk on from what is only read, nor re-enter the trigger that started the chain; a before-save
+        // assignment changes the record being saved: no new save, no trigger fired again
+        if (e.kind === 'reads' || e.kind === 'triggers-on' || e.via === 'before-save' || seen.has(to)) continue;
         if (/^(object|platformEvent):/.test(to) && !['writes', 'publishes'].includes(e.kind)) continue;
         seen.add(to);
         visit(to, depth + 1);
@@ -174,16 +203,17 @@ export function planUnderstanding(ctx, facts, graph, { dirs = [], factsFingerpri
     const components = s.nodes.map((n) => ({
       id: n.name, kind: n.kind, file: n.file,
       ...(n.kinds ? { apexKinds: n.kinds } : {}), ...(n.triggerType ? { triggerType: n.triggerType } : {}), ...(n.events ? { events: n.events } : {}),
+      ...(n.invocableUncalled ? { invocableUncalled: true } : {}),
       out: g.out(n.id).map((e) => edgeView(e, e.to, g)),
       in: g.in(n.id).map((e) => edgeView(e, e.from, g)),
     }));
-    const fingerprint = sha(s.nodes.map((n) => [n.id, n.hash, g.out(n.id).map((e) => e.kind + e.to), g.in(n.id).map((e) => e.kind + e.from)]));
+    const fingerprint = developerFingerprint(s.nodes);
     const objects = [...new Set(s.nodes.flatMap((n) => g.out(n.id).filter((e) => /^(object|platformEvent|cmdt):/.test(e.to)).map((e) => g.byId.get(e.to).name)))].sort().slice(0, 6);
     return {
       id: s.id, role: 'developer', fingerprint,
       title: `Read ${components.length} component(s)${objects.length ? ' around ' + objects.join(', ') : ''}`,
       read: ['references/understand.md › Developer', 'references/evidence-rules.md'],
-      instructions: 'Open every file listed (the trigger and its handler, the service behind the controller). For each component write one card: what it does for the business and how (thresholds, conditions, switches, records created or changed, systems called), never a description of the file. Use only names that exist: component ids as given, objects from the code. The graph edges (out / in) are what the parser saw; correct them in the card when the code says otherwise and say so in notes.',
+      instructions: 'Open every file listed (the trigger and its handler, the service behind the controller). For each component write one card: what it does for the business and how (thresholds, conditions, switches, records created or changed, systems called), never a description of the file. Use only names that exist: component ids as given, objects from the code. The graph edges (out / in) are what the parser saw; correct them in the card when the code says otherwise and say so in notes. A component flagged invocableUncalled is an invocable action no flow of the snapshot calls: say what could call it, and add a finding (kind question) when nothing does.',
       components,
       output: { file: parts(s.id), format: { task: s.id, fingerprint, cards: { '<componentId>': Object.fromEntries(CARD_KEYS.map((k) => [k, ['reads', 'writes', 'calls'].includes(k) ? [] : ''])) } } },
       cardSchema: {
@@ -218,8 +248,17 @@ export function planUnderstanding(ctx, facts, graph, { dirs = [], factsFingerpri
     specifications: specs,
     glossary: rel(ctx, 'knowledge', 'glossary.yml'),
   };
-  // the inputs themselves, not the whole facts: a change of counts alone does not redo the analysis
-  const analystFp = sha([analystInputs, specs, ctx.glossary()]);
+  // the input data, not what TADForce derives from it (lifecycle candidates, products): a new version of the
+  // CLI keeps the analysis; a change of the metadata, the org facts, the specifications or the glossary redoes it
+  const analystData = {
+    objects: objects.map((o) => [o.name, o.label, o.kind, o.customFields, o.recordTypes, o.relations]),
+    sources: analystSourceHash(dirs, facts),
+    namespaces: (facts.namespaces || []).map((n) => n.namespace).sort(),
+    apps: analystInputs.apps, queues: analystInputs.queues, permissionSetGroups: analystInputs.permissionSetGroups,
+    profiles: analystInputs.profiles, roles: analystInputs.roles, usersByProfile: analystInputs.usersByProfile,
+    flows: analystInputs.flows, systems: analystInputs.systems,
+  };
+  const analystFp = sha(['analyst', TASK_SCHEMA.analyst, analystData, specs, ctx.glossary()]);
   const analyst = {
     id: 'analyst', role: 'functional-analyst', fingerprint: analystFp,
     title: 'Actors, business domains and lifecycles',
@@ -229,7 +268,9 @@ export function planUnderstanding(ctx, facts, graph, { dirs = [], factsFingerpri
     output: { file: parts('analyst'), format: { task: 'analyst', fingerprint: analystFp, actors: [], domains: [], lifecycles: [], findings: [] } },
   };
 
-  const architectFp = sha([...developer.map((d) => d.fingerprint), analyst.fingerprint]);
+  // the parts it reads (their fingerprints) and the systems it may name; never the chains (derived by the parser)
+  const architectFp = sha(['architect', TASK_SCHEMA.architect, developer.map((d) => d.fingerprint), analyst.fingerprint, (facts.systems?.named || []).map((s) => [s.id, s.name])]);
+  const unusedInvocables = graph.nodes.filter((n) => n.invocableUncalled).map((n) => n.name);
   const architect = {
     id: 'architect', role: 'architect', fingerprint: architectFp, after: [...developer.map((d) => d.id), 'analyst'],
     title: 'End-to-end processes and findings',
@@ -242,6 +283,8 @@ export function planUnderstanding(ctx, facts, graph, { dirs = [], factsFingerpri
       systems: (facts.systems?.named || []).map((s) => ({ id: s.id, name: s.name, endpoints: s.endpoints.map((e) => `${e.kind}:${e.name}`) })),
       unnamedEndpoints: (facts.systems?.unnamed || []).map((e) => `${e.kind}:${e.name}`),
       signals: (facts.signals || []).slice(0, 40),
+      // invocable actions no flow of the snapshot calls: dead code candidates (a finding when nothing else calls them)
+      ...(unusedInvocables.length ? { invocablesUncalled: unusedInvocables } : {}),
     },
     output: { file: parts('architect'), format: { task: 'architect', fingerprint: architectFp, processes: [], domains: [], findings: [] } },
   };

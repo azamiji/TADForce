@@ -36,6 +36,13 @@ These colours are fixed (the client's brand colours are for headings and the cov
 - Each box lists the key fields: **FK** lookups and master-details (with the target object), **UK** external IDs and unique fields, then up to 4 key fields (status, type, amount, score, code…).
 - Relationships are labelled with the lookup field; crow's foot on the child (« many »), bars on the parent: two bars = mandatory (master-detail, required lookup), bar and circle = optional. Master-details are solid lines, lookups dashed.
 - One diagram per domain. A global ERD of 12+ objects is never readable: split it.
+- **Automatic split.** When a domain ERD (or an `@@ERD@@` list) would have text under the readable size on A4 (8.5 px once fitted to the page) at every candidate width, the build splits it by itself, deterministically:
+  1. the *hub* (the object linked to at least 3 objects and to half of the others) is repeated in every sub-diagram;
+  2. each other object first joins its strongest relationship (master-detail weighs 2, lookup 1; the least connected objects first, so a child stays with its parent), then the remaining relationships join groups, each group holding at most ceil(n / k) objects; an object with no relationship in the diagram joins the smallest group;
+  3. 2 sub-diagrams are tried, then 3; captions get « (1/2) », « (2/2) »…;
+  4. still too small: the same splits without the type column (the FK target stays);
+  5. only then is it reported (`erd-unreadable` warning; the visual QA decides).
+  Relationships between two sub-diagrams stay visible as FK rows (« → Object »). Choosing smaller domains in the model remains the better fix.
 
 ### Sequences (`@@SEQ@@`)
 
@@ -44,6 +51,11 @@ These colours are fixed (the client's brand colours are for headings and the cov
 - `group: { kind: alt|opt|loop|par, label }`: consecutive steps with the same group form one block.
 - **Else rule**: consecutive `alt` (or `par`) groups whose labels share the same *subject* — the text before the first « : » or « — » — are branches of one block: « status: Approved or Rejected » then « status: any other value » → `alt … else … end` (`par … and … end`). Without a separator the whole label is the subject, so only identical labels continue a branch.
 - 4 to 7 participants, 5 to 14 steps. More: split the process.
+- **Automatic simplification** (more than 7 participants), deterministic:
+  1. the data objects (kind `object`) share one lane « Data » / « Données » when there are two or more;
+  2. then, left to right, two consecutive participants of the same kind that never exchange a message share one lane « A / B » (two per lane at most);
+  3. lane labels longer than 28 characters are cut with « … »; a table under the figure (« In the figure » / « Participants ») gives the full names.
+  Every step is kept. The simplified variant asked by the visual QA aims at 5 lanes and 20-character labels.
 
 ### State diagrams (`@@STATE@@`)
 
@@ -84,6 +96,10 @@ Fence them as `mermaid` and put the caption on the line right after the closing 
 - One diagram per fence; the `Figure:` line must follow the fence immediately.
 - A flowchart wider than 5 nodes in a row (LR) shrinks below the readable size on A4: go TB or split.
 
+## One process, one figure (ownership)
+
+A process, a lifecycle or a domain is drawn once in the whole document: `@@SEQ:x@@`, `@@STATE:x@@` or `@@ERD-DOMAIN:x@@` used twice is a validation **error** (`duplicate-figure`) — the second place refers to the first with `{{ref:…}}`. When the understanding step writes `tadforce/understanding/figures.json` — `{ "own": { "SEQ:lead-intake": "application.sequences" } }`, keys `SEQ:` / `STATE:` / `ERD-DOMAIN:` + id (a bare id matches any kind), values a section id of sections.yml or a heading anchor — the figure must sit in that section (headings a writer adds under a skeleton section belong to it); anywhere else it is an error.
+
 ## Captions
 
 Every figure is numbered « Figure N — caption » and listed in the table of figures. Sentence case, no final full stop, say what the figure shows: « Lead lifecycle, from the sources to conversion or archiving ». The caption is kept on the same page as its figure in the PDF.
@@ -96,5 +112,6 @@ Every figure is numbered « Figure N — caption » and listed in the table of f
    - `render-error` — Mermaid could not draw it → **error**;
    - `too-wide` — wider than the page content box → warning `figure-too-wide`.
 2. Every figure is photographed to `tadforce/out/figures/<doc>-fig-<n>.png`.
+   A generated figure (`@@ERD@@`, `@@ERD-DOMAIN@@`, `@@SEQ@@`, `@@STATE@@`: it carries `data-src`) with any issue triggers **one** automatic re-render with its simplified variant (the next ERD split, a 5-lane sequence, a state diagram drawn top to bottom); the figures are measured again and only then does the gate decide. Hand-written Mermaid is never changed: fix it yourself.
 3. **Look at the PNGs** — all of them, not only those with an issue: a figure can pass the measures and still say nothing. Fix the source (fewer nodes, split the diagram, shorter labels, TB instead of LR, a domain per ERD), then validate again.
 4. While an error remains, the document is a **draft**: DRAFT watermark on every page (HTML, PDF; a banner on every chapter in Word) and the draft status on the cover — never « For review ».

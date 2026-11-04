@@ -7,7 +7,11 @@ import readline from 'node:readline/promises';
 import { spawnSync } from 'node:child_process';
 import YAML from 'yaml';
 import { exists, readJson, readText, writeText } from '../util/fsx.js';
-import { findWorkspace, defaultConfig, DEFAULT_BRAND, loadWorkspace, sourceDirs } from '../util/config.js';
+import { findWorkspace, defaultConfig, DEFAULT_BRAND, loadWorkspace, sourceDirs, detectRunner, runnerOf } from '../util/config.js';
+
+// The command that started this doctor (npx -y github:owner/TADForce, tadforce, node "<clone>/bin/tadforce.js"…):
+// every hint and next command repeats it, and it is recorded in tadforce.config.json › setup.runner.
+let TF = detectRunner();
 import { CONFIG_FILE, TEMPLATES } from '../util/paths.js';
 import { LANGUAGES, normalizeLang } from '../util/i18n.js';
 import { sfVersion, sfJson, sfInteractive, soql, isTransient } from '../sf/sf.js';
@@ -378,7 +382,7 @@ async function resolveProject(start, args, rl) {
   if (/^\d+$/.test(a) && found[Number(a) - 1]) return found[Number(a) - 1];
   if (/^c$/i.test(a)) return start;
   if (a) return resolveProject(path.resolve(a), { ...args, project: 'yes' }, rl);
-  console.log('  Open your Salesforce project folder (cd <path>), then run tadforce doctor again.');
+  console.log(`  Open your Salesforce project folder (cd <path>), then run ${TF} doctor again.`);
   return { stop: null };
 }
 
@@ -459,7 +463,7 @@ async function chooseSource(project, ctx, args, rl) {
     return { mode: 'local' };
   }
   if (pick.id === 'org' && !yes((await rl.question('  The retrieve takes several minutes, read-only. Start now? [Y/n] ')).trim())) {
-    console.log('  Run tadforce doctor again when you are ready: your answers are kept.');
+    console.log(`  Run ${TF} doctor again when you are ready: your answers are kept.`);
     return { stop: null };
   }
   cfg.source.mode = pick.id; cfg.setup.sourceGo = true; ctx.save(cfg);
@@ -492,11 +496,11 @@ function completenessChecks(ctx, hasFacts) {
   const rr = ctx.p('.snapshot', 'retrieve-report.json');
   const fromOrg = ctx.cfg.source.mode !== 'local' && exists(rr);
   const suspicious = fromOrg ? readJson(rr).suspicious || [] : [];
-  if (suspicious.length) out.push({ id: 'retrieve-empty', message: `Requested from the org but nothing came back: ${suspicious.join(', ')} — every org has some; their counts read « not collected »`, fix: 'retrieve again: tadforce doctor --refresh (or check the permissions of the user: View Setup and Configuration, Modify Metadata through the Metadata API)', human: false });
+  if (suspicious.length) out.push({ id: 'retrieve-empty', message: `Requested from the org but nothing came back: ${suspicious.join(', ')} — every org has some; their counts read « not collected »`, fix: `retrieve again: ${TF} doctor --refresh (or check the permissions of the user: View Setup and Configuration, Modify Metadata through the Metadata API)`, human: false });
   if (hasFacts && !fromOrg) {
     const f = readJson(ctx.p('facts', 'facts.json'));
     const missing = Object.keys(CORE_FOLDERS).filter((k) => f.coverage && f.coverage[k] && !f.coverage[k].collected);
-    if (missing.length) out.push({ id: 'metadata-missing', message: `Not in the sources: ${missing.join(', ')} — their counts read « not collected », not 0`, fix: `retrieve them into the project (sf project retrieve start --metadata ${missing.map((k) => CORE_FOLDERS[k]).join(' --metadata ')}), or let TADForce retrieve everything: tadforce doctor --refresh --source org`, human: true });
+    if (missing.length) out.push({ id: 'metadata-missing', message: `Not in the sources: ${missing.join(', ')} — their counts read « not collected », not 0`, fix: `retrieve them into the project (sf project retrieve start --metadata ${missing.map((k) => CORE_FOLDERS[k]).join(' --metadata ')}), or let TADForce retrieve everything: ${TF} doctor --refresh --source org`, human: true });
   }
   return out;
 }
@@ -549,7 +553,7 @@ async function evaluate(project, args) {
     }
     const rr = ctx.p('.snapshot', 'retrieve-report.json');
     const lost = exists(rr) ? (readJson(rr).failed || []).filter((x) => x.core).map((x) => x.type) : [];
-    if (lost.length) add('retrieve', true, `Not retrieved, the document needs them: ${lost.join(', ')}`, 'rerun the retrieve when the org is less busy: tadforce doctor --refresh', false, 'warn');
+    if (lost.length) add('retrieve', true, `Not retrieved, the document needs them: ${lost.join(', ')}`, `rerun the retrieve when the org is less busy: ${TF} doctor --refresh`, false, 'warn');
     for (const x of completenessChecks(ctx, facts)) add(x.id, true, x.message, x.fix, x.human, 'warn');
     for (const x of logoChecks(ctx)) add(x.id, true, x.message, x.fix, true, 'warn');
     if (facts) add('metadata', true, `Metadata: ${exists(ctx.p(ctx.cfg.source.dir)) && ctx.cfg.source.mode !== 'local' ? 'retrieved from the org' : 'local sources'} → facts/facts.json`);
@@ -559,6 +563,7 @@ async function evaluate(project, args) {
 
 export async function run(args) {
   const start = path.resolve(args.cwd || process.cwd());
+  TF = detectRunner();
   const interactive = process.stdin.isTTY && !args.json && !args.yes;
   const rl = interactive ? readline.createInterface({ input: process.stdin, output: process.stdout }) : null;
   const say = (fn) => { if (!args.json) fn(); };
@@ -571,20 +576,21 @@ export async function run(args) {
       spawnSync('npm', ['install', '--global', '@salesforce/cli'], { stdio: 'inherit', shell: process.platform === 'win32' });
       st = await evaluate(start, args);
     }
-    if (st.tools.some((t) => t.level === 'error' && t.id !== 'sfdx-project')) return finish(args, st, [], 'install the missing tools, then run tadforce doctor again');
+    if (st.tools.some((t) => t.level === 'error' && t.id !== 'sfdx-project')) return finish(args, st, [], `install the missing tools, then run ${TF} doctor again`);
 
     // 2. The Salesforce project the TAD is about (confirmed, never created without a yes).
     const p = await resolveProject(start, args, rl);
-    if (typeof p !== 'string') return p.stop ? finish(args, st, [p.stop], `ask the human, then run 'npx tadforce doctor --json --cwd "${start}" --project <yes|path|create>' (after a path, always pass --cwd <that path>)`) : 1;
+    if (typeof p !== 'string') return p.stop ? finish(args, st, [p.stop], `ask the human, then run '${TF} doctor --json --cwd "${start}" --project <yes|path|create>' (after a path, always pass --cwd <that path>)`) : 1;
     const project = p;
     if (project !== start) say(() => log.ok(`Project: ${project}`));
     if (!findWorkspace(project)) {
       await quietly(args.json, () => { ensureWorkspace(project, defaultConfig()); installSkills(project, null); });
       say(() => log.ok('Workspace created: tadforce/ (skills installed for your agents)'));
     }
-    const again = (flags) => `npx tadforce doctor --json --cwd "${project}" ${flags}`;
+    const again = (flags) => `${TF} doctor --json --cwd "${project}" ${flags}`;
     let ctx = loadWorkspace(project);
-    ctx.cfg.setup.projectConfirmed = true; ctx.save(ctx.cfg);
+    // every hint repeats the command the human typed (npx github:…, a global install, a clone): never a silent other version
+    ctx.cfg.setup.projectConfirmed = true; ctx.cfg.setup.runner = TF; ctx.save(ctx.cfg);
     await applyAnswers(ctx, args);
     ctx = loadWorkspace(project);
 
@@ -665,7 +671,7 @@ export async function run(args) {
     // 7. All green: ask whether to launch the build now (writing by the agent, then build and validation).
     const last = await evaluate(project, args);
     const translate = last.list.some((x) => x.id === 'language') ? 'first translate once (check « language »), then ' : '';
-    const writeNext = `${translate}loop on 'npx tadforce build --json --cwd "${project}"' (understand → write → review → render) until the phase is render`;
+    const writeNext = `${translate}loop on '${TF} build --json --cwd "${project}"' (understand → write → review → render) until the phase is render`;
     // a « yes » is remembered (later runs do not ask again); a « no » only means « not now »
     const go = buildAnswer(args) ?? (!rl && last.cfg.setup.buildLaunched ? true : null);
     if (go === true && !rl && !last.cfg.setup.buildLaunched) { const c5 = loadWorkspace(project); c5.cfg.setup.buildLaunched = true; c5.save(c5.cfg); }
@@ -689,7 +695,7 @@ export async function run(args) {
  */
 async function handOver(project, args, rl, go = null) {
   const ctx = loadWorkspace(project);
-  if (go === false) { log.info(`Later: open your agent in ${project} and type /tadforce (or run tadforce doctor --build yes).`); return 0; }
+  if (go === false) { log.info(`Later: open your agent in ${project} and type /tadforce (or run ${TF} doctor --build yes).`); return 0; }
   const found = installedAgents();
   const wanted = typeof args.agent === 'string' ? args.agent : ctx.cfg.setup.agent;
   let agent = found.find((a) => a.id === wanted) || (wanted ? null : found[0]);
@@ -710,7 +716,7 @@ async function handOver(project, args, rl, go = null) {
   }
   ctx.cfg.setup.agent = agent.id; ctx.save(ctx.cfg);
   log.step(`Handing over to ${agent.name}: it writes the document, then builds and validates it…`);
-  return launchAgent(agent, project);
+  return launchAgent(agent, project, runnerOf(loadWorkspace(project).cfg));
 }
 
 /** --build yes|no (the answer to « launch-build »): true, false, or null when not answered. --yes accepts the recommended yes. */
@@ -730,7 +736,7 @@ async function quietly(json, fn, progress = false) {
   try { return await fn(); } finally { console.log = orig; if (progress) setQuiet(true); }
 }
 
-function finish(args, st, questions, next, after = 'npx tadforce build') {
+function finish(args, st, questions, next, after = `${TF} build`) {
   const ok = !next && st.list.every((x) => x.level !== 'error');
   if (args.json) {
     console.log(JSON.stringify({ ok, checks: st.list, questions, next: next || after }, null, 2));
@@ -741,7 +747,7 @@ function finish(args, st, questions, next, after = 'npx tadforce build') {
     console.log(`${icon} ${x.message}`);
     if (x.fix && x.level !== 'ok') console.log(`    ${x.human ? c.cyan('☞ your move: ') : c.dim('fix: ')}${x.fix}`);
   }
-  if (ok) log.ok('Ready. Next: `tadforce build` (or /tadforce in your agent). Evidence first.');
-  else log.human(next || 'fix the points above, then run tadforce doctor again.');
+  if (ok) log.ok(`Ready. Next: \`${TF} build\` (or /tadforce in your agent). Evidence first.`);
+  else log.human(next || `fix the points above, then run ${TF} doctor again.`);
   return ok ? 0 : 1;
 }

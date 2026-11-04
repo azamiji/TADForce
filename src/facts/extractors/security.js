@@ -54,7 +54,7 @@ export function extractSecurity(roots) {
 
   const queues = files(roots, 'queues', '.queue-meta.xml').map((f) => {
     const x = readXml(f);
-    return { name: baseName(f, '.queue-meta.xml'), label: str(x.name), objects: arr(x.queueSobject).map((q) => str(q.sobjectType)).filter(Boolean).sort() };
+    return { name: baseName(f, '.queue-meta.xml'), label: str(x.name), objects: arr(x.queueSobject).map((q) => str(q.sobjectType)).filter(Boolean).sort(), routing: str(x.queueRoutingConfig) };
   }).sort(byName);
 
   const groups = files(roots, 'groups', '.group-meta.xml').map((f) => {

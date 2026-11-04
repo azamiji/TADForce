@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.0 — 2026-11-05
+
+What the first full run on a real org taught: TADForce now knows what the org really has, tells the writers, and checks every sentence against it. 0.5 users: update — the understanding parts are redone once (new fingerprints), then stay stable across TADForce versions.
+
+- **Reliable retrieve and org facts.** The retrieve no longer comes back empty: the Salesforce CLI writes nothing into a hidden folder, so each batch goes through a visible staging folder. Standard picklist value sets (lead status, opportunity stage, case status…) are retrieved by name. Org queries that failed on real orgs are fixed (uncountable objects, `MAX(CreatedDate)` refused, a bare `COUNT()` on User). New aggregates: users per permission set. The cover environment comes from the org (Developer Edition, Sandbox).
+- **Strong evidence only.** A product is in use only with strong evidence (an active site, a channel the project built, objects it customised); weak evidence goes to `modules.weak` and to the Improvement Axes as points to confirm. Sections about features the org does not really use are no longer written.
+- **Salesforce's own components set aside.** Developer Edition samples and defaults (sample role hierarchy, sample email templates, `ApexDevNet`, demo package, default rules and call centers, `sfdc_*` items, Enablement workspaces, Sites and Experience generated pages and controllers, unused console utility bars) are recognised and left out, with the reason.
+- **Better facts for the writers.** Apex classes are sorted into layers (`{{n:apex.layers.services}}`…); a controller is a class with an `@AuraEnabled` method; personas fall back to permission sets; themes and more families join the inventory. The call graph follows relationship reads, child subqueries, deletes, before-save flow writes, and flags invocable actions no flow calls.
+- **Ground truth for every writer.** Each write package carries a brief computed from the facts (`understanding/brief.md`): edition and environment, products in use and absent, what is 0, scheduled jobs and unscheduled schedulable classes, users, systems — and what must not be claimed. Packages also carry figure ownership (each process, lifecycle and domain model is drawn in one section only, linked elsewhere), the summary of the chapters already written, parts to save section by section and a resume hint after a usage limit. Open questions of the writers reach the Improvement Axes and the final report.
+- **Claims check.** Every build checks the text against the org: features the org does not have, frequencies no scheduled job proves, an environment that contradicts the org, risk wording in the client TAD, control characters, untranslated headers, a figure drawn twice. Its results go to the independent reviewer and to the quality gate.
+- **Typography and figures.** French typography is normalised at render time. Figures that would be unreadable are simplified before the gate decides: dense data models split into readable parts, sequences with many participants merge lanes and shorten labels, a second render checks the result. Sequence actors leave room for two-line names; Gantt charts use the page width; state diagrams never break on « : ».
+- **Doctor** repeats the command you actually ran (`npx github:…`, a clone, a global install) in every hint, and the agent prompt uses it too.
+
 ## 0.5.0 — 2026-11-03
 
 From an inventory to an architecture document: TADForce now understands the org before writing it. 0.4 users: update — `build` now runs the whole writing loop, sections about absent features disappear, and a document with gaps is marked DRAFT.

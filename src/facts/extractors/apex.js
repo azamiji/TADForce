@@ -23,7 +23,8 @@ const KIND_RULES = [
   ['queueable', /implements[^{]*\bQueueable\b/i],
   ['schedulable', /implements[^{]*\bSchedulable\b/i],
   ['future', /@future\b/i],
-  ['auraEnabled', /@AuraEnabled\b/i],
+  // a controller exposes METHODS to Lightning: @AuraEnabled on a property (a wrapper's field) is not one
+  ['auraEnabled', /@AuraEnabled\b(\s*\([^)]*\))?\s*((public|global|private|protected|static|override|virtual)\s+)*[\w.<>,[\]\s]+?\s+\w+\s*\(/i],
   ['invocable', /@InvocableMethod\b/i],
   ['soap', /\bwebservice\s+static\b/i],
   ['callout', /\bnew\s+Http\s*\(|\bHttpRequest\b/i],
@@ -86,7 +87,45 @@ export function extractApex(roots) {
       _tokens: tokens(code),
     });
   }
+  const fromTriggers = new Set();
+  for (const t of triggers) for (const tok of t._tokens) fromTriggers.add(tok);
+  for (const c of classes) c.layer = apexLayer(c, fromTriggers);
   return { classes, triggers };
+}
+
+/** Layers of the Apex code, in the order a class is tested against them (first match wins). */
+export const APEX_LAYERS = ['tests', 'webServices', 'async', 'controllers', 'triggerHandlers', 'invocable', 'selectors', 'integration', 'services', 'utilities', 'other'];
+
+const LAYER_NAMES = {
+  controllers: /(Controller|Ctrl|Extension|ControllerExt)$/i,
+  triggerHandlers: /(Trigger_?Handler|Trigger_?Helper|Trigger_?Action|Trigger_?Dispatcher|TriggerService|_?Handler)$/i,
+  selectors: /(Selector|Repository|Repo|DAO|Queries|Query)$/i,
+  integration: /(Client|Callout|Gateway|Connector|Integration|Adapter|Api|Proxy)$/i,
+  services: /(Services?|ServiceImpl|Manager|Engine|Processor|Calculator|Domain)$/i,
+  utilities: /(Utils?|Utility|Utilities|Helpers?|Constants|Exception|Factory|Builder|Wrapper|Logger|Mapper|Parser|Validator|Mock)$/i,
+};
+
+/**
+ * The layer of a class, from its annotations and interfaces first, then its name: a test, a REST/SOAP resource,
+ * an asynchronous job, a controller (an @AuraEnabled METHOD, or the name), a trigger handler (the name, or a
+ * class a trigger calls), an invocable action, a selector, an integration client, a service, a utility.
+ */
+export function apexLayer(c, fromTriggers = new Set()) {
+  const k = new Set(c.kinds || []);
+  const name = String(c.name);
+  if (c.test) return 'tests';
+  if (k.has('rest') || k.has('soap')) return 'webServices';
+  if (k.has('batch') || k.has('queueable') || k.has('schedulable')) return 'async';
+  if (k.has('auraEnabled') || LAYER_NAMES.controllers.test(name)) return 'controllers';
+  const entry = k.has('registrationHandler') || k.has('emailHandler');
+  if (!entry && LAYER_NAMES.triggerHandlers.test(name)) return 'triggerHandlers';
+  if (k.has('invocable')) return 'invocable';
+  if (LAYER_NAMES.selectors.test(name)) return 'selectors';
+  if (entry || LAYER_NAMES.integration.test(name) || (k.has('callout') && !LAYER_NAMES.services.test(name))) return 'integration';
+  if (LAYER_NAMES.services.test(name)) return 'services';
+  if (LAYER_NAMES.utilities.test(name) || k.has('interface') || k.has('enum')) return 'utilities';
+  if (fromTriggers.has(name)) return 'triggerHandlers';
+  return 'other';
 }
 
 /**

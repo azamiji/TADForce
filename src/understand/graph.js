@@ -5,9 +5,12 @@
 // Known limits (documented in references/understand.md):
 // - Apex: calls are `Class.method(` and `new Class(`; dynamic dispatch (Type.forName, interfaces resolved at
 //   run time, custom metadata naming a class) is not followed. DML targets are typed from local declarations
-//   (best effort); field assignments on Trigger.new are not counted as writes.
+//   and SOQL assignments (best effort); field assignments on Trigger.new are not counted as writes.
 // - SOQL built from string concatenation is read only when the literal starts with SELECT and names FROM.
-// - Flows: Apex actions, subflows, record elements, screen components; decisions and formulas are not
+//   Relationship paths (Parent__r.Name) and child subqueries (FROM Children__r) are resolved through the
+//   relations of facts.json: the parent and child objects are read too.
+// - Flows: Apex actions, subflows, record elements, screen components, $Record assignments of a before-save
+//   flow (a write of the triggering record); decisions and formulas are not
 //   evaluated. OmniStudio: keys found in the element JSON (integrationProcedureKey, bundle, remoteClass,
 //   lwcName, namedCredential, callout:). Test classes are left out of the graph.
 // - Only components present in facts.json are nodes (scope and exclusions applied). Objects referenced by
@@ -18,13 +21,27 @@ import { findMetadataRoots, files, bundles, readXml, arr, str, safeRead } from '
 import { scanApex } from '../facts/extractors/apex.js';
 import { toPosix } from '../util/fsx.js';
 
-export const GRAPH_VERSION = 1;
+export const GRAPH_VERSION = 2;
 /** Kinds of nodes that hold behaviour: each one gets a component card in the understanding model. */
 export const CODE_KINDS = ['apex', 'trigger', 'flow', 'lwc', 'aura', 'vf', 'omniscript', 'ip', 'datamapper'];
 export const EDGE_KINDS = ['triggers-on', 'delegates', 'calls', 'extends', 'reads', 'writes', 'publishes', 'subscribes', 'places', 'references', 'serves'];
 
 const sha = (s) => crypto.createHash('sha1').update(s).digest('hex').slice(0, 12);
 const lower = (s) => String(s).toLowerCase();
+// standard objects a DML or a variable may name without the snapshot describing them
+const STANDARD_SOBJECTS = new Set(['Account', 'Contact', 'Lead', 'Opportunity', 'OpportunityLineItem', 'OpportunityContactRole', 'Case', 'CaseComment', 'Task', 'Event', 'User', 'Group', 'GroupMember', 'Campaign', 'CampaignMember', 'Contract', 'Order', 'OrderItem', 'Product2', 'Pricebook2', 'PricebookEntry', 'Quote', 'QuoteLineItem', 'Asset', 'Entitlement', 'WorkOrder', 'WorkOrderLineItem', 'ServiceAppointment', 'ContentVersion', 'ContentDocument', 'ContentDocumentLink', 'Attachment', 'Note', 'FeedItem', 'EmailMessage', 'AccountContactRelation', 'AccountTeamMember', 'OpportunityTeamMember', 'PermissionSetAssignment', 'Individual', 'ContactPointEmail', 'ContactPointPhone']);
+
+/**
+ * The Apex kinds of facts.json, corrected from the code: a class is `auraEnabled` (a controller) only when a
+ * method carries @AuraEnabled; @AuraEnabled on properties only (an inner wrapper class) makes it `auraEnabledFields`.
+ */
+export function apexKinds(kinds = [], code = '') {
+  // the facts already keep auraEnabled for classes with an @AuraEnabled method only (0.6): mark properties-only ones here
+  if (!kinds.includes('auraEnabled') && !/@AuraEnabled\b/i.test(code)) return kinds;
+  const method = /@AuraEnabled\b(?:\s*\([^)]*\))?\s*(?:(?:public|global|private|protected|static|override|virtual|webservice)\s+)+[\w<>\[\],.\s]*?\w+\s*\(/i.test(code);
+  return method ? [...new Set([...kinds, 'auraEnabled'])].sort() : [...new Set([...kinds.filter((k) => k !== 'auraEnabled'), 'auraEnabledFields'])].sort();
+}
+
 const decode = (s) => s.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 
 /**
@@ -87,14 +104,52 @@ export function buildGraph(dirs, facts, opts = {}) {
   };
   const classId = (name) => { const c = classes.get(lower(name)); return c ? `apex:${c.name}` : null; };
 
+  // --- SOQL relationships, resolved through the relations of facts.json (field → target objects)
+  const relationsOf = (obj) => objects.get(lower(obj))?.relations || [];
+  /** Objects a relationship name of `obj` points to: Parent__r → Parent__c's targets, Account → AccountId's. */
+  const parentTargets = (obj, relName) => {
+    const field = /__r$/i.test(relName) ? relName.replace(/__r$/i, '__c') : `${relName}Id`;
+    const r = relationsOf(obj).find((x) => lower(x.field) === lower(field) || lower(x.field) === lower(relName));
+    if (r) return r.to || [];
+    // not described in the snapshot: Parent__r is read as Parent__c when that object exists
+    if (/__r$/i.test(relName) && objects.has(lower(field))) return [objects.get(lower(field)).name];
+    if (!/__r$/i.test(relName) && objects.has(lower(relName)) && objects.get(lower(relName)).kind === 'standard') return [objects.get(lower(relName)).name];
+    return [];
+  };
+  /** Objects read through the parent paths of a query on `from` (Parent__r.Name, Parent__r.Grand__r.Code__c). */
+  const relationshipReads = (from, query) => {
+    const out = new Set();
+    const select = query.replace(/\bFROM\s+\w+/i, ' ');
+    for (const m of select.matchAll(/(?<![:.\w])((?:\w+\.)+)\w+/g)) {
+      let cur = [from];
+      for (const hop of m[1].split('.').filter(Boolean)) {
+        const next = [...new Set(cur.flatMap((o) => parentTargets(o, hop)))];
+        if (!next.length) break;
+        for (const o of next) if (lower(o) !== lower(from)) out.add(o);
+        cur = next;
+      }
+    }
+    return [...out].filter((o) => objects.has(lower(o)));
+  };
+  /** The child object of a subquery (FROM Children__r): the object whose relation to `parent` has that name. */
+  const childObject = (parent, name) => {
+    const rel = name.replace(/__r$/i, '');
+    for (const o of objects.values()) {
+      if ((o.relations || []).some((r) => lower(r.relationshipName || '') === lower(rel) && (r.to || []).some((t) => lower(t) === lower(parent)))) return o.name;
+    }
+    // a semi-join (WHERE Id IN (SELECT … FROM Other__c)) reads that object
+    return objects.has(lower(name)) ? objects.get(lower(name)).name : null;
+  };
+
   // --- Apex classes and triggers
   const apexSources = [];
   for (const f of files(roots, 'classes', '.cls')) {
     const c = classes.get(lower(path.basename(f, '.cls')));
     if (!c) continue;
     const raw = safeRead(f);
-    addNode('apex', c.name, { file: rel(f), hash: sha(raw), lines: c.lines, kinds: c.kinds, sharing: c.sharing, restUrl: c.restUrl || undefined });
-    apexSources.push({ id: `apex:${c.name}`, self: c.name, ...scanApex(raw) });
+    const scanned = scanApex(raw);
+    addNode('apex', c.name, { file: rel(f), hash: sha(raw), lines: c.lines, kinds: apexKinds(c.kinds, scanned.code), sharing: c.sharing, restUrl: c.restUrl || undefined });
+    apexSources.push({ id: `apex:${c.name}`, self: c.name, ...scanned });
   }
   for (const f of files(roots, 'triggers', '.trigger')) {
     const t = triggers.get(lower(path.basename(f, '.trigger')));
@@ -125,10 +180,24 @@ export function buildGraph(dirs, facts, opts = {}) {
       if (/^(return|new|else|throw|case|when|insert|update|upsert|delete|undelete|merge)$/i.test(m[1])) continue;
       if (objects.has(lower(m[1])) || classes.has(lower(m[1]))) vars.set(lower(m[2]), m[1]);
     }
+    // the objects this source queries: a variable of an SObject type it queries is a record, retrieved or not
+    const queried = new Set();
+    for (const m of code.matchAll(/\[\s*SELECT\b[^\]]*?\bFROM\s+(\w+)/gi)) queried.add(lower(m[1]));
+    for (const s of strings) { const m = /^\s*SELECT\b[\s\S]*?\bFROM\s+(\w+)/i.exec(s); if (m) queried.add(lower(m[1])); }
+    // a variable assigned from a query is typed by its FROM (List<SObject> x = [SELECT … FROM Booking__c])
+    for (const m of code.matchAll(/\b(\w+)\s*=\s*\[\s*SELECT\b(?:[^\]\(]|\([^)]*\))*?\bFROM\s+(\w+)/gi)) {
+      const cur = vars.get(lower(m[1]));
+      if (!cur || /^S?Object$/i.test(cur)) vars.set(lower(m[1]), m[2]);
+    }
+    for (const m of code.matchAll(/\b(?:List|Set)\s*<\s*(\w+)\s*>\s+(\w+)\s*=\s*Database\s*\.\s*query\s*\(/gi)) if (!vars.has(lower(m[2]))) vars.set(lower(m[2]), m[1]);
     const typeOf = (expr) => {
       const n = /^new\s+(?:List\s*<\s*)?(\w+)/i.exec(expr);
-      return n ? n[1] : vars.get(lower(expr)) || null;
+      if (n) return n[1];
+      const q = /^\[\s*SELECT\b[\s\S]*?\bFROM\s+(\w+)/i.exec(expr);
+      if (q) return q[1];
+      return vars.get(lower(expr)) || null;
     };
+    const isRecordType = (type) => !!type && !classes.has(lower(type)) && (objects.has(lower(type)) || /__(c|e|mdt|b|x)$/i.test(type) || queried.has(lower(type)) || STANDARD_SOBJECTS.has(type));
     // asynchronous starts first, so that the same class is not also listed as a plain call
     const asyncTargets = new Map();
     const asyncCall = (re, mode) => {
@@ -163,29 +232,39 @@ export function buildGraph(dirs, facts, opts = {}) {
       if (nc) addEdge(id, ncs.has(lower(nc[1])) ? addNode('namedCredential', ncs.get(lower(nc[1])).name) : addNode('namedCredential', nc[1], { retrieved: false }), 'calls', { via: 'callout' });
     }
     // SOQL, static and dynamic
-    for (const m of code.matchAll(/\[\s*SELECT\b[^\]]*\]/gi)) {
-      let q = m[0];
-      while (/\(\s*SELECT\b[^()]*\)/i.test(q)) q = q.replace(/\(\s*SELECT\b[^()]*\)/gi, ' ');
-      const from = /\bFROM\s+(\w+)/i.exec(q);
-      if (from) addEdge(id, objectId(from[1]), 'reads', { via: 'soql' });
-    }
-    for (const s of strings) {
-      if (!/^\s*SELECT\b/i.test(s)) continue;
-      const from = /\bFROM\s+(\w+)/i.exec(s.replace(/\(\s*SELECT\b[^()]*\)/gi, ' '));
-      if (from) addEdge(id, objectId(from[1]), 'reads', { via: 'dynamic-soql' });
-    }
+    const soql = (q, via) => {
+      const subs = [];
+      let outer = q;
+      while (/\(\s*SELECT\b[^()]*\)/i.test(outer)) outer = outer.replace(/\(\s*SELECT\b[^()]*\)/gi, (s) => { subs.push(s); return ' '; });
+      const from = /\bFROM\s+(\w+)/i.exec(outer);
+      if (!from) return;
+      addEdge(id, objectId(from[1]), 'reads', { via });
+      for (const o of relationshipReads(from[1], outer)) addEdge(id, objectId(o), 'reads', { via: 'soql-relationship' });
+      // child subqueries: (SELECT … FROM Children__r) reads the child object, and its own parent paths
+      for (const s of subs) {
+        const child = /\bFROM\s+(\w+)/i.exec(s);
+        const obj = child && childObject(from[1], child[1]);
+        if (!obj) continue;
+        addEdge(id, objectId(obj), 'reads', { via: 'soql-relationship' });
+        for (const o of relationshipReads(obj, s.replace(/\bFROM\s+\w+/i, ' '))) addEdge(id, objectId(o), 'reads', { via: 'soql-relationship' });
+      }
+    };
+    for (const m of code.matchAll(/\[\s*SELECT\b[^\]]*\]/gi)) soql(m[0], 'soql');
+    for (const s of strings) if (/^\s*SELECT\b/i.test(s)) soql(s, 'dynamic-soql');
     // custom metadata and custom settings read through their methods
     for (const m of code.matchAll(/\b(\w+__(?:mdt|c))\s*\.\s*(getAll|getInstance|getOrgDefaults|getValues)\s*\(/gi)) addEdge(id, objectId(m[1]), 'reads', { via: m[2] });
     // DML and events
     const dml = (op, expr) => {
       const type = typeOf(expr.trim());
-      const target = type && objects.has(lower(type)) ? objectId(type) : type && /__(c|e)$/i.test(type) ? objectId(type) : null;
+      const target = isRecordType(type) ? objectId(type) : null;
       if (!target) return;
       if (/^platformEvent:/.test(target)) addEdge(id, target, 'publishes', { via: op });
       else addEdge(id, target, 'writes', { ops: [lower(op)] });
     };
-    for (const m of code.matchAll(/(?<![.\w])(insert|update|upsert|delete|undelete|merge)\s+(?:as\s+(?:user|system)\s+)?(new\s+\w+|\w+)/gi)) dml(m[1], m[2]);
-    for (const m of code.matchAll(/\bDatabase\s*\.\s*(insert|update|upsert|delete|undelete|merge)(?:Immediate|Async)?\s*\(\s*(new\s+(?:List\s*<\s*)?\w+|\w+)/gi)) dml(m[1], m[2]);
+    // the operand: new X(…), a variable (or a field of this: this.x, a map's values()), or an inline query
+    const OPERAND = String.raw`(new\s+(?:List\s*<\s*)?\w+|\[\s*SELECT\b[^\]]*\]|(?:this\s*\.\s*)?\w+)`;
+    for (const m of code.matchAll(new RegExp(String.raw`(?<![.\w])(insert|update|upsert|delete|undelete|merge)\s+(?:as\s+(?:user|system)\s+)?${OPERAND}`, 'gi'))) dml(m[1], m[2].replace(/^this\s*\.\s*/i, ''));
+    for (const m of code.matchAll(new RegExp(String.raw`\bDatabase\s*\.\s*(insert|update|upsert|delete|undelete|merge)(?:Immediate|Async)?\s*\(\s*${OPERAND}`, 'gi'))) dml(m[1], m[2].replace(/^this\s*\.\s*/i, ''));
     for (const m of code.matchAll(/\bEventBus\s*\.\s*publish\s*\(\s*(new\s+(?:List\s*<\s*)?\w+|\w+)/gi)) {
       const type = typeOf(m[1].trim());
       const target = type ? objectId(type) : null;
@@ -226,6 +305,11 @@ export function buildGraph(dirs, facts, opts = {}) {
         if (kind === 'writes' && /^platformEvent:/.test(target)) addEdge(id, target, 'publishes', { via: tag });
         else addEdge(id, target, kind, op ? { ops: [op] } : { via: 'record-lookup' });
       }
+    }
+    // a before-save flow changes its triggering record by assignment ($Record.Field), without a record element
+    if (startObj && fl.triggerType === 'RecordBeforeSave') {
+      const assigned = arr(x.assignments).flatMap((a) => arr(a.assignmentItems)).some((it) => /^\$Record\./.test(str(it.assignToReference) || ''));
+      if (assigned) addEdge(id, objectId(startObj), 'writes', { ops: ['update'], via: 'before-save' });
     }
     for (const m of raw.matchAll(/<extensionName>c:([A-Za-z0-9_]+)<\/extensionName>/g)) {
       const l = lwcs.get(lower(m[1])) || auras.get(lower(m[1]));
@@ -333,8 +417,12 @@ export function buildGraph(dirs, facts, opts = {}) {
   }
   for (const o of facts.data?.objects || []) if (!o.namespace || nodes.has(`${objKind(o)}:${o.name}`)) objectId(o.name);
 
-  const nodeList = [...nodes.values()].map(clean).sort((a, b) => a.id.localeCompare(b.id));
   const edgeList = [...edges.values()].filter((e) => nodes.has(e.from) && nodes.has(e.to)).sort((a, b) => (a.from + a.kind + a.to).localeCompare(b.from + b.kind + b.to));
+  // invocable actions no flow of the snapshot calls: flagged, so that dead code can be found (an agent, a
+  // Process Builder outside the snapshot or a REST call may still use them: the edge is absent, not proven dead)
+  const invoked = new Set(edgeList.filter((e) => e.kind === 'calls' && e.via === 'invocable').map((e) => e.to));
+  for (const n of nodes.values()) if (n.kind === 'apex' && (n.kinds || []).includes('invocable') && !invoked.has(n.id)) n.invocableUncalled = true;
+  const nodeList = [...nodes.values()].map(clean).sort((a, b) => a.id.localeCompare(b.id));
   return { version: GRAPH_VERSION, nodes: nodeList, edges: edgeList, stats: stats(nodeList, edgeList) };
 }
 

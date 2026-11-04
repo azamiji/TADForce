@@ -7,6 +7,10 @@ import { TEMPLATES, PKG_ROOT } from '../util/paths.js';
 import { loadI18n, templateLang } from '../util/i18n.js';
 import { loadFacts } from '../facts/index.js';
 import { readComments, reportFor, markDraft } from '../build/render.js';
+import { skeletonAnchors } from './anchors.js';
+import { claimsCheck } from './claims.js';
+
+export { claimsCheck };
 
 // Optional modules of the facts layer (absent in older trees): loaded once, skipped when missing.
 const optional = async (rel) => {
@@ -145,6 +149,9 @@ export function validateDocument(wsCtx, doc, { buildReport = null } = {}) {
     if (inCode) add('error', 'unclosed-code', 'Unclosed code fence.', `src/${doc}/${f}`);
   }
 
+  // what the text claims, held against the org (absent features, schedules, environment, risk wording…)
+  try { issues.push(...claimsCheck(wsCtx, doc, { facts })); } catch (e) { add('warn', 'claims-failed', `The claims check could not run: ${e.message}`); }
+
   if (buildReport) {
     for (const p of buildReport.problems) add(p.level === 'warn' ? 'warn' : 'error', p.code, p.message);
     const html = readText(buildReport.html);
@@ -189,28 +196,6 @@ export function sectionsOf(html) {
     const content = body.slice(m.index + m[0].length, end);
     return { lvl: Number(m[1]), id: m[2], title: strip(m[3]).replace(/\s*#$/, ''), content, next: hs[i + 1] ? Number(hs[i + 1][1]) : 0 };
   });
-}
-
-// heading anchor of each pending section of the skeletons: specs are matched to the built document through it
-const anchorCache = new Map();
-function skeletonAnchors(doc, lang) {
-  const key = doc + '/' + lang;
-  if (anchorCache.has(key)) return anchorCache.get(key);
-  const out = {};
-  const dir = path.join(TEMPLATES, doc, lang);
-  if (exists(dir)) {
-    for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.md')).sort()) {
-      let anchor = null;
-      for (const line of readText(path.join(dir, f)).split('\n')) {
-        const h = /^#{1,3} .*\{[^}]*#([\w-]+)[^}]*\}\s*$/.exec(line);
-        if (h) anchor = h[1];
-        const p = /<!--\s*tad:pending\s+([\w.-]+)\s*-->/.exec(line);
-        if (p && anchor) out[p[1]] = anchor;
-      }
-    }
-  }
-  anchorCache.set(key, out);
-  return out;
 }
 
 async function loadEvaluateWhen() {

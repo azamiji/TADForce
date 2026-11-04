@@ -3,7 +3,8 @@ import path from 'node:path';
 import { t, formatNumber, formatDate } from '../util/i18n.js';
 import { exists, readText } from '../util/fsx.js';
 import { contextView, layersBlock, rolesTree, legendHtml, figureHtml, esc } from './figures.js';
-import { erdModel, erdSvg, ERD_MAX } from './erd.js';
+import { erdModel, erdSvg, erdTextPx, erdClusters, ERD_MAX } from './erd.js';
+import { QA } from './figqa.js';
 import { sequenceCode, stateCode } from './diagrams.js';
 
 const cell = (v) => String(v ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
@@ -264,18 +265,55 @@ export function erd(facts, objectNames, caption) {
 }
 const ent = (n) => n.replace(/[^A-Za-z0-9_]/g, '_');
 
-/** ER diagram figure (SVG) of at most ERD_MAX objects. */
-export function erdFigure(ctx, names, caption, problems, where) {
+/**
+ * The variants of an ER diagram, from the plainest to the most simplified: as is, split in 2 then 3
+ * sub-diagrams (erdClusters: the hub repeated in each), then the same without the type column.
+ */
+export function erdVariants(facts, list) {
+  const out = [{ parts: [list], types: true }];
+  const splits = [2, 3].filter((k) => list.length >= 2 * k).map((k) => erdClusters(facts, list, k).parts).filter((p) => p.length > 1);
+  for (const parts of splits) out.push({ parts, types: true });
+  if (splits.length) for (const parts of splits) out.push({ parts, types: false });
+  else out.push({ parts: [list], types: false });
+  return out;
+}
+
+/**
+ * ER diagram figure (SVG) of at most ERD_MAX objects. A diagram whose text would be smaller than the
+ * readable size on A4 (QA.warnFontPx once fitted to the page, at every candidate width) is split
+ * automatically into 2–3 sub-diagrams (« (1/2) » after the caption), then drawn without the type
+ * column; only when nothing reads well is it reported. `simplify` (asked by the visual QA after a
+ * figure failed) starts from the next variant and asks for larger text.
+ */
+export function erdFigure(ctx, names, caption, problems, where, src = null) {
   let list = names.length === 1 && names[0] === 'auto' ? autoObjects(ctx.facts) : [...new Set(names)];
   if (list.length > ERD_MAX) {
     problems.push({ level: 'warn', code: 'erd-too-many', message: `${where}: ${list.length} objects, only the first ${ERD_MAX} are drawn — split the diagram by domain (@@ERD-DOMAIN:…@@).` });
     list = list.slice(0, ERD_MAX);
   }
-  const model = erdModel(ctx.facts, list, ctx.dict);
-  if (model.missing.length) problems.push({ level: 'warn', code: 'erd-unknown-object', message: `${where}: not in the metadata: ${model.missing.join(', ')}` });
+  const first = erdModel(ctx.facts, list, ctx.dict);
+  if (first.missing.length) problems.push({ level: 'warn', code: 'erd-unknown-object', message: `${where}: not in the metadata: ${first.missing.join(', ')}` });
+  const known = list.filter((n) => !first.missing.includes(n));
   const cap = caption || t(ctx.dict, 'figures.erd');
-  const svg = erdSvg(model, cap);
-  return svg ? figureHtml(svg, cap, 'erd') : '';
+  const simplify = !!(src && ctx.simplify && ctx.simplify.has(src));
+  const threshold = simplify ? QA.warnFontPx + 1.5 : QA.warnFontPx;
+  let variants = erdVariants(ctx.facts, known);
+  if (simplify && variants.length > 1) variants = variants.slice(1);
+  let chosen = null;
+  for (const v of variants) {
+    const models = v.parts.map((p) => erdModel(ctx.facts, p, ctx.dict, { types: v.types }));
+    const px = Math.min(...models.map(erdTextPx));
+    chosen = { v, models, px };
+    if (px >= threshold) break;
+  }
+  if (!chosen || !chosen.models.length) return '';
+  if (chosen.px < QA.minFontPx) problems.push({ level: 'warn', code: 'erd-unreadable', message: `${where}: even split in ${chosen.models.length} and without the type column, the text would be ${chosen.px.toFixed(1)} px on A4 — choose fewer objects for this domain.` });
+  const n = chosen.models.length;
+  return chosen.models.map((m, i) => {
+    const c = n > 1 ? `${cap} (${i + 1}/${n})` : cap;
+    const svg = erdSvg(m, c);
+    return svg ? figureHtml(svg, c, 'erd', src) : '';
+  }).join('\n');
 }
 
 function integrationsFigure(facts, cfg, dict, caption) {
@@ -327,7 +365,14 @@ function modelItem(ctx, list, id, directive, problems) {
   return item || null;
 }
 
-const mermaidFigure = (code, caption) => '```mermaid\n' + code + '\n```\nFigure: ' + String(caption).replace(/\n/g, ' ') + '\n';
+// `src` (the directive) rides in a Mermaid comment: the build reads it back to tag the figure for the visual QA
+const mermaidFigure = (code, caption, src = null) => '```mermaid\n' + code + (src ? `\n%% tad-src=${src}` : '') + '\n```\nFigure: ' + String(caption).replace(/\n/g, ' ') + '\n';
+
+/** Table under a simplified sequence: the full names behind its shortened lanes. */
+function laneNotes(notes, dict) {
+  if (!notes || !notes.length) return '';
+  return '\n' + mdTable([t(dict, 'figures.seqLane'), t(dict, 'figures.seqFull')], notes.map((x) => [x.lane, x.full])) + '\n';
+}
 
 /**
  * Replace every @@DIRECTIVE@@ line by generated content. Unknown directives are reported.
@@ -348,29 +393,30 @@ export function resolveDirectives(text, ctx, problems) {
       const out = fn();
       return out || `<p class="empty-annex">${t(ctx.dict, 'annex.none')}</p>`;
     }
-    if (kind === 'ERD') return erdFigure(ctx, arg.split(',').map((s) => s.trim()).filter(Boolean), caption, problems, m);
+    const src = `${kind}:${arg}`;
+    if (kind === 'ERD') return erdFigure(ctx, arg.split(',').map((s) => s.trim()).filter(Boolean), caption, problems, m, src);
     if (kind === 'ERD-DOMAIN') {
       const d = modelItem(ctx, 'domains', arg, m, problems);
       if (!d) return '';
       const objs = (d.objects || []).map(String);
       if (!objs.length) { problems.push({ level: 'warn', code: 'erd-empty-domain', message: `${m}: the domain "${arg}" lists no object.` }); return ''; }
-      return erdFigure(ctx, objs, caption || t(ctx.dict, 'figures.erdDomain', { domain: d.name || d.id }), problems, m);
+      return erdFigure(ctx, objs, caption || t(ctx.dict, 'figures.erdDomain', { domain: d.name || d.id }), problems, m, src);
     }
     if (kind === 'SEQ') {
       const p = modelItem(ctx, 'processes', arg, m, problems);
       if (!p) return '';
       if (!(p.steps || []).length) { problems.push({ level: 'warn', code: 'seq-empty', message: `${m}: the process "${arg}" has no step.` }); return ''; }
-      const { code, warnings } = sequenceCode(p, ctx.dict);
+      const { code, warnings, notes } = sequenceCode(p, ctx.dict, { simplify: !!(ctx.simplify && ctx.simplify.has(src)) });
       for (const w of warnings) problems.push({ level: 'warn', code: 'model-inconsistent', message: `${m}: ${w}` });
-      return mermaidFigure(code, caption || t(ctx.dict, 'figures.seq', { process: p.name || p.id }));
+      return mermaidFigure(code, caption || t(ctx.dict, 'figures.seq', { process: p.name || p.id }), src) + laneNotes(notes, ctx.dict);
     }
     if (kind === 'STATE') {
       const lc = modelItem(ctx, 'lifecycles', arg, m, problems);
       if (!lc) return '';
       if (!(lc.states || []).length) { problems.push({ level: 'warn', code: 'state-empty', message: `${m}: the lifecycle "${arg}" has no state.` }); return ''; }
-      const { code, warnings } = stateCode(lc);
+      const { code, warnings } = stateCode(lc, { simplify: !!(ctx.simplify && ctx.simplify.has(src)) });
       for (const w of warnings) problems.push({ level: 'warn', code: 'model-inconsistent', message: `${m}: ${w}` });
-      return mermaidFigure(code, caption || t(ctx.dict, 'figures.state', { object: lc.object || lc.id, field: lc.field || '' }).replace(/\s*\(\)\s*$/, ''));
+      return mermaidFigure(code, caption || t(ctx.dict, 'figures.state', { object: lc.object || lc.id, field: lc.field || '' }).replace(/\s*\(\)\s*$/, ''), src);
     }
     if (kind === 'KPIS') return kpis(ctx);
     if (kind === 'LEGEND') return legendHtml(ctx.dict);

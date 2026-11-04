@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { exists, readJson, readText, readYaml, writeJson } from '../util/fsx.js';
 import { AREAS, fingerprints } from '../facts/fingerprints.js';
-import { loadWorkspace, sourceDirs } from '../util/config.js';
+import { loadWorkspace, sourceDirs, runnerOf } from '../util/config.js';
 import { TEMPLATES } from '../util/paths.js';
 import { log, c } from '../util/log.js';
 import { templateLang } from '../util/i18n.js';
@@ -96,7 +96,8 @@ export async function run(args) {
   const ctx = loadWorkspace(args.cwd || process.cwd());
   const say = (fn) => { if (!args.json) fn(); };
   const before = ctx.p('facts', 'facts.json');
-  if (!exists(before)) throw new Error('No previous facts: run `tadforce doctor` and `tadforce build` first.');
+  const TF = runnerOf(ctx.cfg);
+  if (!exists(before)) throw new Error(`No previous facts: run \`${TF} doctor\` and \`${TF} build\` first.`);
   say(() => log.banner('update'));
 
   // 1. What the current version was written from (archived below, once something changed).
@@ -166,7 +167,7 @@ export async function run(args) {
     cfg.document.history = [...history, { version: cfg.document.version, date: stamp, author: by, purpose }];
     ctx2.save(cfg);
   }
-  const report = { upToDate, from, to: cfg.document.version, changes: diff, counts, sections, outline: { added: outline.added, removed: outline.removed, review: outline.kept }, next: upToDate ? null : sections.length ? 'rewrite the sections whose relevance is « components » from the new facts (keep heading and anchor); check the « counts » ones for numbers written in the text; then `npx tadforce build`' : `npx tadforce build --cwd "${ctx2.project}"` };
+  const report = { upToDate, from, to: cfg.document.version, changes: diff, counts, sections, outline: { added: outline.added, removed: outline.removed, review: outline.kept }, next: upToDate ? null : sections.length ? `rewrite the sections whose relevance is « components » from the new facts (keep heading and anchor); check the « counts » ones for numbers written in the text; then \`${TF} build\`` : `${TF} build --cwd "${ctx2.project}"` };
   // a rerun before the rewrite and the build keeps the work to do of the previous update
   const prevFile = ctx2.p('facts', 'update.json');
   const prev = exists(prevFile) ? readJson(prevFile) : null;
@@ -186,6 +187,6 @@ export async function run(args) {
   if (total) log.ok(`Version ${from} → ${cfg.document.version} (history updated)`);
   log.step(`${sections.length} section(s) to review:`);
   for (const s of sections) console.log(`  ${s.relevance === 'components' ? c.cyan(s.id.padEnd(28)) : c.dim(s.id.padEnd(28))} ${c.dim((s.file || '') + (s.anchor ? '#' + s.anchor : ''))}  ${s.reasons.slice(0, 2).join('; ')}`);
-  log.human('let your agent rewrite these sections (/tadforce-update), then `tadforce build`. Numbers and generated tables update by themselves.');
+  log.human(`let your agent rewrite these sections (/tadforce-update), then \`${TF} build\`. Numbers and generated tables update by themselves.`);
   return 0;
 }

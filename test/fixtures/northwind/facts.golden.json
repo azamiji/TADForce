@@ -223,9 +223,9 @@
         "apiVersion": "62.0",
         "hardcodedIds": 0,
         "kinds": [
-          "auraEnabled",
           "callout"
         ],
+        "layer": "integration",
         "lines": 12,
         "name": "CoreBankingClient",
         "namedCredentials": [
@@ -245,6 +245,7 @@
         "kinds": [
           "auraEnabled"
         ],
+        "layer": "controllers",
         "lines": 8,
         "name": "Customer360Controller",
         "namedCredentials": [],
@@ -263,6 +264,7 @@
           "batch",
           "schedulable"
         ],
+        "layer": "async",
         "lines": 12,
         "name": "CustomerSyncBatch",
         "namedCredentials": [],
@@ -278,6 +280,7 @@
         "apiVersion": "62.0",
         "hardcodedIds": 0,
         "kinds": [],
+        "layer": "tests",
         "lines": 8,
         "name": "CustomerSyncBatchTest",
         "namedCredentials": [],
@@ -293,6 +296,7 @@
         "apiVersion": "62.0",
         "hardcodedIds": 0,
         "kinds": [],
+        "layer": "other",
         "lines": 3,
         "name": "DemoDataLoader",
         "namedCredentials": [],
@@ -311,6 +315,7 @@
           "callout",
           "queueable"
         ],
+        "layer": "async",
         "lines": 12,
         "name": "DocumentArchiveQueueable",
         "namedCredentials": [
@@ -331,6 +336,7 @@
           "global",
           "rest"
         ],
+        "layer": "webServices",
         "lines": 10,
         "name": "LeadApiResource",
         "namedCredentials": [],
@@ -346,6 +352,7 @@
         "apiVersion": "62.0",
         "hardcodedIds": 0,
         "kinds": [],
+        "layer": "tests",
         "lines": 6,
         "name": "LeadApiResourceTest",
         "namedCredentials": [],
@@ -361,6 +368,7 @@
         "apiVersion": "62.0",
         "hardcodedIds": 0,
         "kinds": [],
+        "layer": "triggerHandlers",
         "lines": 8,
         "name": "LeadTriggerHandler",
         "namedCredentials": [],
@@ -376,6 +384,7 @@
         "apiVersion": "45.0",
         "hardcodedIds": 0,
         "kinds": [],
+        "layer": "utilities",
         "lines": 5,
         "name": "LegacyRateHelper",
         "namedCredentials": [],
@@ -391,6 +400,7 @@
         "apiVersion": "62.0",
         "hardcodedIds": 0,
         "kinds": [],
+        "layer": "tests",
         "lines": 6,
         "name": "LegacyRateHelperTest",
         "namedCredentials": [],
@@ -406,6 +416,7 @@
         "apiVersion": "62.0",
         "hardcodedIds": 0,
         "kinds": [],
+        "layer": "selectors",
         "lines": 8,
         "name": "LoanApplicationSelector",
         "namedCredentials": [],
@@ -421,6 +432,7 @@
         "apiVersion": "62.0",
         "hardcodedIds": 0,
         "kinds": [],
+        "layer": "triggerHandlers",
         "lines": 20,
         "name": "LoanApplicationTriggerHandler",
         "namedCredentials": [],
@@ -436,6 +448,7 @@
         "apiVersion": "62.0",
         "hardcodedIds": 0,
         "kinds": [],
+        "layer": "tests",
         "lines": 12,
         "name": "LoanApplicationTriggerHandlerTest",
         "namedCredentials": [],
@@ -451,6 +464,7 @@
         "apiVersion": "62.0",
         "hardcodedIds": 0,
         "kinds": [],
+        "layer": "services",
         "lines": 13,
         "name": "LoanScoringService",
         "namedCredentials": [],
@@ -466,6 +480,7 @@
         "apiVersion": "62.0",
         "hardcodedIds": 0,
         "kinds": [],
+        "layer": "tests",
         "lines": 10,
         "name": "LoanScoringServiceTest",
         "namedCredentials": [],
@@ -485,6 +500,7 @@
           "future",
           "invocable"
         ],
+        "layer": "invocable",
         "lines": 13,
         "name": "SmsNotificationService",
         "namedCredentials": [
@@ -505,6 +521,7 @@
           "global",
           "registrationHandler"
         ],
+        "layer": "integration",
         "lines": 7,
         "name": "SsoRegistrationHandler",
         "namedCredentials": [],
@@ -673,6 +690,7 @@
         }
       ]
     },
+    "ruleEntries": [],
     "rules": {
       "approvalProcesses": 0,
       "assignmentRules": 0,
@@ -688,13 +706,26 @@
   },
   "counts": {
     "apex": {
-      "auraEnabled": 2,
+      "auraEnabled": 1,
       "batch": 1,
       "callout": 3,
       "classes": 13,
       "future": 1,
       "inheritedSharing": 1,
       "invocable": 1,
+      "layers": {
+        "async": 2,
+        "controllers": 1,
+        "integration": 2,
+        "invocable": 1,
+        "other": 1,
+        "selectors": 1,
+        "services": 1,
+        "tests": 5,
+        "triggerHandlers": 2,
+        "utilities": 1,
+        "webServices": 1
+      },
       "lines": 131,
       "queueable": 1,
       "rest": 1,
@@ -1208,6 +1239,17 @@
     "apex.future": "collected",
     "apex.inheritedSharing": "collected",
     "apex.invocable": "collected",
+    "apex.layers.async": "collected",
+    "apex.layers.controllers": "collected",
+    "apex.layers.integration": "collected",
+    "apex.layers.invocable": "collected",
+    "apex.layers.other": "collected",
+    "apex.layers.selectors": "collected",
+    "apex.layers.services": "collected",
+    "apex.layers.tests": "collected",
+    "apex.layers.triggerHandlers": "collected",
+    "apex.layers.utilities": "collected",
+    "apex.layers.webServices": "collected",
     "apex.lines": "collected",
     "apex.queueable": "collected",
     "apex.rest": "collected",
@@ -2072,6 +2114,13 @@
     "emailTemplates": [
       "Loan_Approved"
     ],
+    "experience": {
+      "bundleMetadata": false,
+      "bundles": [],
+      "networks": [],
+      "networksEnabled": false,
+      "sites": []
+    },
     "folders": {
       "applications": 2,
       "authproviders": 1,
@@ -2213,6 +2262,44 @@
     "dataCloud": false,
     "education": false,
     "events": true,
+    "evidence": {
+      "events": [
+        {
+          "strength": "strong",
+          "what": "platform event LoanStatusChange__e"
+        }
+      ],
+      "financialServices": [
+        {
+          "strength": "strong",
+          "what": "namespace FinServ"
+        }
+      ],
+      "omnistudio": [
+        {
+          "strength": "strong",
+          "what": "1 omniScripts"
+        },
+        {
+          "strength": "strong",
+          "what": "1 integrationProcedures"
+        },
+        {
+          "strength": "strong",
+          "what": "1 dataMappers"
+        }
+      ],
+      "salesCloud": [
+        {
+          "strength": "strong",
+          "what": "object Opportunity"
+        },
+        {
+          "strength": "strong",
+          "what": "object Lead"
+        }
+      ]
+    },
     "experienceCloud": false,
     "fieldService": false,
     "financialServices": true,
@@ -2250,7 +2337,8 @@
     "serviceCloud": false,
     "shield": false,
     "slack": false,
-    "visualforce": false
+    "visualforce": false,
+    "weak": []
   },
   "namespaces": [
     {
@@ -2517,16 +2605,19 @@
     "personas": [
       {
         "apps": [],
+        "kind": "permissionSetGroup",
         "label": "Persona — advisor",
         "name": "NWB_Persona_Advisor"
       },
       {
         "apps": [],
+        "kind": "permissionSetGroup",
         "label": "Persona — contact center agent",
         "name": "NWB_Persona_Agent"
       },
       {
         "apps": [],
+        "kind": "permissionSetGroup",
         "label": "Persona — branch manager",
         "name": "NWB_Persona_Branch_Manager"
       }
@@ -2557,16 +2648,21 @@
         "name": "Contact_Center_Leads",
         "objects": [
           "Lead"
-        ]
+        ],
+        "routing": null
       },
       {
         "label": "Loan review",
         "name": "Loan_Review",
         "objects": [
           "LoanApplication__c"
-        ]
+        ],
+        "routing": null
       }
     ],
+    "roleHierarchy": {
+      "sample": false
+    },
     "roles": [
       {
         "label": "Advisor — North",

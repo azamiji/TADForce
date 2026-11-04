@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
 import { exists, readText, readYaml, walk, toPosix } from '../util/fsx.js';
-import { loadWorkspace, sourceFlags } from '../util/config.js';
+import { loadWorkspace, sourceFlags, runnerOf } from '../util/config.js';
 import { TEMPLATES } from '../util/paths.js';
 import { loadFacts } from '../facts/index.js';
 import { sectionFilter } from '../facts/outline.js';
@@ -75,7 +75,7 @@ export function writingOrder(doc, files) {
 export async function next(args) {
   const ctx = loadWorkspace(args.cwd || process.cwd());
   const facts = loadFacts(ctx.ws);
-  if (!facts) { log.fail('Run `tadforce facts` first.'); return 1; }
+  if (!facts) { log.fail(`Run \`${runnerOf(ctx.cfg)} doctor\` first (it extracts the facts).`); return 1; }
   const scope = { modules: facts.modules, counts: facts.counts, org: facts.org, cfg: ctx.cfg, facts, glossary: ctx.glossary(), source: sourceFlags(ctx.cfg) };
   const docs = !args.doc || args.doc === 'all' ? DOCS : [args.doc];
   // sections whose `when` is false describe something this org does not have: skipped
@@ -100,7 +100,7 @@ export async function next(args) {
   }
   const result = { remaining, next: first };
   if (args.json) { console.log(JSON.stringify(result, null, 2)); return 0; }
-  if (!first) { log.ok('Every section is written. Run `tadforce build --pdf --docx`.'); return 0; }
+  if (!first) { log.ok(`Every section is written. Run \`${runnerOf(ctx.cfg)} build --pdf --docx\`.`); return 0; }
   log.banner(`next · ${remaining} section(s) to write`);
   console.log(`${first.file}:${first.line}  ${first.marker}\n`);
   console.log(YAML.stringify(first.spec, { lineWidth: 120 }));

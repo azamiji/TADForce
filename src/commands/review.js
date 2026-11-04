@@ -2,7 +2,7 @@
 // and list the open comments for the agent (/tadforce-review folds them into the sources).
 import path from 'node:path';
 import { exists } from '../util/fsx.js';
-import { loadWorkspace } from '../util/config.js';
+import { loadWorkspace, runnerOf } from '../util/config.js';
 import { outputName } from '../build/render.js';
 import { serveDocument, openInBrowser } from '../build/serve.js';
 import { log } from '../util/log.js';
@@ -27,7 +27,7 @@ export async function open(file) {
 export async function run(args) {
   const ctx = loadWorkspace(args.cwd || process.cwd());
   const file = documentPath(ctx, args);
-  if (!exists(file)) throw new Error(`No document at ${file}: run \`tadforce build\` first.`);
+  if (!exists(file)) throw new Error(`No document at ${file}: run \`${runnerOf(ctx.cfg)} build\` first.`);
   await docs.comments({ ...args, _: ['comments', file] });
   if (args.json || args.open === false || !process.stdout.isTTY) return 0;
   console.log('');

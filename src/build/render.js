@@ -9,6 +9,10 @@ import { sourceFlags } from '../util/config.js';
 import { CLASSDEFS, renderMermaid, escapeHtml } from './mermaid.js';
 import { resolveConditionals, resolveIncludes, resolveDirectives, resolveValues, present } from './directives.js';
 import { qualityGate } from '../validate/index.js';
+import { frenchTypography } from './typography.js';
+
+// C0 control characters other than tab and line feed: never meant (they stood for lost punctuation)
+const CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g;
 
 export const DOCS = ['tad', 'axes'];
 const VERSION = readJson(path.join(PKG_ROOT, 'package.json')).version;
@@ -27,10 +31,13 @@ export function preprocess(md) {
   const figures = [];
   md = md.replace(/```mermaid\r?\n([\s\S]*?)```[ \t]*\r?\n(?:Figure:[ \t]*([^\n]*)\n)?/g, (m, code, caption) => {
     code = code.replace(/\s+$/, '');
+    // the directive that generated it (« %% tad-src=SEQ:x », see directives.js): the visual QA can ask for its simplified variant
+    let src = null;
+    code = code.replace(/\n?%% tad-src=(\S+)[ \t]*$/, (x, s) => { src = s; return ''; });
     const first = code.trimStart().split('\n', 1)[0];
     // the colour legend classes, in every diagram that supports classDef (unless the author redefined them)
     if (/^(flowchart|graph|stateDiagram)/.test(first)) code += '\n' + CLASSDEFS.split('\n').filter((l) => l.trim() && !new RegExp('classDef\\s+' + l.split(/\s+/)[1] + '\\b').test(code)).join('\n');
-    figures.push({ code, caption: (caption || '').trim() });
+    figures.push({ code, caption: (caption || '').trim(), src });
     return `\n\n@@FIG${figures.length - 1}@@\n\n`;
   });
   const out = [], counters = [0, 0, 0], headings = [], used = new Set();
@@ -151,11 +158,17 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
   if (!files.length) throw new Error(`No Markdown chapters in ${srcDir}.`);
 
   let text = files.map((f) => readText(path.join(srcDir, f))).join('\n\n');
+  // stray control characters are stripped (the claims check reports each line: control-chars)
+  const controls = (text.match(CONTROL) || []).length;
+  if (controls) text = text.replace(CONTROL, '');
+  report.sanitized = { controlChars: controls };
   const scope = { modules: facts.modules, counts: facts.counts, org: facts.org, cfg, facts, glossary, source: sourceFlags(cfg) };
   const docName = doc === 'tad' ? t(dict, 'meta.docName') : t(dict, 'meta.axesName');
   const model = loadModel(wsCtx);
   if (model && model._error) problems.push({ level: 'error', code: 'model-invalid', message: `understanding/model.json is not valid JSON: ${model._error}` });
-  const ctx = { facts, cfg, dict, lang, glossary, doc, docName, model: model && !model._error ? model : null, chapterTitle: (k) => `{{title:ch-${k}}}` };
+  // opts.simplify: directives (« SEQ:x », « ERD-DOMAIN:y ») whose figure failed the visual QA: drawn in their simplified variant
+  const simplify = opts.simplify ? new Set(opts.simplify) : null;
+  const ctx = { facts, cfg, dict, lang, glossary, doc, docName, simplify, model: model && !model._error ? model : null, chapterTitle: (k) => `{{title:ch-${k}}}` };
   text = resolveConditionals(text, scope);
   text = resolveIncludes(text, wsCtx.ws);
   text = resolveDirectives(text, ctx, problems);
@@ -198,7 +211,7 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
       const f = figures[Number(idx)];
       figlist.push([nfig, f.caption]);
       const c = f.caption ? `${label} ${nfig} — ${escapeHtml(f.caption)}` : `${label} ${nfig}`;
-      return `<figure class="diagram mmd" id="fig-${nfig}" data-kind="${escapeHtml((f.code.trim().split(/\s/, 1)[0] || '').toLowerCase())}"><div class="fig-body">${f.svg}</div><figcaption>${c}</figcaption></figure>`;
+      return `<figure class="diagram mmd" id="fig-${nfig}" data-kind="${escapeHtml((f.code.trim().split(/\s/, 1)[0] || '').toLowerCase())}"${f.src ? ` data-src="${escapeHtml(f.src)}"` : ''}><div class="fig-body">${f.svg}</div><figcaption>${c}</figcaption></figure>`;
     }
     figlist.push([nfig, cap.replace(/<[^>]+>/g, '')]);
     return `<p class="figcap" id="fig-${nfig}">${label} ${nfig} — ${cap}</p>`;
@@ -212,17 +225,21 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
     return `<h${lvl} id="${h.id}">${inner}<a class="anchor" href="#${h.id}">#</a></h${lvl}>`;
   });
   html = html.replace(/<table>/g, '<div class="tw"><table>').replace(/<\/table>/g, '</table></div>');
+  // French typography: no-break spaces before : ; ! ? », after «, in numbers (never in code, URLs, figures)
+  const french = /^fr\b/.test(lang);
+  if (french) html = frenchTypography(html);
+  const typo = (s) => (french ? frenchTypography(s) : s);
 
   // Table of contents (levels 1-2) and list of figures
   const toc = [];
   let open = false;
   for (const h of pre.headings.filter((x) => x.lvl <= 2)) {
-    const inner = `${h.num ? `<span class="num">${h.num}</span> ` : ''}${md.renderInline(h.text)}`;
+    const inner = `${h.num ? `<span class="num">${h.num}</span> ` : ''}${typo(md.renderInline(h.text))}`;
     if (h.lvl === 1) { if (open) toc.push('</ul></li>'); toc.push(`<li class="l1"><a href="#${h.id}">${inner}</a><ul>`); open = true; }
     else toc.push(`<li class="l2"><a href="#${h.id}">${inner}</a></li>`);
   }
   if (open) toc.push('</ul></li>');
-  const figs = figlist.map(([n, c]) => `<li><a href="#fig-${n}">${label} ${n} — ${escapeHtml(c)}</a></li>`).join('');
+  const figs = figlist.map(([n, c]) => `<li><a href="#fig-${n}">${label} ${n} — ${typo(escapeHtml(c))}</a></li>`).join('');
   report.figlist = figlist;
 
   // Page assembly
@@ -339,6 +356,10 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
     problems.push({ level: 'warn', code: 'backup', message: `Existing file held in-browser text edits: copy kept as ${path.basename(backup)}. Report the edits into src/${doc}/*.md (comments are carried over automatically).` });
   }
   writeText(htmlPath, out);
+  // how to draw it again with simplified figures: figureQA() calls it once when a figure does not read well
+  Object.defineProperty(report, 'rebuild', { enumerable: false, configurable: true, writable: true,
+    value: (more) => buildDocument(wsCtx, doc, { ...opts, simplify: [...new Set([...(opts.simplify || []), ...more])] }) });
+  report.simplified = [...(opts.simplify || [])];
   Object.assign(report, { doc, html: htmlPath, backup, sizeKB: Math.round(out.length / 1024), figures: nfig, mermaid: figures.length, problems, pending, headings: pre.headings, rendered: opts.render !== false, draft: false });
   REPORTS.set(path.resolve(htmlPath), report);
   // Quality gate: a document with errors is a draft (watermark, draft status), never « For review ».

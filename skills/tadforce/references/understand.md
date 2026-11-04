@@ -15,10 +15,15 @@ A document with correct tables but no understanding is an inventory. Before writ
 | `delegates` | trigger → handler class |
 | `calls` | Apex → Apex (`methods`, `async`: `batch` / `queueable` / `future` / `schedule`), Flow → Apex invocable or subflow, LWC → Apex (`modes`: `wire` / `imperative`), LWC → child LWC, Aura/VF → controller, OmniScript → Integration Procedure / LWC, IP → Data Mapper / Apex remote action / named credential, Apex → named credential (`via: callout`) |
 | `extends` | class → parent class or interface of the org |
-| `reads` / `writes` | SOQL `FROM`, custom metadata `getAll`, typed DML (`ops`), flow record elements, Data Mapper objects |
+| `reads` / `writes` | SOQL `FROM`, relationship paths (`Parent__r.Name` reads the parent object) and child subqueries (`FROM Children__r` reads the child), `via: soql-relationship`; custom metadata `getAll`; DML (`ops`: insert, update, upsert, delete, undelete, merge — on a typed variable, a variable assigned from a query, `new X`, or an inline `[SELECT …]`, `Database.*` too); flow record elements; a before-save flow assigning `$Record` fields writes its triggering record (`via: before-save`, no new save: it fires no trigger); Data Mapper objects |
 | `publishes` / `subscribes` | platform events (`EventBus.publish`, event-triggered flows and triggers), Lightning message channels |
 | `places` | Lightning page, tab or quick action → component |
 | `serves` / `references` | queue → object; code or flow → queue named in it |
+
+Flags on the nodes:
+
+- `kinds` of an Apex class are corrected from the code: `auraEnabled` (a controller) only when a **method** carries `@AuraEnabled`; a class whose `@AuraEnabled` are only on properties (an inner wrapper) is `auraEnabledFields` — a data shape, not a controller.
+- `invocableUncalled: true` — an invocable action that no flow of the snapshot calls (the `calls` edge is absent). It may still be used by an agent, a REST call or a component outside the snapshot: say so in the card, and raise a finding (kind `question`) when nothing calls it. The architect gets the list as `inputs.invocablesUncalled`.
 
 Limits of the parser — read the code when they matter: dynamic dispatch (`Type.forName`, a class named in custom metadata), dynamic SOQL built piece by piece, field assignments on `Trigger.new` (not counted as writes), flow decisions and formulas. Objects used by the code but not retrieved are nodes with `retrieved: false`.
 
@@ -117,4 +122,10 @@ The renderer draws from it: `@@SEQ:<processId>@@` (sequence diagram, numbered st
 
 ## Freshness
 
-Each task has a fingerprint of its inputs (file contents and edges of its components, the facts for the analyst). After `tadforce update`, only the slices whose code changed are redone; the architect is redone when any card changed. A part with an old fingerprint is `stale`: rewrite it from scratch, it may describe code that no longer exists.
+Each task has a fingerprint of its **input data**, never of TADForce's own code:
+
+- developer slice — its components and the contents of their files;
+- analyst — the facts it reads (objects, record types, relations, apps, queues, profiles, Permission Set Groups, users per profile, active flows, systems, namespaces), the metadata files its candidates come from (value sets, path assistants, object fields), the specifications and the glossary;
+- architect — the fingerprints of the developer and analyst parts, and the confirmed systems.
+
+What the CLI derives (graph edges, chains, lifecycle candidates, products) is not part of the fingerprint: upgrading TADForce does not redo the understanding. Only a bump of a task schema version (`TASK_SCHEMA`, when a part format changes) forces a redo. After `tadforce update`, only the slices whose code changed are redone; the architect is redone when any part changed. A part with an old fingerprint is `stale`: rewrite it from scratch, it may describe code that no longer exists.

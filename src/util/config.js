@@ -1,6 +1,56 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { exists, readJson, readYaml, writeJson } from './fsx.js';
-import { CONFIG_FILE, WORKSPACE_DIR } from './paths.js';
+import { CONFIG_FILE, WORKSPACE_DIR, PKG_ROOT } from './paths.js';
+
+export const DEFAULT_RUNNER = 'npx tadforce';
+
+/** The command that runs a given npx package spec: git and URL specs are kept, registry versions are plain `npx tadforce`. */
+export function runnerForSpec(spec) {
+  const s = String(spec || '').trim();
+  if (!s) return DEFAULT_RUNNER;
+  if (/^(github:|gitlab:|bitbucket:|git\+|git:|https?:\/\/|file:)/i.test(s) || /^[\w.-]+\/[\w.-]+(#\S*)?$/.test(s)) return `npx -y ${/\s/.test(s) ? `"${s}"` : s}`;
+  return DEFAULT_RUNNER;
+}
+
+/**
+ * How this TADForce was started, so that every printed hint runs the same one again: `npx -y github:owner/TADForce`
+ * (npx with a git spec, read from the npx cache), `npx tadforce` (npx from npm, or a project dependency),
+ * `tadforce` (global install), or `node "<clone>/bin/tadforce.js"` (a clone). Default: `npx tadforce`.
+ * @param o { root: package root, env, readJson } (tests)
+ */
+export function detectRunner(o = {}) {
+  const root = path.resolve(o.root || PKG_ROOT);
+  const env = o.env || process.env;
+  const read = o.readJson || ((p) => JSON.parse(fs.readFileSync(p, 'utf8')));
+  const parts = root.split(/[\\/]+/);
+  const npx = parts.lastIndexOf('_npx');
+  if (npx >= 0 && parts.length > npx + 1) {
+    // ~/.npm/_npx/<hash>/package.json lists the spec the user typed: { "dependencies": { "tadforce": "github:owner/TADForce" } }
+    const cache = parts.slice(0, npx + 2).join(path.sep) || path.sep;
+    try {
+      const deps = read(path.join(cache, 'package.json')).dependencies || {};
+      const own = parts[parts.length - 1];
+      const spec = deps[own] ?? deps.tadforce ?? (Object.keys(deps).length === 1 ? Object.values(deps)[0] : null);
+      return runnerForSpec(spec);
+    } catch { return DEFAULT_RUNNER; }
+  }
+  const nm = parts.lastIndexOf('node_modules');
+  if (nm >= 0) {
+    const prefix = env.npm_config_prefix ? path.resolve(env.npm_config_prefix) : null;
+    const global = (prefix && [path.join(prefix, 'lib', 'node_modules'), path.join(prefix, 'node_modules')].some((d) => root.toLowerCase().startsWith(d.toLowerCase() + path.sep)))
+      || /[\\/]lib[\\/]node_modules[\\/][^\\/]+$/.test(root) || /[\\/]npm[\\/]node_modules[\\/][^\\/]+$/i.test(root);
+    return global ? 'tadforce' : DEFAULT_RUNNER;
+  }
+  // a clone: npx would fetch another version from npm
+  const bin = path.join(root, 'bin', 'tadforce.js');
+  return exists(bin) ? `node "${bin}"` : DEFAULT_RUNNER;
+}
+
+/** The command to print in hints: the one doctor recorded (setup.runner), else this run's. */
+export function runnerOf(cfg) {
+  return (cfg && cfg.setup && cfg.setup.runner) || detectRunner();
+}
 
 export const DEFAULT_BRAND = {
   primary: '#0B2545',
@@ -65,7 +115,7 @@ export function findWorkspace(cwd = process.cwd()) {
 export function loadWorkspace(cwd) {
   const ws = findWorkspace(cwd);
   if (!ws) {
-    const err = new Error(`No TADForce workspace found under ${cwd}. Run \`npx tadforce doctor\` in your Salesforce project first.`);
+    const err = new Error(`No TADForce workspace found under ${cwd}. Run \`${detectRunner()} doctor\` in your Salesforce project first.`);
     err.code = 'NO_WORKSPACE';
     throw err;
   }

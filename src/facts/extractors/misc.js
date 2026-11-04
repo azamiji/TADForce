@@ -34,15 +34,32 @@ export function extractMisc(roots) {
   // Components documented by name only (routing, channels, sites, paths, rules, agents…)
   const NAMED = ['serviceChannels', 'queueRoutingConfigs', 'servicePresenceStatuses', 'presenceUserConfigs', 'presenceDeclineReasons', 'networks', 'sites',
     'entitlementProcesses', 'milestoneTypes', 'pathAssistants', 'duplicateRules', 'matchingRules', 'approvalProcesses', 'notificationtypes', 'genAiPlanners',
-    'genAiPlugins', 'genAiFunctions', 'genAiPromptTemplates', 'brandingSets', 'navigationMenus', 'bots', 'experiences', 'digitalExperiences', 'aiAuthoringBundles', 'workflows', 'globalValueSets'];
+    'genAiPlugins', 'genAiFunctions', 'genAiPromptTemplates', 'brandingSets', 'navigationMenus', 'bots', 'experiences', 'digitalExperiences', 'aiAuthoringBundles', 'workflows', 'globalValueSets',
+    // families writers cite by name: themes and branding, layouts, notifications, cache, event channels, sharing sets…
+    'genAiPlannerBundles', 'lightningExperienceThemes', 'layouts', 'contentassets', 'cachePartitions', 'platformEventChannels', 'sharingSets', 'mutingpermissionsets',
+    'territory2Models', 'iframeWhiteListUrlSettings'];
   const named = {};
   for (const folder of NAMED) {
     const list = [...files(roots, folder, '').map((f) => path.basename(f).split('.')[0]), ...bundles(roots, folder).map((b) => b.name)];
     if (list.length) named[folder] = [...new Set(list)].sort();
   }
+  // Digital Experience bundles live one level down (digitalExperiences/site/<name>)
+  const deBundles = bundles(roots, 'digitalExperiences').flatMap((b) => bundles([path.dirname(b.dir)], b.name).map((x) => x.name));
+  if (deBundles.length) named.digitalExperiences = [...new Set(deBundles)].sort();
+
+  // Experience Cloud evidence: is a site live, is the bundle metadata switched on?
+  const settingOn = (file, tag) => files(roots, 'settings', file).some((f) => new RegExp(`<${tag}>true</${tag}>`).test(safeRead(f)));
+  const experience = {
+    networks: files(roots, 'networks', '.network-meta.xml').map((f) => ({ name: baseName(f, '.network-meta.xml'), status: str(readXml(f).status) || 'Live' })),
+    sites: files(roots, 'sites', '.site-meta.xml').map((f) => { const x = readXml(f); return { name: baseName(f, '.site-meta.xml'), active: x.active == null ? false : x.active === true || x.active === 'true', type: str(x.siteType) }; }),
+    bundles: [...new Set([...bundles(roots, 'experiences').map((b) => b.name), ...deBundles])].sort(),
+    bundleMetadata: settingOn('ExperienceBundle.settings-meta.xml', 'enableExperienceBundleMetadata'),
+    networksEnabled: settingOn('Communities.settings-meta.xml', 'enableNetworksEnabled'),
+  };
 
   return {
     named,
+    experience,
     labels: labels.filter((l) => l.name).sort((a, b) => a.name.localeCompare(b.name)),
     staticResources: files(roots, 'staticresources', '.resource-meta.xml').map((f) => baseName(f, '.resource-meta.xml')).sort(),
     reports: { total: reports.length, folders: reportFolders, byFolder: Object.fromEntries(reportFolders.map((fo) => [fo, reports.filter((f) => path.basename(path.dirname(f)) === fo).length])), names: reports.map((f) => baseName(f, '.report-meta.xml')).sort() },

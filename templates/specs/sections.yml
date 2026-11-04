@@ -160,13 +160,15 @@ sections:
       - "One '## <Domain> {#fn-<domainId>}' section per domain of the model that has processes, then one '### <Process name> {#fn-<processId>}' subsection per process of model.processes (every process of the model appears, none is invented)."
       - "Each process subsection, in this order: one paragraph chaining the components end to end (who starts it, each component in code font with what it does, objects written, systems called, asynchronous steps); the figure; a table 'Step | Mechanism' numbered like the figure."
       - "Cloud-specific processes follow the module reference (case management for Service Cloud, quote-to-cash for CPQ/Revenue, appointment lifecycle for Field Service, checkout for Commerce...)."
-      - "A figure for every process: '@@SEQ:<processId>@@' for a flow across several components, '@@STATE:<lifecycleId>@@' (model.lifecycles) for the life of a record; never a hand-drawn diagram of a process the model holds."
+      - "A figure for every process: '@@SEQ:<processId>@@' for a flow across several components; the '@@STATE:<lifecycleId>@@' this section owns (group figures.own) under a heading '#### <Object> lifecycle {#lc-<lifecycleId>}' in the subsection of its process; never a hand-drawn diagram of a process the model holds."
+      - "The business view: who does what and what comes out. The technical mechanism (handlers, order of execution, thresholds) belongs to chapter 7, which links back here."
       - "Optional '> [!INTEGRATOR]' callout for a notable design choice of the integrator."
     never:
       - "Decommissioned features."
       - "Screens or steps not evidenced by metadata or inputs."
       - "Processes, participants or systems that are not in the model; « to be confirmed » or empty subsections (doubts are findings of the model)."
-    figure: "One figure per process: @@SEQ:<processId>@@ (sequence, numbered steps) or @@STATE:<lifecycleId>@@ (state diagram)."
+      - "A figure owned by another section (group figures.link): link to it with its {{ref:…}}."
+    figure: "One figure per process: @@SEQ:<processId>@@ (sequence, numbered steps), and the @@STATE:<lifecycleId>@@ this section owns."
 
   # ------------------------------------------------------------------ 6 Data
   data.principles:
@@ -188,7 +190,8 @@ sections:
     intent: "One '###' per data domain with its ERD and an object table."
     facts: [data.objects]
     must:
-      - "One '### <Domain>' per domain of the model with objects, then '@@ERD-DOMAIN:<domainId>@@' then a table 'Object | Role | Key fields'."
+      - "One '### <Domain> {#data-<domainId>}' per domain of the model with objects, then '@@ERD-DOMAIN:<domainId>@@' then a table 'Object | Role | Key fields'."
+      - "The lifecycles this section owns (group figures.own): '#### <Object> lifecycle {#lc-<lifecycleId>}' under the domain of the object, then '@@STATE:<lifecycleId>@@' and one sentence per transition with its component. A lifecycle owned by chapter 5 is linked ({{ref:lc-<lifecycleId>}}), never redrawn."
       - "Only objects of the inventory."
   data.industry:
     doc: tad
@@ -251,9 +254,10 @@ sections:
     doc: tad
     when: "apex.classes > 0 || ui.lwc > 0"
     intent: "Code layers and naming conventions."
+    facts: [counts.apex.layers, apex.classes]
     must:
       - "Mermaid flowchart TB of the layers (LWC or Flow, controllers, services, selectors, integration) with a Figure caption."
-      - "Table 'Layer | Convention | Examples | Count': real class names per layer (from the component cards and naming facts) and counts as placeholders or measured from the facts."
+      - "Table 'Layer | Convention | Examples | Count': real class names per layer (from the component cards and naming facts); counts ONLY as placeholders {{n:apex.layers.<layer>}} (controllers, triggerHandlers, services, selectors, async, webServices, invocable, integration, utilities, tests, other), never typed."
     figure: "flowchart TB"
   application.domains:
     doc: tad
@@ -271,7 +275,7 @@ sections:
       - "A '### Order of execution' subsection with a table 'Order | Mechanism | Component | Effect' for every object on which several automations act (before-save flows, before triggers, validation rules, after triggers, after-save flows, asynchronous jobs)."
   application.mechanisms:
     doc: tad
-    intent: "The 1 to 3 cross-cutting mechanisms that drive the solution (ownership propagation, rules engine, provisioning...), each with a sequence diagram."
+    intent: "The 1 to 3 cross-cutting mechanisms that drive the solution (ownership propagation, rules engine, provisioning...), each with a sequence diagram — or a link ({{ref:fn-<processId>}}) to the chapter 5 figure when the mechanism is a process of the model."
     must:
       - "Name the thresholds and switches visible in code (example: synchronous up to N records, then batch) with the class that implements them (component cards › notes)."
       - "One '> [!INTEGRATOR]' callout per mechanism."
@@ -281,7 +285,7 @@ sections:
     intent: "Batch, queueable, schedulable and @future processing."
     facts: [apex.classes, org.scheduledJobs]
     must:
-      - "Table 'Job | Type | Started by | Schedule | Purpose' (started by: the caller in the graph — trigger, class, flow — or the scheduled job)."
+      - "Table 'Job | Type | Started by | Schedule | Purpose' (started by: the caller in the graph — trigger, class, flow — or the scheduled job). The schedule comes from the scheduled jobs of the org or the start of a scheduled flow (brief); a Schedulable class with no job is « can be scheduled », never given a frequency."
       - "Mermaid flowchart of chaining when jobs chain."
   application.flows:
     doc: tad
@@ -307,11 +311,14 @@ sections:
       - "Table 'Agent or feature | Channel | Topics or use | Actions (Flow, Apex, prompt)'."
   application.sequences:
     doc: tad
-    intent: "2 to 4 key end-to-end sequences (sequenceDiagram), each with a short introduction."
+    intent: "The technical reading of the key end-to-end sequences: which component calls which, synchronous or not, where the transaction ends."
     must:
-      - "Only calls observed in code or metadata; participants named by component. Prefer '@@SEQ:<processId>@@' for the processes of the model not already drawn in chapter 5."
+      - "Only calls observed in code or metadata; participants named by component."
+      - "The processes of the model are drawn once, in chapter 5: link to each with its ref (group figures.link, {{ref:fn-<processId>}}) and add only the technical detail chapter 5 does not give (transaction boundaries, async hand-offs, error handling)."
+      - "A hand-drawn sequenceDiagram only for a technical chain that is not a process of the model."
     never:
       - "Participants that are not in the inventory or the glossary."
+      - "A '@@SEQ:…@@' directive this section does not own, or the business narrative of chapter 5 repeated."
 
   # ------------------------------------------------------------------ 8 UI
   ui.apps:
@@ -376,11 +383,12 @@ sections:
   integration.systems:
     doc: tad
     when: "integration.namedCredentials > 0 || integration.externalCredentials > 0 || integration.remoteSites > 0 || integration.externalServices > 0 || integration.restResources > 0 || apex.soap > 0 || apex.callout > 0 || integration.connectedApps > 0 || integration.callCenters > 0 || systems.named || systems.unnamed"
-    intent: "One '###' per connected system, with a sequence diagram for the main exchange."
+    intent: "One '###' per connected system, with the sequence of its main exchange."
     facts: [systems, integration.namedCredentials, apex.classes]
     modules: [integration-platforms]
     must:
       - "For each system: purpose, Salesforce endpoints (named credential, authentication), main calls with their Apex class, flow or Integration Procedure."
+      - "The exchange of a process of the model is linked with its ref (group figures.link, {{ref:fn-<processId>}}), never redrawn; a hand-drawn sequenceDiagram only for an exchange the model does not hold."
   integration.inbound:
     doc: tad
     when: "integration.restResources > 0 || apex.soap > 0"
@@ -417,13 +425,13 @@ sections:
   security.personas:
     doc: tad
     when: "security.permissionSetGroups > 0 || security.permissionSets > 0"
-    intent: "Personas and the permission set groups that implement them."
-    facts: [security.permissionSetGroups, org.psgAssignments]
+    intent: "Personas and the permission set groups (or, without groups, the permission sets) that implement them."
+    facts: [security.permissionSetGroups, security.personas, org.psgAssignments, org.usersByPermissionSet]
     must:
-      - "Table 'Persona | Permission set group | Users | Main rights', personas from model.actors, users from the org aggregates (org.psgAssignments) only when org facts exist."
+      - "Table 'Persona | Permission set group (or permission set) | Users | Main rights', personas from model.actors and security.personas (field kind says permissionSetGroup or permissionSet), users from the org aggregates (org.psgAssignments, org.usersByPermissionSet) only when org facts exist."
   security.roles:
     doc: tad
-    when: "security.roles > 0"
+    when: "security.roles > 0 && !security.roleHierarchy.sample"
     intent: "Comment the role hierarchy: structure and technical roots."
   security.owd:
     doc: tad
@@ -482,6 +490,8 @@ sections:
     doc: tad
     when: "org.scheduledJobs || apex.schedulable > 0 || flows.scheduled > 0"
     intent: "Scheduled processing to monitor in run."
+    must:
+      - "Only the jobs scheduled in the org (org.scheduledJobs, listed in the brief) and the active scheduled flows, with their frequency as measured; when the org facts were not collected, say which components can be scheduled, never how often they run."
   operations.logging:
     doc: tad
     intent: "Logging, error handling and monitoring."
@@ -527,6 +537,7 @@ sections:
     must:
       - "One paragraph per signal or model finding (kind debt or risk) kept, with its AX-nn reference."
       - "The questions of the model (kind question) that the TAD could not settle, listed as points to confirm with the client."
+      - "Products detected on weak evidence only (facts modules.weak: an installed package, a page or a default configuration, but nothing built on it) listed as points to confirm: in use, planned, or to remove."
   axes.easy:
     doc: axes
     intent: "Qualify each Easy signal."

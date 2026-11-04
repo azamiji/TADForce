@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { getBrowser } from './browser.js';
+import { reportFor } from './render.js';
 
 /** A4 (210 mm) minus 14 mm margins on each side, at 96 px per inch. */
 export const QA = {
@@ -30,7 +31,7 @@ function measure(qa) {
     const capEl = isFig ? node.querySelector('figcaption') : node;
     const capText = (capEl ? capEl.textContent : '').trim();
     const num = /(\d+)/.exec(capText);
-    const fig = { n: num ? Number(num[1]) : out.length + 1, id: node.id || '', caption: capText.replace(/^[^—]*\d+\s*—\s*/, ''), issues: [] };
+    const fig = { n: num ? Number(num[1]) : out.length + 1, id: node.id || '', src: node.getAttribute('data-src') || null, caption: capText.replace(/^[^—]*\d+\s*—\s*/, ''), issues: [] };
     const add = (code, detail) => fig.issues.push({ code, detail });
     const err = node.querySelector('.mmd-error') || (body && body.querySelector('.mmd-error'));
     if (err) add('render-error', err.textContent.trim().split('\n')[0].slice(0, 200));
@@ -88,11 +89,35 @@ function measure(qa) {
 }
 /* eslint-enable no-undef */
 
+// issues that say nothing about the figure itself: no simplified variant helps
+const NOT_FIGURE = new Set(['not-rendered', 'no-screenshot']);
+
+/** Directives (data-src) of the figures with issues: what the one automatic re-render simplifies. */
+export function simplifyTargets(figures, already = []) {
+  const done = new Set(already);
+  return [...new Set((figures || []).filter((f) => f.src && !done.has(f.src) && (f.issues || []).some((i) => !NOT_FIGURE.has(i.code))).map((f) => f.src))];
+}
+
 /**
- * Measure and photograph every figure of a built HTML document.
- * @returns {Promise<{ figures: Array<{ n, id, caption, png, issues: Array<{ code, detail }> }>, contentWidth }>}
+ * Measure and photograph every figure of a built HTML document. When a generated figure (ERD,
+ * sequence, state diagram: it carries data-src) has an issue and the build report of this HTML can
+ * rebuild it (buildDocument() sets report.rebuild), the document is rebuilt once with the simplified
+ * variant of those figures and measured again, before any gate decides (opts.retry: false to skip).
+ * @returns {Promise<{ figures: Array<{ n, id, src, caption, png, issues: Array<{ code, detail }> }>, contentWidth, simplified: string[] }>}
  */
 export async function figureQA(ctx, htmlPath, doc, opts = {}) {
+  const first = await measureFigures(ctx, htmlPath, doc, opts);
+  const report = opts.report || reportFor(htmlPath);
+  const targets = opts.retry === false || !report || typeof report.rebuild !== 'function' ? [] : simplifyTargets(first.figures, report.simplified);
+  if (!targets.length) return { ...first, simplified: (report && report.simplified) || [] };
+  const again = await report.rebuild(targets);
+  // the callers hold the first report: it now describes the HTML on disk
+  if (again && again !== report) { Object.assign(report, again); Object.defineProperty(report, 'rebuild', { value: again.rebuild, enumerable: false, configurable: true, writable: true }); }
+  const second = await measureFigures(ctx, again.html || htmlPath, doc, opts);
+  return { ...second, simplified: again.simplified || targets, retried: targets };
+}
+
+async function measureFigures(ctx, htmlPath, doc, opts = {}) {
   const qa = { ...QA, ...(opts.thresholds || {}) };
   const outDir = opts.outDir || ctx.p('out', 'figures');
   fs.mkdirSync(outDir, { recursive: true });
@@ -112,7 +137,7 @@ export async function figureQA(ctx, htmlPath, doc, opts = {}) {
       try {
         if (f.clip.width > 1 && f.clip.height > 1) await page.screenshot({ path: png, clip: f.clip, captureBeyondViewport: true });
       } catch (e) { f.issues.push({ code: 'no-screenshot', detail: String(e.message || e).slice(0, 120) }); }
-      figures.push({ n: f.n, id: f.id, caption: f.caption, png: fs.existsSync(png) ? png : null, issues: f.issues });
+      figures.push({ n: f.n, id: f.id, src: f.src, caption: f.caption, png: fs.existsSync(png) ? png : null, issues: f.issues });
     }
     return { figures, contentWidth: res.contentW };
   } finally {

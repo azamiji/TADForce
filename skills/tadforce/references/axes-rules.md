@@ -9,7 +9,8 @@ Purpose: give the integrator an honest, prioritised view of the debt and the opp
 - `understanding/review.json › remaining` — what the reviewer could not prove or fix.
 - `knowledge/inputs/code-analyzer-results.json` — Code Analyzer violations (via the `dx-code-analyzer-run` skill).
 - The `platform-architecture-analyze` skill output (Well-Architected reading).
-- What the writers noted while writing the TAD (`understanding/questions.md`).
+- What the writers noted while writing the TAD (`understanding/questions.md`), merged by the CLI and deduplicated per section in the Axes write group (`inputs.questions`).
+- The ground-truth brief (`brief`): an axis never relies on something the org does not have.
 
 ## Rules
 

@@ -74,7 +74,7 @@ test('model directives: ERD-DOMAIN, SEQ, STATE with captions; unknown ids are er
     const ctx = { facts: w.facts, cfg: w.ctx.cfg, dict, lang: 'en', glossary: {}, doc: 'tad', model: MODEL };
     const problems = [];
     const out = resolveDirectives('@@ERD-DOMAIN:loans|Loans@@\n@@SEQ:lead-intake@@\n@@STATE:loan-status|Loan statuses@@\n@@SEQ:nope@@\n@@ERD:auto@@', ctx, problems);
-    assert.match(out, /<figure class="diagram hand" data-kind="erd">[\s\S]*Figure — Loans<\/figcaption>/);
+    assert.match(out, /<figure class="diagram hand" data-kind="erd" data-src="ERD-DOMAIN:loans">[\s\S]*Figure — Loans<\/figcaption>/);
     assert.match(out, /```mermaid\nsequenceDiagram[\s\S]*Figure: Sequence — Creation of a lead/);
     assert.match(out, /Figure: Loan statuses/);
     assert.deepEqual(problems.map((p) => p.code), ['unknown-model-id']);
@@ -98,7 +98,7 @@ test('the example model is used by a build: generated figures are numbered with 
     fs.writeFileSync(path.join(w.ws, 'src', 'tad', '50-extra.md'), '# Extra {#extra}\n\n@@ERD-DOMAIN:customers@@\n\n@@CONTEXT@@\n');
     const r = await buildDocument(w.ctx, 'tad', { render: false });
     const html = fs.readFileSync(r.html, 'utf8');
-    assert.match(html, /<figure class="diagram hand" id="fig-\d+" data-kind="erd">[\s\S]*?<figcaption>Figure \d+ — Data model — Customers, branches and leads<\/figcaption><\/figure>/);
+    assert.match(html, /<figure class="diagram hand" id="fig-\d+" data-kind="erd" data-src="ERD-DOMAIN:customers">[\s\S]*?<figcaption>Figure \d+ — Data model — Customers, branches and leads<\/figcaption><\/figure>/);
     assert.match(html, /<li><a href="#fig-\d+">Figure \d+ — Context view/);
   } finally { w.cleanup(); }
 });

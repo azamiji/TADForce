@@ -401,7 +401,10 @@
     "erd": "Modèle entités-relations",
     "erdDomain": "Modèle de données — {domain}",
     "seq": "Séquence — {process}",
-    "state": "Cycle de vie de {object} ({field})"
+    "state": "Cycle de vie de {object} ({field})",
+    "seqData": "Données",
+    "seqLane": "Dans la figure",
+    "seqFull": "Participants"
   },
   "erd": {
     "md": "M-D",

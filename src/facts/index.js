@@ -11,6 +11,8 @@ import { extractIntegration } from './extractors/integration.js';
 import { extractMisc, detectNamespaces } from './extractors/misc.js';
 import { applyExclusions, applyScope, exclusionCandidates, usedStandardObjects } from './heuristics/exclusions.js';
 import { detectModules } from './heuristics/modules.js';
+import { setAsideShipped } from './heuristics/shipped.js';
+import { APEX_LAYERS } from './extractors/apex.js';
 import { detectNaming } from './heuristics/naming.js';
 import { computeSignals } from './heuristics/signals.js';
 import { computeCoverage, coverageByCount } from './coverage.js';
@@ -40,7 +42,8 @@ export function extractFacts(dirs, knowledge = {}, opts = {}) {
   const refs = references(roots, apex, ui, automation, integration);
   const facts = { schema: FACTS_SCHEMA, apex, data, automation, ui, security, integration, misc, namespaces };
 
-  const shipped = removeSalesforceShipped(facts);
+  // what Salesforce ships and the samples of a Developer Edition leave first: never in a count, a table or a figure
+  const shipped = setAsideShipped(facts, { roots, org: opts.org || null });
   const outOfScope = applyScope(facts, knowledge.scope || {});
   const applied = applyExclusions(facts, knowledge.exclusions || {});
   // placements are recomputed so that excluded containers no longer count as usages
@@ -60,8 +63,8 @@ export function extractFacts(dirs, knowledge = {}, opts = {}) {
   facts.exclusions = { applied, candidates: exclusionCandidates(facts, refs, hints) };
   if (hints.packages.length) facts.exclusions.packagesWithoutNamespace = [...new Set(hints.packages)].sort();
   if ((knowledge.scope?.include || []).length) facts.scope = { include: [...knowledge.scope.include], outOfScope: outOfScope.length };
-  facts.modules = detectModules(facts, opts.org || null);
-  if (Object.keys(shipped).length) facts.salesforceShipped = shipped;
+  facts.modules = detectModules(facts, opts.org || null, { usageTokens: refs.usageTokens });
+  if (Object.keys(shipped.counts).length) facts.salesforceShipped = shipped;
   // Products used without metadata traces are declared by a human in glossary.yml › products.
   for (const p of (knowledge.glossary && knowledge.glossary.products) || []) {
     if (!p || !p.name || facts.modules.clouds.some((c) => c.name === p.name)) continue;
@@ -89,26 +92,6 @@ export function extractFacts(dirs, knowledge = {}, opts = {}) {
   for (const t of facts.apex.triggers) delete t._tokens;
   clearReadCache();
   return facts;
-}
-
-// Components Salesforce ships in every org (standard apps, platform permission set groups…): not the project's architecture.
-const SHIPPED = /^(standard__|force__|sfdcInternalInt__|sf_devops|sfdc_default_)/;
-
-/** Set aside what Salesforce ships with the org; returns how many of each kind, by facts path. */
-function removeSalesforceShipped(f) {
-  const out = {};
-  // the utility bars of Salesforce's own apps go with them
-  const bars = new Set(f.ui.apps.filter((x) => SHIPPED.test(String(x.name)) && x.utilityBar).map((x) => x.utilityBar));
-  // so do the utility bars no app of the org uses: Salesforce ships one per industry console (CrisisCenter_UtilityBar…)
-  const used = new Set(f.ui.apps.filter((x) => !SHIPPED.test(String(x.name))).map((x) => x.utilityBar).filter(Boolean));
-  for (const p of f.ui.flexipages) if (p.type === 'UtilityBar' && !used.has(p.name)) bars.add(p.name);
-  for (let i = f.ui.flexipages.length - 1; i >= 0; i--) if (bars.has(f.ui.flexipages[i].name)) { f.ui.flexipages.splice(i, 1); out['ui.utilityBars'] = (out['ui.utilityBars'] || 0) + 1; }
-  for (const [key, list] of [['ui.apps', f.ui.apps], ['ui.tabs', f.ui.tabs], ['ui.flexipages', f.ui.flexipages], ['security.permissionSets', f.security.permissionSets], ['security.permissionSetGroups', f.security.permissionSetGroups], ['automation.flows', f.automation.flows || []]]) {
-    let n = 0;
-    for (let i = list.length - 1; i >= 0; i--) if (SHIPPED.test(String(list[i].name))) { list.splice(i, 1); n++; }
-    if (n) out[key] = n;
-  }
-  return out;
 }
 
 /** Cross-references: where Apex classes, LWC/Aura and FlexiPages are used. */
@@ -167,7 +150,9 @@ function counts(f) {
   const local = f.data.objects.filter((o) => !o.namespace);
   const o = f.automation.omnistudio;
   return {
-    apex: { classes: app.length, tests: f.apex.classes.filter((c) => c.test).length, triggers: f.apex.triggers.length, batch: kind('batch'), queueable: kind('queueable'), schedulable: kind('schedulable'), future: kind('future'), rest: kind('rest'), soap: kind('soap'), invocable: kind('invocable'), auraEnabled: kind('auraEnabled'), callout: kind('callout'), lines: app.reduce((n, c) => n + c.lines, 0), withSharing: app.filter((c) => c.sharing === 'with').length, withoutSharing: app.filter((c) => c.sharing === 'without').length, inheritedSharing: app.filter((c) => c.sharing === 'inherited').length },
+    apex: { classes: app.length, tests: f.apex.classes.filter((c) => c.test).length, triggers: f.apex.triggers.length, batch: kind('batch'), queueable: kind('queueable'), schedulable: kind('schedulable'), future: kind('future'), rest: kind('rest'), soap: kind('soap'), invocable: kind('invocable'), auraEnabled: kind('auraEnabled'), callout: kind('callout'), lines: app.reduce((n, c) => n + c.lines, 0), withSharing: app.filter((c) => c.sharing === 'with').length, withoutSharing: app.filter((c) => c.sharing === 'without').length, inheritedSharing: app.filter((c) => c.sharing === 'inherited').length,
+      // one layer per class ({{n:apex.layers.services}}): the layers add up to classes + tests
+      layers: Object.fromEntries(APEX_LAYERS.map((l) => [l, f.apex.classes.filter((c) => c.layer === l).length])) },
     objects: { custom: local.filter((x) => x.kind === 'custom').length, standard: local.filter((x) => x.kind === 'standard').length, managed: f.data.objects.filter((x) => x.namespace).length, platformEvents: local.filter((x) => x.kind === 'platformEvent').length, customSettings: local.filter((x) => x.kind === 'customSetting').length, cmdtTypes: f.data.cmdtTypes.length, bigObjects: local.filter((x) => x.kind === 'bigObject').length, externalObjects: local.filter((x) => x.kind === 'externalObject').length },
     fields: { custom: f.data.objects.reduce((n, x) => n + x.customFields, 0), externalIds: f.data.objects.reduce((n, x) => n + x.externalIds.length, 0), relations: f.data.objects.reduce((n, x) => n + x.relations.length, 0), formulas: f.data.objects.reduce((n, x) => n + x.formulaFields, 0) },
     recordTypes: f.data.objects.reduce((n, x) => n + x.recordTypes.length, 0),
@@ -189,14 +174,31 @@ function owd(f) {
     .map((o) => ({ object: o.name, label: o.label || null, kind: o.kind, internal: o.sharingModel, external: o.externalSharingModel || null }));
 }
 
-/** Personas: permission set groups, the applications their permission sets open, and (org facts) users per role. */
+/**
+ * Personas: permission set groups, the applications their permission sets open, and (org facts) users and roles.
+ * An org that assigns plain permission sets (no group) gets its personas from the permission sets instead: the
+ * ones assigned to active users when the org facts say so, else the ones that open an application.
+ */
 function personas(f, org) {
   const ps = Object.fromEntries(f.security.permissionSets.map((p) => [p.name, p]));
-  return f.security.permissionSetGroups.map((g) => {
-    const apps = [...new Set(g.permissionSets.flatMap((n) => (ps[n] && ps[n].apps) || []))].sort();
-    const out = { name: g.name, label: g.label || null, apps };
-    if (org && org.psgAssignments) out.users = (org.psgAssignments.find((a) => a.group === g.name) || {}).users || 0;
-    if (org && org.psgByRole) out.roles = org.psgByRole.filter((r) => r.group === g.name).map((r) => ({ role: r.role, users: r.users }));
+  if (f.security.permissionSetGroups.length) {
+    return f.security.permissionSetGroups.map((g) => {
+      const apps = [...new Set(g.permissionSets.flatMap((n) => (ps[n] && ps[n].apps) || []))].sort();
+      const out = { name: g.name, label: g.label || null, kind: 'permissionSetGroup', apps };
+      if (org && org.psgAssignments) out.users = (org.psgAssignments.find((a) => a.group === g.name) || {}).users || 0;
+      if (org && org.psgByRole) out.roles = org.psgByRole.filter((r) => r.group === g.name).map((r) => ({ role: r.role, users: r.users }));
+      return out;
+    });
+  }
+  const assigned = org && Array.isArray(org.usersByPermissionSet) && org.usersByPermissionSet.length ? org.usersByPermissionSet : null;
+  const usersOf = (name) => (assigned.find((a) => a.permissionSet === name) || {}).users || 0;
+  let list = f.security.permissionSets;
+  if (assigned) list = list.filter((p) => usersOf(p.name) > 0);
+  else if (list.some((p) => p.apps.length)) list = list.filter((p) => p.apps.length);
+  return list.map((p) => {
+    const out = { name: p.name, label: p.label || null, kind: 'permissionSet', apps: [...p.apps] };
+    if (assigned) out.users = usersOf(p.name);
+    if (org && org.psByRole) out.roles = org.psByRole.filter((r) => r.permissionSet === p.name).map((r) => ({ role: r.role, users: r.users }));
     return out;
   });
 }
@@ -265,7 +267,7 @@ function inventory(f) {
   addAll(f.security.profiles); addAll(f.security.permissionSets); addAll(f.security.permissionSetGroups); addAll(f.security.roles); addAll(f.security.queues); addAll(f.security.groups); addAll(f.security.customPermissions);
   f.security.sharingRules.forEach((s) => s.rules.forEach((r) => names.add(r.name)));
   addAll(f.integration.namedCredentials); addAll(f.integration.externalCredentials); addAll(f.integration.remoteSites); addAll(f.integration.connectedApps); addAll(f.integration.authProviders); addAll(f.integration.cspTrustedSites); addAll(f.integration.callCenters);
-  f.apex.classes.forEach((c) => c.restUrl && names.add(c.restUrl));
+  addAll(f.integration.corsOrigins); addAll(f.integration.externalServices); addAll(f.integration.externalDataSources);  f.apex.classes.forEach((c) => c.restUrl && names.add(c.restUrl));
   addAll(f.ui.messageChannels); addAll(f.misc.reports.folders);
   f.integration.connectedApps.forEach((a) => a.scopes.forEach((s) => names.add(s)));
   [...f.security.profiles, ...f.security.permissionSets].forEach((p) => p.powerful.forEach((x) => names.add(x)));

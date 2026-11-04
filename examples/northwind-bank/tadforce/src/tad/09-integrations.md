@@ -37,7 +37,7 @@
 
 ### Core banking {#int-core}
 
-Read through `NWB_CoreBanking`, a secured endpoint whose authentication is held by the external credential `NWB_CoreBanking_OAuth` (OAuth, named principal). `CoreBankingClient` calls `GET /customers/{number}/positions` with a 10-second timeout, for the Customer 360 (FLX-01) and the nightly synchronisation (FLX-02).
+Read through `NWB_CoreBanking`, a secured endpoint whose authentication is held by the external credential `NWB_CoreBanking_OAuth` (OAuth, named principal). `CoreBankingClient` calls `GET /customers/{number}/positions` with a 10-second timeout, for the Customer 360 (FLX-01) and the customer synchronisation (FLX-02).
 
 ### Document store {#int-docs}
 
