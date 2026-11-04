@@ -7,7 +7,8 @@ import { t } from '../util/i18n.js';
 export const ERD_MAX = 8;
 const KEY_FIELDS = 4;
 const MAX_ROWS = 9;
-const MAXW = 600; // a row wider than this wraps: the figure must stay readable on an A4 page
+const MAXW = 760; // a row wider than this wraps (default; erdSvg picks the width that reads best on A4)
+const PAGE = { w: 688, h: 850 }; // A4 content box of a figure, px
 const FS = 12; // field font size (user units)
 const HFS = 13; // header font size
 const ROW = 19;
@@ -65,7 +66,7 @@ export function erdModel(facts, names, dict = {}) {
 }
 
 /** Rank (parents above children), order (barycentre), wrap wide rows, route every edge in its own lane. */
-export function erdLayout(model) {
+export function erdLayout(model, maxw = MAXW) {
   const ents = model.entities.map((e, i) => {
     const width = Math.max(170, Math.min(340, Math.max(tw(e.name, HFS) + 28, ...e.rows.map((r) => tw(r.name, FS) + tw(r.type, FS - 1) + 58))));
     const height = HEAD + Math.max(1, e.rows.length + (e.more ? 1 : 0)) * ROW + 6;
@@ -120,7 +121,7 @@ export function erdLayout(model) {
   for (const row of R) {
     let cur = [], w = 0;
     for (const e of row) {
-      if (cur.length && w + GAPX + e.w > MAXW) { levels.push(cur); cur = []; w = 0; }
+      if (cur.length && w + GAPX + e.w > maxw) { levels.push(cur); cur = []; w = 0; }
       w += (cur.length ? GAPX : 0) + e.w;
       cur.push(e);
     }
@@ -214,7 +215,9 @@ function glyphs(ed) {
 /** SVG of an ER diagram; returns '' when there is nothing to draw. */
 export function erdSvg(model, title = '') {
   if (!model.entities.length) return '';
-  const lay = erdLayout(model);
+  // wide and short or narrow and tall: keep the row width that gives the largest text once fitted to the page
+  const scale = (l) => Math.min(PAGE.w / (l.width + (l.corridors.left.length + l.corridors.right.length) * CORR + 64), PAGE.h / (l.height + 24));
+  const lay = [480, 600, 760, 920, 1080].map((w) => erdLayout(model, w)).reduce((best, l) => (scale(l) > scale(best) + 0.01 ? l : best));
   const parts = [];
   let minX = 0, maxX = lay.width, maxY = lay.height;
   for (const ed of lay.edges) {

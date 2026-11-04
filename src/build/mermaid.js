@@ -54,6 +54,8 @@ export const MERMAID_CFG = {
   sequence: { showSequenceNumbers: true, mirrorActors: false, actorMargin: 22, width: 120, boxMargin: 6, messageFontSize: 14, actorFontSize: 14, noteFontSize: 13, wrap: true, useMaxWidth: true },
   er: { fontSize: 13, layoutDirection: 'TB', useMaxWidth: true },
   state: { fontSize: 14, useMaxWidth: true },
+  // drawn at the page width (688 px): Mermaid's default (1200 px) shrinks the date axis below a readable size
+  gantt: { useWidth: 688, fontSize: 13, sectionFontSize: 13, barHeight: 22, barGap: 6, topPadding: 40, leftPadding: 150, gridLineStartPadding: 30, numberSectionStyles: 4, useMaxWidth: true },
 };
 
 const MERMAID_JS = path.join(TEMPLATES, 'vendor', 'mermaid.min.js');
