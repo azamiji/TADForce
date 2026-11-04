@@ -51,7 +51,7 @@ export const MERMAID_CFG = {
     transitionLabelColor: '#1B2632',
   },
   flowchart: { htmlLabels: false, curve: 'basis', padding: 12, nodeSpacing: 40, rankSpacing: 50, wrappingWidth: 180, useMaxWidth: true },
-  sequence: { showSequenceNumbers: true, mirrorActors: false, actorMargin: 36, width: 150, boxMargin: 8, messageFontSize: 14, actorFontSize: 14, noteFontSize: 13, wrap: true, useMaxWidth: true },
+  sequence: { showSequenceNumbers: true, mirrorActors: false, actorMargin: 22, width: 120, boxMargin: 6, messageFontSize: 14, actorFontSize: 14, noteFontSize: 13, wrap: true, useMaxWidth: true },
   er: { fontSize: 13, layoutDirection: 'TB', useMaxWidth: true },
   state: { fontSize: 14, useMaxWidth: true },
 };

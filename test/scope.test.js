@@ -145,3 +145,10 @@ test('doctor: the launch-build answer', () => {
   assert.equal(buildAnswer({ build: false }), false);
   assert.equal(buildAnswer({ yes: true }), true);
 });
+
+test('doctor: the environment on the cover comes from the org', async () => {
+  const { environmentOf } = await import('../src/commands/doctor.js');
+  assert.equal(environmentOf({ IsSandbox: true, OrganizationType: 'Enterprise Edition' }), 'Sandbox');
+  assert.equal(environmentOf({ IsSandbox: false, OrganizationType: 'Developer Edition' }), 'Developer Edition');
+  assert.equal(environmentOf({ IsSandbox: false, OrganizationType: 'Enterprise Edition' }), 'Production');
+});

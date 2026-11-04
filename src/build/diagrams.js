@@ -5,6 +5,8 @@ import { LEGEND } from './figures.js';
 
 // Mermaid statement separators and entity codes break a diagram: keep labels plain.
 const plain = (s) => String(s ?? '').replace(/[\r\n]+/g, ' ').replace(/;/g, ',').replace(/#/g, 'No ').replace(/[{}]/g, '').replace(/\s+/g, ' ').trim();
+// in a state diagram « : » ends the state or transition: a label never holds one
+const stateLabel = (s) => plain(s).replace(/\s*:\s*/g, ' – ');
 const KIND_ORDER = { actor: 0, component: 1, object: 2, external: 3 };
 const KIND_BOX = { actor: 'actor', component: 'sf', object: 'data', external: 'ext' };
 
@@ -43,7 +45,7 @@ export function sequenceCode(proc, dict) {
     const run = [];
     while (i < parts.length && parts[i].kind === kind) run.push(parts[i++]);
     const [fill] = LEGEND[KIND_BOX[kind]];
-    lines.push(`  box ${rgb(fill)} ${plain(t(dict, 'legend.short.' + KIND_BOX[kind]))}`);
+    lines.push(`  box ${rgb(fill)}`);
     for (const p of run) lines.push(`    ${p.kind === 'actor' ? 'actor' : 'participant'} ${p.alias} as ${plain(p.label || p.ref || p.id) || p.alias}`);
     lines.push('  end');
   }
@@ -84,9 +86,9 @@ export function stateCode(lc) {
   const lines = ['stateDiagram-v2', `  direction ${states.length <= 4 ? 'LR' : 'TB'}`];
   const body = [];
   if (lc.initial != null) body.push(`  [*] --> ${ref(lc.initial)}`);
-  for (const tr of lc.transitions || []) body.push(`  ${ref(tr.from)} --> ${ref(tr.to)}${plain(tr.label) ? ' : ' + plain(tr.label) : ''}`);
+  for (const tr of lc.transitions || []) body.push(`  ${ref(tr.from)} --> ${ref(tr.to)}${stateLabel(tr.label) ? ' : ' + stateLabel(tr.label) : ''}`);
   for (const f of lc.final || []) body.push(`  ${ref(f)} --> [*]`);
-  for (const s of states) lines.push(`  ${s.alias} : ${plain(s.label || s.id) || s.alias}`);
+  for (const s of states) lines.push(`  ${s.alias} : ${stateLabel(s.label || s.id) || s.alias}`);
   lines.push(...body);
   const [fill, stroke, ink] = LEGEND.data;
   lines.push(`  classDef data fill:${fill},stroke:${stroke},color:${ink},stroke-width:1.2px`);

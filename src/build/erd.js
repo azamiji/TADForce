@@ -7,7 +7,7 @@ import { t } from '../util/i18n.js';
 export const ERD_MAX = 8;
 const KEY_FIELDS = 4;
 const MAX_ROWS = 9;
-const MAXW = 860; // a row wider than this wraps: the figure must stay readable on an A4 page
+const MAXW = 600; // a row wider than this wraps: the figure must stay readable on an A4 page
 const FS = 12; // field font size (user units)
 const HFS = 13; // header font size
 const ROW = 19;
@@ -236,7 +236,7 @@ export function erdSvg(model, title = '') {
     parts.push(`<text x="${e.x + e.w / 2}" y="${e.y + 19}" text-anchor="middle" font-size="${HFS}" font-weight="700" fill="${C.ink}">${esc(e.name)}</text>`);
     e.rows.forEach((r, i) => {
       const ry = e.y + HEAD + i * ROW + 14;
-      if (r.key) parts.push(`<text x="${e.x + 8}" y="${ry}" font-size="10.5" font-weight="700" fill="${r.key === 'FK' ? '#2F6FE4' : '#B5530B'}">${r.key}</text>`);
+      if (r.key) parts.push(`<text x="${e.x + 8}" y="${ry}" font-size="${FS}" font-weight="700" fill="${r.key === 'FK' ? '#2F6FE4' : '#B5530B'}">${r.key}</text>`);
       parts.push(`<text x="${e.x + 32}" y="${ry}" font-size="${FS}" fill="${C.ink}">${esc(r.name)}</text>`);
       if (r.type) {
         // the type column gives way to the field name when the box is at its widest

@@ -49,7 +49,8 @@ test('sequences: autonumber, actors as stick figures, async and replies, alt …
   assert.match(code, /-->>/);
   assert.match(code, / {2}alt status: Approved or Rejected[\s\S]* {2}else status: any other value[\s\S]* {2}end/);
   assert.equal((code.match(/^\s*alt /gm) || []).length, 1, 'one alt block with an else branch');
-  assert.match(code, /box rgb\(241,232,255\) Actors/);
+  // coloured boxes carry no title: Mermaid draws it too small; the legend names the colours
+  assert.match(code, /box rgb\(241,232,255\)\n/);
   assert.equal(groupSubject('Score: high'), groupSubject('score : low'));
   assert.notEqual(groupSubject('high score'), groupSubject('low score'));
   const loop = sequenceCode(MODEL.processes.find((x) => x.id === 'customer-sync'), dict).code;
@@ -188,4 +189,10 @@ test('figure QA in a browser: figures measured and photographed (skipped without
     const g = await qualityGate(w.ctx, 'tad', { html: r.html, report: r, figures: qa });
     assert.ok(g.errors.some((e) => e.code === 'figure-unreadable'));
   } finally { await closeBrowser(); w.cleanup(); }
+});
+
+test('state diagrams: a « : » inside a label never breaks the diagram', async () => {
+  const { stateCode } = await import('../src/build/diagrams.js');
+  const { code } = stateCode({ id: 'x', states: [{ id: 'a', label: 'Option : posée' }, { id: 'b', label: 'Réservé' }], initial: 'a', final: ['b'], transitions: [{ from: 'a', to: 'b', label: 'dépôt reçu : réservation confirmée' }] });
+  for (const line of code.split('\n').filter((l) => / : /.test(l))) assert.equal(line.split(' : ').length, 2, line);
 });

@@ -113,12 +113,19 @@ async function framingProposals(project, ctx, args) {
   return proposals(alias);
 }
 
+/** What the org is: a sandbox, a Developer Edition or a scratch org is never « Production ». */
+export function environmentOf(o) {
+  if (o.IsSandbox) return 'Sandbox';
+  if (/developer/i.test(String(o.OrganizationType || ''))) return 'Developer Edition';
+  return 'Production';
+}
+
 /** Org facts that give a recommended answer to the framing questions. */
 async function proposals(alias) {
   const out = {};
   try {
-    const o = ((await soql('SELECT Name, IsSandbox, LanguageLocaleKey FROM Organization', alias)).records || [])[0] || {};
-    out.client = o.Name; out.language = normalizeLang(String(o.LanguageLocaleKey || 'en').split('_')[0]); out.environment = o.IsSandbox ? 'Sandbox' : 'Production';
+    const o = ((await soql('SELECT Name, IsSandbox, LanguageLocaleKey, OrganizationType FROM Organization', alias)).records || [])[0] || {};
+    out.client = o.Name; out.language = normalizeLang(String(o.LanguageLocaleKey || 'en').split('_')[0]); out.environment = environmentOf(o);
   } catch { /* proposals stay empty */ }
   return out;
 }
@@ -601,6 +608,16 @@ export async function run(args) {
     const o = await confirmOrg(project, ctx, args, rl);
     if (!o.ok) return o.stop ? finish(args, await evaluate(project, args), [o.stop], `ask the human, then run '${again('--org <alias>')}' (or --source local)`) : 1;
     ctx = loadWorkspace(project);
+    // the environment on the cover comes from the org (a Developer Edition or a sandbox is never « Production »),
+    // once, unless the human set it (--environment)
+    if (!ctx.cfg.setup.environmentChecked && ctx.cfg.org.alias && !args.environment) {
+      const p = await proposals(ctx.cfg.org.alias);
+      const c2 = ctx.cfg;
+      if (p.environment && c2.document.environment === 'Production') c2.document.environment = p.environment;
+      c2.setup.environmentChecked = true;
+      ctx.save(c2);
+      ctx = loadWorkspace(project);
+    }
 
     // 5. Metadata: org, local or retrieved by the user — and a go before a long retrieve.
     if (!exists(ctx.p('facts', 'facts.json')) || args.refresh) {
