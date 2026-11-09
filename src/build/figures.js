@@ -140,11 +140,11 @@ function chips(svg, x, y, w, items, kind) {
 }
 
 /**
- * Context view: actors on the left, the platform blocks of the org in the middle (applications,
- * user interface, logic, data, integration), connected systems on the right; arrows carry the
- * protocol; the colour legend is drawn under the figure.
+ * What the context view shows, from the facts: actors, the platform blocks of the org (applications,
+ * user interface, logic, data, integration as chips) and the connected systems with their protocol
+ * and direction (out: Salesforce calls it, in: it calls Salesforce, both: SSO).
  */
-export function contextView(facts, glossary, cfg, dict, { model = null, missing = () => false } = {}) {
+export function contextData(facts, glossary, cfg, dict, { model = null, missing = () => false } = {}) {
   const c = facts.counts;
   const has = (p, v) => v && !missing(p);
   const L = (k, vars) => t(dict, 'context.' + k, vars);
@@ -183,22 +183,71 @@ export function contextView(facts, glossary, cfg, dict, { model = null, missing 
     has('integration.connectedApps', c.integration.connectedApps) && L('connectedApps', { n: c.integration.connectedApps }),
     ...(facts.integration.authProviders || []).slice(0, 2).map((a) => L('auth', { name: a.label || a.name }))].filter(Boolean);
   const apps = facts.ui.apps.filter((a) => a.label).slice(0, 4);
-
-  const AX = 10, AW = 170, GX = 250, GW = 410, SX = 800, SW = 170, W = SX + SW + 10;
-  const inner = GW - 36;
-  // measure the centre column first (a dry run of the chip layout)
-  const dry = new Svg(0, 0, '');
   const sections = [
     apps.length && ['apps', null],
     ui.length && ['ui', ui, 'sf'], logic.length && ['logic', logic, 'sf'], data.length && ['data', data, 'data'], integ.length && ['integration', integ, 'sf'],
   ].filter(Boolean);
+  return { actors, systems: shownSystems, apps, sections, title: `${L('salesforce')} — ${cfg.client.short || cfg.client.name}`, L };
+}
+
+// a Mermaid label in double quotes: quotes and angle brackets as entities, lines joined by <br/>
+const mq = (...lines) => '"' + lines.filter(Boolean).map((s) => String(s).replace(/"/g, '#quot;').replace(/</g, '#lt;').replace(/>/g, '#gt;')).join('<br/>') + '"';
+
+/**
+ * Context view as Mermaid code (flowchart, ELK layout): actors on the left, the org in the middle
+ * as one group of sections whose chips run in rows of two, connected systems on the right; arrows
+ * carry the protocol (dashed: the system calls Salesforce; both ends: SSO). Legend classes from CLASSDEFS.
+ */
+export function contextMermaid(facts, glossary, cfg, dict, opts = {}) {
+  const { actors, systems, apps, sections, title, L } = contextData(facts, glossary, cfg, dict, opts);
+  // the widest figure of the document: tighter spacing and a larger font keep its text readable once fitted to A4
+  const out = ['---', 'config:', '  flowchart:', '    nodeSpacing: 20', '    rankSpacing: 30', '    padding: 8', '  themeVariables:', '    fontSize: 17px', '---', 'flowchart LR'];
+  actors.forEach(([name, sub], i) => out.push(`  A${i}[${mq(clip(name, 26), sub && clip(sub, 28))}]:::actor`));
+  // ELK lays a group out in its own direction only when the group declares one. The org: top to bottom,
+  // its sections chained by invisible links (~~~) so that they keep their order; a section: left to
+  // right, two chips a row (the second linked to the first), the rows packed one under the other.
+  out.push(`  subgraph SF[${mq(title)}]`, '    direction TB');
+  const ids = [];
+  for (const [k, items, kind] of sections) {
+    const sid = 'SF_' + k;
+    ids.push(sid);
+    out.push(`    subgraph ${sid}[${mq(L(k))}]`, '      direction LR');
+    const chips = k === 'apps' ? apps.map((a) => [mq(clip(a.label, 24), a.console ? 'Console' : 'Lightning'), 'sf']) : items.map((it) => [mq(clip(it, 30)), kind]);
+    chips.forEach(([label, kd], i) => out.push(`      ${sid}_${i}(${label}):::${kd}`));
+    for (let i = 0; i + 1 < chips.length; i += 2) out.push(`      ${sid}_${i} ~~~ ${sid}_${i + 1}`);
+    out.push('    end');
+  }
+  for (let i = 1; i < ids.length; i++) out.push(`    ${ids[i - 1]} ~~~ ${ids[i]}`);
+  out.push('  end');
+  systems.forEach((s, i) => out.push(`  E${i}[${mq(...wrap(s.name, 22, 2))}]:::ext`));
+  actors.forEach((a, i) => out.push(`  A${i} --> SF`));
+  systems.forEach((s, i) => {
+    const label = s.proto ? `|${mq(clip(s.proto, 22))}|` : '';
+    out.push(s.dir === 'in' ? `  E${i} -.->${label} SF` : s.dir === 'both' ? `  SF <-->${label} E${i}` : `  SF -->${label} E${i}`);
+  });
+  out.push('  style SF fill:#F7F9FC,stroke:#2F6FE4,stroke-width:1.4px,stroke-dasharray:6 4');
+  for (const id of ids) out.push(`  style ${id} fill:#F7F9FC,stroke:#F7F9FC`);
+  return out.join('\n');
+}
+
+/**
+ * Context view: actors on the left, the platform blocks of the org in the middle (applications,
+ * user interface, logic, data, integration), connected systems on the right; arrows carry the
+ * protocol; the colour legend is drawn under the figure.
+ */
+export function contextView(facts, glossary, cfg, dict, opts = {}) {
+  const { actors, systems: shownSystems, apps, sections, title, L } = contextData(facts, glossary, cfg, dict, opts);
+  const AX = 10, AW = 170, GX = 250, GW = 410, SX = 800, SW = 170, W = SX + SW + 10;
+  const inner = GW - 36;
+  // measure the centre column first (a dry run of the chip layout)
+  const dry = new Svg(0, 0, '');
   let ch = 44;
   for (const [k, items, kind] of sections) ch += 24 + (k === 'apps' ? 46 : chips(dry, 0, 0, inner, items, kind)) + 12;
   const rowH = 64;
   const top = 34;
   const H = Math.max(ch + 10, top + Math.max(actors.length, shownSystems.length) * rowH + 20, 300);
   const svg = new Svg(W, H + 56, t(dict, 'context.caption'));
-  svg.group(GX, top - 20, GW, H - top + 14, `${L('salesforce')} — ${cfg.client.short || cfg.client.name}`);
+  svg.group(GX, top - 20, GW, H - top + 14, title);
   let y = top + 24;
   for (const [k, items, kind] of sections) {
     svg.text(GX + 18, y + 12, L(k), { fs: 13 });
@@ -248,10 +297,13 @@ export function layersBlock(facts, dict, { missing = () => false } = {}) {
   return figureHtml(body, L('caption'), 'layers');
 }
 
-/** Role hierarchy as a left-to-right tree (top roles on the left). Deep or very wide trees are cut, with « +n ». */
-export function rolesTree(facts, dict) {
+/**
+ * The role hierarchy, laid out as a left-to-right tree: as deep as possible while keeping at most
+ * ~32 rows and 5 columns; a cut role says how many roles it hides (« +n »). null without roles.
+ */
+export function roleForest(facts) {
   const roles = facts.security.roles || [];
-  if (!roles.length) return '';
+  if (!roles.length) return null;
   const byName = new Map(roles.map((r) => [r.name, { ...r, kids: [] }]));
   const roots = [];
   for (const r of byName.values()) {
@@ -265,7 +317,7 @@ export function rolesTree(facts, dict) {
   let maxDepth = 5;
   const leaves = (n, d) => (d >= maxDepth - 1 || !n.kids.length ? 1 : n.kids.reduce((a, k) => a + leaves(k, d + 1), 0));
   while (maxDepth > 2 && roots.reduce((a, r) => a + leaves(r, 0), 0) > 32) maxDepth--;
-  const NW = 150, NH = 40, GX = 34, RH = 48;
+  const RH = 48; // row height of the SVG tree (node.y); the Mermaid tree only uses the order
   const nodes = [];
   let row = 0;
   const place = (n, d) => {
@@ -279,6 +331,29 @@ export function rolesTree(facts, dict) {
     return node;
   };
   roots.forEach((r) => place(r, 0));
+  return { nodes, rows: row };
+}
+
+/** Role hierarchy as Mermaid code (flowchart LR, ELK layout): top roles on the left, Salesforce colour. */
+export function rolesMermaid(facts) {
+  const forest = roleForest(facts);
+  if (!forest) return '';
+  const id = new Map(forest.nodes.map((node, i) => [node, 'R' + i]));
+  // nodes in reading order (top to bottom), so that ELK keeps the order of the siblings
+  const order = [...forest.nodes].sort((a, b) => a.d - b.d || a.y - b.y);
+  const out = ['flowchart LR'];
+  for (const node of order) out.push(`  ${id.get(node)}(${mq(...wrap((node.n.label || node.n.name) + (node.hidden ? ` (+${node.hidden})` : ''), 24, 2))}):::sf`);
+  for (const node of order) for (const k of node.kids || []) out.push(`  ${id.get(node)} --- ${id.get(k)}`);
+  return out.join('\n');
+}
+
+/** Role hierarchy as a left-to-right tree (top roles on the left). Deep or very wide trees are cut, with « +n ». */
+export function rolesTree(facts, dict) {
+  const forest = roleForest(facts);
+  if (!forest) return '';
+  const { nodes, rows: row } = forest;
+  const NW = 150, NH = 40, GX = 34, RH = 48;
+  // node.y is in RH steps (roleForest)
   const depth = Math.max(...nodes.map((x) => x.d)) + 1;
   const W = depth * NW + (depth - 1) * GX + 20, H = row * RH + 10;
   const svg = new Svg(W, H, t(dict, 'figures.roles'));

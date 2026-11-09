@@ -57,20 +57,28 @@ test('ERD auto-split: an unreadable domain becomes « (1/2) » « (2/2) », then
   const variants = erdVariants(facts, names);
   assert.deepEqual(variants.map((v) => [v.parts.length, v.types]), [[1, true], [2, true], [3, true], [2, false], [3, false]]);
   const problems = [];
-  const html = erdFigure({ facts, dict }, names, 'Billing', problems, '@@ERD-DOMAIN:billing@@', 'ERD-DOMAIN:billing');
-  const caps = [...html.matchAll(/<figcaption class="figcap">Figure — ([^<]*)<\/figcaption>/g)].map((m) => m[1]);
+  // default engine: Mermaid erDiagram figures, tagged with their directive and their kind
+  const code = erdFigure({ facts, dict }, names, 'Billing', problems, '@@ERD-DOMAIN:billing@@', 'ERD-DOMAIN:billing');
+  const caps = [...code.matchAll(/^Figure: (.*)$/gm)].map((m) => m[1]);
   assert.ok(caps.length >= 2, `split: ${caps.join(' | ')}`);
   assert.deepEqual(caps, caps.map((c, i) => `Billing (${i + 1}/${caps.length})`));
-  assert.equal((html.match(/data-src="ERD-DOMAIN:billing"/g) || []).length, caps.length);
+  assert.equal((code.match(/^```mermaid\nerDiagram\n/gm) || []).length, caps.length);
+  assert.equal((code.match(/^%% tad-src=ERD-DOMAIN:billing$/gm) || []).length, caps.length);
+  assert.equal((code.match(/^%% tad-kind=erd$/gm) || []).length, caps.length);
+  // legacy engine (diagrams.engine: legacy): the same split, drawn as hand-made SVG
+  const legacy = erdFigure({ facts, dict, cfg: { diagrams: { engine: 'legacy' } } }, names, 'Billing', [], 'x', 'ERD-DOMAIN:billing');
+  const lcaps = [...legacy.matchAll(/<figcaption class="figcap">Figure — ([^<]*)<\/figcaption>/g)].map((m) => m[1]);
+  assert.deepEqual(lcaps, caps);
+  assert.equal((legacy.match(/data-src="ERD-DOMAIN:billing"/g) || []).length, caps.length);
   // the simplified variant (asked by the visual QA) goes one step further
   const again = erdFigure({ facts, dict, simplify: new Set(['ERD-DOMAIN:billing']) }, names, 'Billing', [], 'x', 'ERD-DOMAIN:billing');
-  assert.ok((again.match(/<figure/g) || []).length >= caps.length);
+  assert.ok((again.match(/^Figure: /gm) || []).length >= caps.length);
   // the example's domains read well: drawn whole
   const w = makeWorkspace();
   try {
     for (const d of MODEL.domains) {
       const one = erdFigure({ facts: w.facts, dict }, d.objects, d.name, [], 'x', `ERD-DOMAIN:${d.id}`);
-      assert.equal((one.match(/<figure/g) || []).length, 1, d.id);
+      assert.equal((one.match(/^Figure: /gm) || []).length, 1, d.id);
     }
   } finally { w.cleanup(); }
 });

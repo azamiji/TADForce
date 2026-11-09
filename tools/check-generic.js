@@ -41,7 +41,7 @@ function scanText(text, where) {
 }
 
 // Third-party bundles shipped unmodified (minified identifiers are not references): names checked, content skipped.
-const VENDOR = /^templates\/vendor\/[^/]+\.js$/;
+const VENDOR = /^templates\/vendor\/(?:[^/]+\.js|mermaid-layout-elk\/.+\.mjs)$/;
 
 for (const f of files) {
   scanText(f, `(path) ${f}`);

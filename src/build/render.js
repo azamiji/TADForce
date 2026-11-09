@@ -31,13 +31,17 @@ export function preprocess(md) {
   const figures = [];
   md = md.replace(/```mermaid\r?\n([\s\S]*?)```[ \t]*\r?\n(?:Figure:[ \t]*([^\n]*)\n)?/g, (m, code, caption) => {
     code = code.replace(/\s+$/, '');
-    // the directive that generated it (« %% tad-src=SEQ:x », see directives.js): the visual QA can ask for its simplified variant
-    let src = null;
-    code = code.replace(/\n?%% tad-src=(\S+)[ \t]*$/, (x, s) => { src = s; return ''; });
-    const first = code.trimStart().split('\n', 1)[0];
+    // the directive that generated it (« %% tad-src=SEQ:x », see directives.js): the visual QA can ask for its simplified variant;
+    // the kind of figure (« %% tad-kind=erd »): its data-kind, the same whichever engine drew it
+    let src = null, kind = null;
+    code = code.replace(/\n?%% tad-(src|kind)=(\S+)[ \t]*(?=\n|$)/g, (x, k, v) => { if (k === 'src') src = v; else kind = v; return ''; }).replace(/\s+$/, '');
+    // the diagram type: the first line after the frontmatter (« ---\nconfig: …\n--- »), if any
+    const first = code.trimStart().replace(/^---\r?\n[\s\S]*?\r?\n---[ \t]*\r?\n/, '').trimStart().split('\n', 1)[0];
     // the colour legend classes, in every diagram that supports classDef (unless the author redefined them)
-    if (/^(flowchart|graph|stateDiagram)/.test(first)) code += '\n' + CLASSDEFS.split('\n').filter((l) => l.trim() && !new RegExp('classDef\\s+' + l.split(/\s+/)[1] + '\\b').test(code)).join('\n');
-    figures.push({ code, caption: (caption || '').trim(), src });
+    // (erDiagram's lexer takes no hyphenated property: its classes go without stroke-width)
+    const defs = /^erDiagram/.test(first) ? CLASSDEFS.replace(/,stroke-width:[^,\n]*/g, '') : CLASSDEFS;
+    if (/^(flowchart|graph|stateDiagram|erDiagram)/.test(first)) code += '\n' + defs.split('\n').filter((l) => l.trim() && !new RegExp('classDef\\s+' + l.split(/\s+/)[1] + '\\b').test(code)).join('\n');
+    figures.push({ code, caption: (caption || '').trim(), src, kind: kind || (first.split(/\s/, 1)[0] || '').toLowerCase() });
     return `\n\n@@FIG${figures.length - 1}@@\n\n`;
   });
   const out = [], counters = [0, 0, 0], headings = [], used = new Set();
@@ -211,7 +215,7 @@ export async function buildDocument(wsCtx, doc, opts = {}) {
       const f = figures[Number(idx)];
       figlist.push([nfig, f.caption]);
       const c = f.caption ? `${label} ${nfig} — ${escapeHtml(f.caption)}` : `${label} ${nfig}`;
-      return `<figure class="diagram mmd" id="fig-${nfig}" data-kind="${escapeHtml((f.code.trim().split(/\s/, 1)[0] || '').toLowerCase())}"${f.src ? ` data-src="${escapeHtml(f.src)}"` : ''}><div class="fig-body">${f.svg}</div><figcaption>${c}</figcaption></figure>`;
+      return `<figure class="diagram mmd" id="fig-${nfig}" data-kind="${escapeHtml(f.kind)}"${f.src ? ` data-src="${escapeHtml(f.src)}"` : ''}><div class="fig-body">${f.svg}</div><figcaption>${c}</figcaption></figure>`;
     }
     figlist.push([nfig, cap.replace(/<[^>]+>/g, '')]);
     return `<p class="figcap" id="fig-${nfig}">${label} ${nfig} — ${cap}</p>`;
