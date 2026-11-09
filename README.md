@@ -197,6 +197,7 @@ The TADForce CLI sends nothing anywhere: no telemetry, no server, no account. It
 
 - **Facts are code, not prose.** `facts.json` is extracted deterministically (sorted, stable) — tested byte for byte.
 - **Numbers are placeholders.** Writers type `{{n:apex.classes}}`, never `132`. Tables, ERDs, role trees, KPIs and appendices are generated.
+- **One figure engine.** Every diagram — context view, ERDs, role tree, sequences, state diagrams, flowcharts — is Mermaid with one theme and the ELK layout, bundled and rendered offline: the figures of a document look like one family.
 - **Specs, not prompts.** 84 section specifications (`intent · facts · must · never`) drive every agent the same way.
 - **A gate, not a hope.** `npx tadforce validate` fails on unwritten sections, unknown placeholders, identifiers that do not exist in the org, excluded or decommissioned components, forbidden terms, broken anchors, Mermaid errors and secrets. Every sentence is checked against the org (a feature it does not have, a frequency no scheduled job proves, the wrong environment, risk wording in the client document), every figure is photographed and simplified when it would be unreadable; a document that does not pass is marked **DRAFT**, never « For review ».
 - **Ground truth, not guesses.** A product counts only with strong evidence; Salesforce's own samples and defaults are set aside; every writer gets a brief of what the org really has and does not have.
@@ -217,7 +218,7 @@ The TADForce CLI sends nothing anywhere: no telemetry, no server, no account. It
 
 ## 🧱 Built on
 
-[Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli) · [Agent Skills](https://agentskills.io) · [Salesforce skills (`forcedotcom/sf-skills`)](https://github.com/forcedotcom/sf-skills) · [Mermaid](https://mermaid.js.org) · [Puppeteer](https://pptr.dev) · [markdown-it](https://github.com/markdown-it/markdown-it) · [html2canvas](https://html2canvas.hertzen.com) · [html-docx-js](https://github.com/evidenceprime/html-docx-js)
+[Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli) · [Agent Skills](https://agentskills.io) · [Salesforce skills (`forcedotcom/sf-skills`)](https://github.com/forcedotcom/sf-skills) · [Mermaid](https://mermaid.js.org) · [ELK](https://eclipse.dev/elk/) · [Puppeteer](https://pptr.dev) · [markdown-it](https://github.com/markdown-it/markdown-it) · [html2canvas](https://html2canvas.hertzen.com) · [html-docx-js](https://github.com/evidenceprime/html-docx-js)
 
 ## 🗺️ Roadmap
 

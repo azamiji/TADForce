@@ -2,9 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { buildDocument, markDraftHtml } from '../src/build/render.js';
+import { buildDocument, markDraftHtml, preprocess } from '../src/build/render.js';
 import { resolveValues, resolveDirectives } from '../src/build/directives.js';
-import { erdModel, erdSvg, erdLayout } from '../src/build/erd.js';
+import { erdModel, erdSvg, erdLayout, erdMermaid } from '../src/build/erd.js';
+import { contextMermaid, rolesMermaid } from '../src/build/figures.js';
 import { sequenceCode, stateCode, groupSubject } from '../src/build/diagrams.js';
 import { findBrowser, closeBrowser } from '../src/build/browser.js';
 import { figureQA } from '../src/build/figqa.js';
@@ -36,6 +37,76 @@ test('ERD: key fields with UK / FK, one lane per relationship (labels never shar
     const svg = erdSvg(m, 'x');
     assert.match(svg, /^<svg[^>]+viewBox/);
     assert.match(svg, /class="er-label"[^>]*>Customer__c</);
+  } finally { w.cleanup(); }
+});
+
+test('ERD as Mermaid: FK / UK rows, master-detail solid, lookups dashed, crow\'s feet, legend class', () => {
+  const w = makeWorkspace();
+  try {
+    const code = erdMermaid(erdModel(w.facts, ['LoanApplication__c', 'LoanDocument__c', 'Account', 'Branch__c'], dict));
+    assert.match(code, /^erDiagram\n {2}direction TB\n/);
+    assert.match(code, /^ {4}Lookup Customer__c FK "→ Account"$/m);
+    assert.match(code, /^ {4}MasterDetail LoanApplication__c FK "→ LoanApplication__c"$/m);
+    assert.match(code, /^ {4}ExternalId CoreBankingId__c UK$/m);
+    // parent ||--o{ child (master-detail, identifying: solid); parent |o..o{ child (optional lookup: dashed)
+    assert.match(code, /^ {2}LoanApplication__c \|\|--o\{ LoanDocument__c : "LoanApplication__c"$/m);
+    assert.match(code, /^ {2}Account \|o\.\.o\{ LoanApplication__c : "Customer__c"$/m);
+    assert.match(code, /^ {2}class LoanApplication__c,LoanDocument__c,Account,Branch__c data$/m);
+    // the simplified variant (no type column) keeps the master-detail
+    assert.match(erdMermaid(erdModel(w.facts, ['LoanApplication__c', 'LoanDocument__c'], dict, { types: false })), /MasterDetail LoanApplication__c FK/);
+    assert.equal(erdMermaid({ entities: [], edges: [] }), '');
+  } finally { w.cleanup(); }
+});
+
+test('context view and role tree as Mermaid: legend classes, sections in order, protocols on the arrows', () => {
+  const w = makeWorkspace();
+  try {
+    const code = contextMermaid(w.facts, {}, w.ctx.cfg, dict, { model: MODEL });
+    assert.match(code, /^---\nconfig:\n[\s\S]*?\n---\nflowchart LR\n/);
+    assert.match(code, /^ {2}A0\["[^"]+"\]:::actor$/m);
+    assert.match(code, /^ {2}subgraph SF\["Salesforce organization — [^"]+"\]\n {4}direction TB$/m);
+    // sections keep their order (chained), chips run two a row
+    const order = [...code.matchAll(/^ {4}subgraph (SF_\w+)/gm)].map((m) => m[1]);
+    assert.ok(order.length >= 3);
+    for (let i = 1; i < order.length; i++) assert.match(code, new RegExp(`^ {4}${order[i - 1]} ~~~ ${order[i]}$`, 'm'));
+    assert.match(code, /^ {6}SF_\w+_0 ~~~ SF_\w+_1$/m);
+    assert.match(code, /^ {2}E\d+\["[^"]+"\]:::ext$/m);
+    assert.match(code, /^ {2}SF -->\|"[^"]+"\| E\d+$/m);
+    assert.doesNotMatch(code, /"[^"\n]*<[^b/][^"\n]*"/, 'no raw angle bracket in a label');
+    const roles = rolesMermaid(w.facts);
+    if (w.facts.security.roles.length) {
+      assert.match(roles, /^flowchart LR\n/);
+      assert.equal((roles.match(/:::sf$/gm) || []).length, (roles.match(/^ {2}R\d+\(/gm) || []).length);
+      assert.ok((roles.match(/ --- /g) || []).length >= 1);
+    }
+    assert.equal(rolesMermaid({ security: { roles: [] } }), '');
+  } finally { w.cleanup(); }
+});
+
+test('Mermaid figures: frontmatter skipped to find the type, tad-kind kept, ER classes without stroke-width', () => {
+  const md = '```mermaid\n---\nconfig:\n  flowchart:\n    padding: 8\n---\nflowchart LR\n  A:::actor --> B\n%% tad-kind=context\n```\nFigure: Ctx\n\n```mermaid\nerDiagram\n  A {\n    Id Id PK\n  }\n%% tad-src=ERD:A\n%% tad-kind=erd\n```\nFigure: Er\n';
+  const { figures } = preprocess(md);
+  assert.equal(figures[0].kind, 'context');
+  assert.match(figures[0].code, /classDef actor fill:[^\n]*stroke-width/);
+  assert.doesNotMatch(figures[0].code, /tad-kind/);
+  assert.equal(figures[1].kind, 'erd');
+  assert.equal(figures[1].src, 'ERD:A');
+  assert.match(figures[1].code, /classDef data fill:/);
+  assert.doesNotMatch(figures[1].code, /stroke-width/, 'erDiagram rejects hyphenated properties');
+  assert.equal(preprocess('```mermaid\nsequenceDiagram\n  A->>B: x\n```\n').figures[0].kind, 'sequencediagram');
+});
+
+test('diagrams.engine: legacy keeps the hand-drawn SVG figures', () => {
+  const w = makeWorkspace();
+  try {
+    const base = { facts: w.facts, dict, lang: 'en', glossary: {}, doc: 'tad', model: MODEL };
+    const legacy = resolveDirectives('@@CONTEXT@@\n@@ERD-DOMAIN:loans@@', { ...base, cfg: { ...w.ctx.cfg, diagrams: { engine: 'legacy' } } }, []);
+    assert.match(legacy, /<figure class="diagram hand" data-kind="context">/);
+    assert.match(legacy, /<figure class="diagram hand" data-kind="erd" data-src="ERD-DOMAIN:loans">/);
+    assert.doesNotMatch(legacy, /```mermaid/);
+    const modern = resolveDirectives('@@CONTEXT@@\n@@ERD-DOMAIN:loans@@', { ...base, cfg: w.ctx.cfg }, []);
+    assert.equal((modern.match(/```mermaid\n/g) || []).length, 2);
+    assert.match(modern, /<div class="legend">/, 'the colour legend follows the context view');
   } finally { w.cleanup(); }
 });
 
@@ -74,7 +145,7 @@ test('model directives: ERD-DOMAIN, SEQ, STATE with captions; unknown ids are er
     const ctx = { facts: w.facts, cfg: w.ctx.cfg, dict, lang: 'en', glossary: {}, doc: 'tad', model: MODEL };
     const problems = [];
     const out = resolveDirectives('@@ERD-DOMAIN:loans|Loans@@\n@@SEQ:lead-intake@@\n@@STATE:loan-status|Loan statuses@@\n@@SEQ:nope@@\n@@ERD:auto@@', ctx, problems);
-    assert.match(out, /<figure class="diagram hand" data-kind="erd" data-src="ERD-DOMAIN:loans">[\s\S]*Figure — Loans<\/figcaption>/);
+    assert.match(out, /```mermaid\nerDiagram\n[\s\S]*?\n%% tad-src=ERD-DOMAIN:loans\n%% tad-kind=erd\n```\nFigure: Loans\n/);
     assert.match(out, /```mermaid\nsequenceDiagram[\s\S]*Figure: Sequence — Creation of a lead/);
     assert.match(out, /Figure: Loan statuses/);
     assert.deepEqual(problems.map((p) => p.code), ['unknown-model-id']);
@@ -98,7 +169,9 @@ test('the example model is used by a build: generated figures are numbered with 
     fs.writeFileSync(path.join(w.ws, 'src', 'tad', '50-extra.md'), '# Extra {#extra}\n\n@@ERD-DOMAIN:customers@@\n\n@@CONTEXT@@\n');
     const r = await buildDocument(w.ctx, 'tad', { render: false });
     const html = fs.readFileSync(r.html, 'utf8');
-    assert.match(html, /<figure class="diagram hand" id="fig-\d+" data-kind="erd" data-src="ERD-DOMAIN:customers">[\s\S]*?<figcaption>Figure \d+ — Data model — Customers, branches and leads<\/figcaption><\/figure>/);
+    // the figure keeps its kind (data-kind="erd", not the Mermaid diagram type) for the stylesheet and the QA
+    assert.match(html, /<figure class="diagram mmd" id="fig-\d+" data-kind="erd" data-src="ERD-DOMAIN:customers">[\s\S]*?<figcaption>Figure \d+ — Data model — Customers, branches and leads<\/figcaption><\/figure>/);
+    assert.match(html, /<figure class="diagram mmd" id="fig-\d+" data-kind="context">/);
     assert.match(html, /<li><a href="#fig-\d+">Figure \d+ — Context view/);
   } finally { w.cleanup(); }
 });

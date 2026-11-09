@@ -91,6 +91,8 @@ export function defaultConfig(overrides = {}) {
     setup: {},
     manifest: { mode: 'curated', includePackages: false },
     outputs: { dir: 'out', pdf: true, docx: true },
+    // mermaid: every figure drawn by Mermaid with the ELK layout; legacy: the hand-drawn SVG ERDs, context view and role tree
+    diagrams: { engine: 'mermaid' },
     review: { tad: { commentsFrom: [], resolutions: {}, dropImages: [] }, axes: { commentsFrom: [], resolutions: {}, dropImages: [] } },
   };
   return deepMerge(cfg, overrides);

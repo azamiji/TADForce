@@ -2,8 +2,8 @@
 import path from 'node:path';
 import { t, formatNumber, formatDate } from '../util/i18n.js';
 import { exists, readText } from '../util/fsx.js';
-import { contextView, layersBlock, rolesTree, legendHtml, figureHtml, esc } from './figures.js';
-import { erdModel, erdSvg, erdTextPx, erdClusters, ERD_MAX } from './erd.js';
+import { contextView, contextMermaid, layersBlock, rolesTree, rolesMermaid, legendHtml, figureHtml, esc } from './figures.js';
+import { erdModel, erdSvg, erdMermaid, erdTextPx, erdClusters, ERD_MAX } from './erd.js';
 import { QA } from './figqa.js';
 import { sequenceCode, stateCode } from './diagrams.js';
 
@@ -311,10 +311,17 @@ export function erdFigure(ctx, names, caption, problems, where, src = null) {
   const n = chosen.models.length;
   return chosen.models.map((m, i) => {
     const c = n > 1 ? `${cap} (${i + 1}/${n})` : cap;
+    if (!legacyDiagrams(ctx)) { const code = erdMermaid(m); return code ? mermaidFigure(code, c, src, 'erd') : ''; }
     const svg = erdSvg(m, c);
     return svg ? figureHtml(svg, c, 'erd', src) : '';
   }).join('\n');
 }
+
+/**
+ * diagrams.engine in tadforce.config.json: « mermaid » (default) draws every figure with Mermaid and
+ * the ELK layout; « legacy » keeps the hand-drawn SVG of the ERDs, the context view and the role tree.
+ */
+export const legacyDiagrams = (ctx) => !!(ctx && ctx.cfg && ctx.cfg.diagrams && ctx.cfg.diagrams.engine === 'legacy');
 
 function integrationsFigure(facts, cfg, dict, caption) {
   const lines = ['flowchart LR', `  SF["${(t(dict, 'context.salesforce') + ' — ' + (cfg.client.short || cfg.client.name)).replace(/"/g, "'")}"]:::sf`];
@@ -365,8 +372,9 @@ function modelItem(ctx, list, id, directive, problems) {
   return item || null;
 }
 
-// `src` (the directive) rides in a Mermaid comment: the build reads it back to tag the figure for the visual QA
-const mermaidFigure = (code, caption, src = null) => '```mermaid\n' + code + (src ? `\n%% tad-src=${src}` : '') + '\n```\nFigure: ' + String(caption).replace(/\n/g, ' ') + '\n';
+// `src` (the directive) and `kind` (erd, context, roles: the figure's data-kind) ride in Mermaid comments:
+// the build reads them back to tag the figure for the visual QA and the stylesheet
+const mermaidFigure = (code, caption, src = null, kind = null) => '```mermaid\n' + code + (src ? `\n%% tad-src=${src}` : '') + (kind ? `\n%% tad-kind=${kind}` : '') + '\n```\nFigure: ' + String(caption).replace(/\n/g, ' ') + '\n';
 
 /** Table under a simplified sequence: the full names behind its shortened lanes. */
 function laneNotes(notes, dict) {
@@ -383,8 +391,18 @@ function laneNotes(notes, dict) {
 export function resolveDirectives(text, ctx, problems) {
   const A = annexes(ctx);
   const missing = (p) => countMissing(ctx.facts, p);
-  const context = (caption) => figureHtml(contextView(ctx.facts, ctx.glossary, ctx.cfg, ctx.dict, { model: ctx.model, missing }), caption || t(ctx.dict, 'context.caption'), 'context');
-  const roles = (caption) => { const s = rolesTree(ctx.facts, ctx.dict); return s ? figureHtml(s, caption || t(ctx.dict, 'figures.roles'), 'roles') : ''; };
+  const legacy = legacyDiagrams(ctx);
+  const context = (caption) => {
+    const cap = caption || t(ctx.dict, 'context.caption');
+    if (!legacy) return mermaidFigure(contextMermaid(ctx.facts, ctx.glossary, ctx.cfg, ctx.dict, { model: ctx.model, missing }), cap, null, 'context') + '\n' + legendHtml(ctx.dict) + '\n';
+    return figureHtml(contextView(ctx.facts, ctx.glossary, ctx.cfg, ctx.dict, { model: ctx.model, missing }), cap, 'context');
+  };
+  const roles = (caption) => {
+    const cap = caption || t(ctx.dict, 'figures.roles');
+    if (!legacy) { const code = rolesMermaid(ctx.facts); return code ? mermaidFigure(code, cap, null, 'roles') : ''; }
+    const s = rolesTree(ctx.facts, ctx.dict);
+    return s ? figureHtml(s, cap, 'roles') : '';
+  };
   return text.replace(/^@@([A-Z][A-Z-]*)(?::([^@|]*))?(?:\|([^@]*))?@@[ \t]*$/gm, (m, kind, arg = '', caption = '') => {
     arg = arg.trim(); caption = caption.trim();
     if (kind === 'ANNEX') {

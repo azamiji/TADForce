@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **One figure engine.** The ERDs, the context view and the role tree are now drawn by Mermaid, like the sequences, state diagrams and flowcharts: one theme, one colour legend, one layout engine (ELK, bundled as `templates/vendor/mermaid-layout-elk/`, loaded from disk — nothing is fetched). ERDs keep their object choice, FK / UK rows, crow's feet, solid master-details and dashed lookups, and the automatic split; the context view keeps its sections in order, two chips a row, with the legend under it. `"diagrams": { "engine": "legacy" }` brings back the hand-drawn SVG.
+- Mermaid 11.4.1 → 11.17.2 (ELK needs it for ER diagrams).
+- Fixed: two Mermaid figures of one document could share an SVG id (ids were counted per render batch, and cached figures came from other batches), so the CSS of one leaked into the other. Ids now come from the figure's hash.
+- Fixed: a Mermaid figure starting with a frontmatter (`---\nconfig: …\n---`) lost the legend classes.
+
 ## 0.6.0 — 2026-11-05
 
 What the first full run on a real org taught: TADForce now knows what the org really has, tells the writers, and checks every sentence against it. 0.5 users: update — the understanding parts are redone once (new fingerprints), then stay stable across TADForce versions.

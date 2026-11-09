@@ -45,7 +45,7 @@ export function erdModel(facts, names, dict = {}, { types = true } = {}) {
     const rels = [...o.relations].sort((a, b) => Number(b.to.some((x) => set.has(x))) - Number(a.to.some((x) => set.has(x))) || a.field.localeCompare(b.field));
     for (const r of rels) {
       const md = r.type === 'MasterDetail';
-      push({ key: 'FK', name: r.field, type: `${md ? L('md', 'M-D') + ' ' : ''}→ ${r.to.length > 1 ? r.to.slice(0, 2).join(' | ') : r.to[0]}` });
+      push({ key: 'FK', md, name: r.field, type: `${md ? L('md', 'M-D') + ' ' : ''}→ ${r.to.length > 1 ? r.to.slice(0, 2).join(' | ') : r.to[0]}` });
       for (const to of r.to) {
         if (!set.has(to) || to === nm) continue;
         const f = fields.get(r.field);
@@ -291,6 +291,41 @@ export function erdClusters(facts, names, k) {
   }
   const parts = groups.map((g) => [...(hub ? [hub] : []), ...g.sort((a, b) => order.get(a) - order.get(b))]);
   return { hub, parts };
+}
+
+// Mermaid erDiagram tokens: an entity or attribute name, an attribute type (letters, digits, _ - [ ] ( ))
+const merName = (s) => String(s).replace(/[^\p{L}\p{N}_-]/gu, '_').replace(/^(?=[\d-])/, '_');
+const merType = (s) => String(s || '').replace(/[^A-Za-z0-9_\-[\]()]/g, '') || 'field';
+const merText = (s) => String(s).replace(/"/g, "'");
+
+/**
+ * The same ER diagram as Mermaid erDiagram code: entities with their FK / UK rows (the type column
+ * says Lookup or MasterDetail, the comment names the parent), relationships with crow's feet —
+ * master-detail solid (identifying), lookup dashed — and the field name as label. Drawn with the
+ * shared Mermaid theme and the ELK layout: parents above children, labels placed without overlap.
+ */
+export function erdMermaid(model) {
+  if (!model.entities.length) return '';
+  const lines = ['erDiagram', '  direction TB'];
+  for (const e of model.entities) {
+    const id = merName(e.name);
+    const rows = e.rows.map((r) => {
+      if (r.key === 'FK') return `    ${r.md ? 'MasterDetail' : 'Lookup'} ${merName(r.name)} FK "${merText(r.type.replace(/^.*?→\s*/, '→ '))}"`;
+      if (r.key === 'UK') return `    ${merType(r.type === 'External ID' || !r.type ? 'ExternalId' : r.type)} ${merName(r.name)} UK`;
+      return `    ${merType(r.type)} ${merName(r.name)}`;
+    });
+    if (e.more) rows.push(`    more fields "+ ${e.more}"`);
+    if (!rows.length) rows.push('    Id Id PK');
+    lines.push(`  ${id}${id !== e.name ? `["${merText(e.name)}"]` : ''} {`, ...rows, '  }');
+  }
+  for (const ed of model.edges) {
+    if (ed.parent === ed.child) continue;
+    // parent side: exactly one (required) or zero or one; child side: zero or many
+    const card = ed.md ? '||--o{' : ed.required ? '||..o{' : '|o..o{';
+    lines.push(`  ${merName(ed.parent)} ${card} ${merName(ed.child)} : "${merText(ed.field)}"`);
+  }
+  lines.push(`  class ${model.entities.map((e) => merName(e.name)).join(',')} data`);
+  return lines.join('\n');
 }
 
 /** SVG of an ER diagram; returns '' when there is nothing to draw. */

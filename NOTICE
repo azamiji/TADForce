@@ -2,7 +2,9 @@ TADForce
 Copyright 2026 Jihad AZAMI HASSANI
 
 This product includes software developed by third parties, shipped unmodified in templates/vendor/:
-- Mermaid 11.4.1 (MIT License) — https://mermaid.js.org
+- Mermaid 11.17.2 (MIT License) — https://mermaid.js.org
+- @mermaid-js/layout-elk 0.2.3 (MIT License), in templates/vendor/mermaid-layout-elk/ — https://github.com/mermaid-js/mermaid
+  It bundles elkjs 0.9.3 (Eclipse Public License 2.0) — https://github.com/kieler/elkjs
 - html2canvas 1.4.1 (MIT License) — https://html2canvas.hertzen.com
 - html-docx-js 0.3.1 (MIT License) — https://github.com/evidenceprime/html-docx-js
 Their license texts are in templates/vendor/LICENSE-*.txt.

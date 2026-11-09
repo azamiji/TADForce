@@ -12,7 +12,11 @@ A figure is worth its place only when it shows a relationship, a branch, an orde
 | Green | Data: objects, metadata, reference data | `:::data` |
 | Pink | Warning (rare) | `:::warn` |
 
-These colours are fixed (the client's brand colours are for headings and the cover). The classes are added to every flowchart and state diagram automatically. `@@LEGEND@@` prints the legend chips; the context view draws them under the figure.
+These colours are fixed (the client's brand colours are for headings and the cover). The classes are added to every flowchart, state diagram and ER diagram automatically. `@@LEGEND@@` prints the legend chips; the context view prints them under the figure.
+
+## One engine for every figure
+
+Every diagram — generated or hand-written — is drawn by Mermaid (bundled, never fetched) with one theme and one layout engine, **ELK** (layered, right-angled edges, labels placed without overlap). Sequence diagrams and Gantt charts keep Mermaid's own layout. Only `@@LAYERS@@` is an HTML block (a table of chips, not a graph). `"diagrams": { "engine": "legacy" }` in `tadforce.config.json` brings back the 0.6 hand-drawn SVG of the ERDs, the context view and the role tree.
 
 ## Generated figures (do not draw them by hand)
 
@@ -32,8 +36,8 @@ These colours are fixed (the client's brand colours are for headings and the cov
 
 ### ER diagrams
 
-- Entities are drawn by TADForce (not Mermaid) so that labels never overlap: parents above children, every relationship in its own horizontal lane, edges that skip a row in side corridors, rows wider than the page wrapped.
-- Each box lists the key fields: **FK** lookups and master-details (with the target object), **UK** external IDs and unique fields, then up to 4 key fields (status, type, amount, score, code…).
+- Drawn as a Mermaid `erDiagram` with the ELK layout: parents above children, each relationship routed on its own, labels never overlapping.
+- Each box lists the key fields: **FK** lookups and master-details (type column `Lookup` / `MasterDetail`, the target object as comment), **UK** external IDs and unique fields, then up to 4 key fields (status, type, amount, score, code…) with their Salesforce type when the facts know it.
 - Relationships are labelled with the lookup field; crow's foot on the child (« many »), bars on the parent: two bars = mandatory (master-detail, required lookup), bar and circle = optional. Master-details are solid lines, lookups dashed.
 - One diagram per domain. A global ERD of 12+ objects is never readable: split it.
 - **Automatic split.** When a domain ERD (or an `@@ERD@@` list) would have text under the readable size on A4 (8.5 px once fitted to the page) at every candidate width, the build splits it by itself, deterministically:
